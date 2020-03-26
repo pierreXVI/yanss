@@ -1,16 +1,21 @@
 #include "spatial.h"
 #include "physics.h"
 
+#include <petsc/private/dmlabelimpl.h>
+#include <petsc/private/isimpl.h>
+
+
 static char mesh_filename[] = "/home/pierre/c/yanss/data/box.msh";  // TODO
 static PetscInt overlap = 1;  // TODO: if 0, the balance seems better but the result diverge
 static PetscInt buffer_size = 32;  // TODO
 
 PetscErrorCode SetMesh(MPI_Comm comm, DM *mesh, PetscFV *fvm, Physics phys){
   PetscErrorCode ierr;
-  PetscInt       dim, dof, i, j;
-  DM             foo_dm;
+  PetscInt       dim, dof, i, j, numGhostCells;
+  PetscBool      flag1, flag2;
+  char           buffer[buffer_size], opt[] = "draw";
   PetscDS        system;
-  char           buffer[buffer_size];
+  DM             foo_dm;
 
   PetscFunctionBeginUser;
   ierr = DMPlexCreateFromFile(comm, mesh_filename, PETSC_TRUE, mesh); CHKERRQ(ierr);
@@ -21,12 +26,11 @@ PetscErrorCode SetMesh(MPI_Comm comm, DM *mesh, PetscFV *fvm, Physics phys){
     ierr = DMDestroy(mesh);                                           CHKERRQ(ierr);
     *mesh = foo_dm;
   }
-  ierr = DMSetFromOptions(*mesh);                                     CHKERRQ(ierr);
   ierr = DMViewFromOptions(*mesh, NULL, "-dm_view_para");             CHKERRQ(ierr);
+  ierr = DMSetFromOptions(*mesh);                                     CHKERRQ(ierr);
   ierr = DMPlexConstructGhostCells(*mesh, NULL, NULL, &foo_dm);       CHKERRQ(ierr);
   ierr = DMDestroy(mesh);                                             CHKERRQ(ierr);
   *mesh = foo_dm;
-  ierr = DMViewFromOptions(*mesh, NULL, "-dm_view");                  CHKERRQ(ierr);
   ierr = DMGetDimension(*mesh, &dim);                                 CHKERRQ(ierr);
 
   ierr = PetscFVCreate(PETSC_COMM_WORLD, fvm);                                          CHKERRQ(ierr);
@@ -54,6 +58,16 @@ PetscErrorCode SetMesh(MPI_Comm comm, DM *mesh, PetscFV *fvm, Physics phys){
   ierr = SetBC(system, phys);                               CHKERRQ(ierr);
   ierr = PetscDSSetFromOptions(system);                     CHKERRQ(ierr);
 
+  ierr = PetscOptionsGetString(NULL, NULL, "-dm_view", opt, sizeof(opt), &flag1); CHKERRQ(ierr);
+  ierr = PetscStrcmp(opt, "draw", &flag2);                                        CHKERRQ(ierr);
+  if (flag1 && flag2) {
+    ierr = HideGhostCells(*mesh, &numGhostCells);                                 CHKERRQ(ierr);
+  }
+  ierr = DMViewFromOptions(*mesh, NULL, "-dm_view");                              CHKERRQ(ierr);
+  if (flag1 && flag2) {
+    ierr = RestoreGhostCells(*mesh, numGhostCells);                               CHKERRQ(ierr);
+  }
+
   PetscFunctionReturn(0);
 }
 
@@ -66,5 +80,34 @@ PetscErrorCode GetInitialCondition(DM dm, Vec x, Physics phys){
   func[0] = InitialCondition;
   ctx[0]  = (void *) phys;
   ierr    = DMProjectFunction(dm, 0.0, func, ctx, INSERT_ALL_VALUES, x); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode HideGhostCells(DM dm, PetscInt *numGhostCells){
+  PetscErrorCode ierr;
+  DMLabel        label;
+  PetscInt       dim, pHyb, pStart, pEnd;
+
+  PetscFunctionBeginUser;
+  ierr = DMGetDimension(dm, &dim);                           CHKERRQ(ierr);
+  ierr = DMPlexGetHybridBounds(dm, &pHyb, NULL, NULL, NULL); CHKERRQ(ierr);
+  ierr = DMPlexGetDepthStratum(dm, dim, &pStart, &pEnd);     CHKERRQ(ierr);
+  ierr = DMPlexGetDepthLabel(dm, &label);                    CHKERRQ(ierr);
+  pEnd -= pStart;
+  pHyb -= pStart;
+  label->points[dim]->max -= (pEnd - pHyb);
+  if (numGhostCells) *numGhostCells = (pEnd - pHyb);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode RestoreGhostCells(DM dm, PetscInt numGhostCells){
+  PetscErrorCode ierr;
+  DMLabel        label;
+  PetscInt       dim;
+
+  PetscFunctionBeginUser;
+  ierr = DMGetDimension(dm, &dim);        CHKERRQ(ierr);
+  ierr = DMPlexGetDepthLabel(dm, &label); CHKERRQ(ierr);
+  label->points[dim]->max += numGhostCells;
   PetscFunctionReturn(0);
 }

@@ -11,5 +11,8 @@ PetscErrorCode SetMesh(MPI_Comm, DM*, PetscFV*, Physics);
 
 PetscErrorCode GetInitialCondition(DM, Vec, Physics);
 
+PetscErrorCode HideGhostCells(DM, PetscInt*);
+PetscErrorCode RestoreGhostCells(DM, PetscInt);
+
 
 #endif

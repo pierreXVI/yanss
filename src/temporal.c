@@ -1,12 +1,20 @@
 #include "temporal.h"
+#include "spatial.h"
 
-static PetscErrorCode Monitor(TS ts, PetscInt stepnum, PetscReal time, Vec X, void *ctx)
+static PetscErrorCode Monitor(TS ts, PetscInt stepnum, PetscReal time, Vec x, void *ctx)
 {
   PetscErrorCode ierr;
   PetscReal      xnorm;
+  PetscInt       numGhostCells;
+  DM             mesh;
 
   PetscFunctionBeginUser;
-  ierr = VecNorm(X, NORM_INFINITY, &xnorm); CHKERRQ(ierr);
+  ierr = VecGetDM(x, &mesh); CHKERRQ(ierr);
+  ierr = HideGhostCells(mesh, &numGhostCells); CHKERRQ(ierr);
+  ierr = VecView(x, PETSC_VIEWER_DRAW_WORLD); CHKERRQ(ierr);
+  ierr = RestoreGhostCells(mesh, numGhostCells); CHKERRQ(ierr);
+
+  ierr = VecNorm(x, NORM_INFINITY, &xnorm); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "% 3D  time %8.4g  |x| %8.4g\n", stepnum, (double)time, (double)xnorm); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
