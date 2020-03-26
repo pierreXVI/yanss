@@ -23,10 +23,8 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEP_DIR) $(OBJ_DIR)
 
 
 .PHONY: test
-test: $(BIN_DIR)/yanss | data/box.msh
+test: $(BIN_DIR)/yanss data/box.msh
 	$(BIN_DIR)/yanss
-
-	@# $(BIN_DIR)/yanss
 data/%.msh: data/%.geo
 	gmsh -2 -bin $<
 
