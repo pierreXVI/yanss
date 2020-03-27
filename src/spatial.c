@@ -7,7 +7,6 @@
 
 static char mesh_filename[] = "/home/pierre/c/yanss/data/box.msh";  // TODO
 static PetscInt overlap = 1;  // TODO: if 0, the balance seems better but the result diverge
-static PetscInt buffer_size = 32;  // TODO
 
 PetscErrorCode SetMesh(MPI_Comm comm, DM *mesh, PetscFV *fvm, Physics phys){
   PetscErrorCode ierr;
@@ -41,6 +40,7 @@ PetscErrorCode SetMesh(MPI_Comm comm, DM *mesh, PetscFV *fvm, Physics phys){
     else {
       PetscInt j;
       for (j=0; j < phys->field_desc[i].dof; j++){
+        static PetscInt buffer_size = 32;
         char buffer[buffer_size];
         ierr = PetscSNPrintf(buffer, buffer_size,"%s_%d", phys->field_desc[i].name, j); CHKERRQ(ierr);
         ierr = PetscFVSetComponentName(*fvm, dof + j, buffer);                          CHKERRQ(ierr);

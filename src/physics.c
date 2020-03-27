@@ -1,8 +1,5 @@
 #include "physics.h"
 
-PETSC_STATIC_INLINE PetscReal Dot2Real(const PetscReal *x,const PetscReal *y) { return x[0]*y[0] + x[1]*y[1];}
-PETSC_STATIC_INLINE PetscReal Norm2Real(const PetscReal *x) { return PetscSqrtReal(PetscAbsReal(Dot2Real(x,x)));}
-
 PetscErrorCode SetBC(PetscDS ds, Physics phys){
   PetscErrorCode ierr;
   const PetscInt inflowids[] = {100,200,300};
@@ -48,7 +45,7 @@ PetscErrorCode PhysicsCreate_Advect(Physics *phys){
 
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar u[], void *ctx){
   PetscFunctionBeginUser;
-  u[0] = 1 + x[0];
+  u[0] = 10;
   PetscFunctionReturn(0);
 }
 

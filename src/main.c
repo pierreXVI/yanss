@@ -20,6 +20,7 @@ int main(int argc, char **argv){
 
 
   ierr = PetscOptionsSetValue(NULL, "-draw_pause", "-1");       // TODO: for debugging purposes
+  ierr = PetscOptionsSetValue(NULL, "-vec_view_bounds", "0,2");
   ierr = PetscInitialize(&argc, &argv, (char*)0, help); if (ierr) return ierr;
 
 
@@ -45,6 +46,7 @@ int main(int argc, char **argv){
   ierr = DMTSSetRHSFunctionLocal(mesh, DMPlexTSComputeRHSFunctionFVM, NULL);CHKERRQ(ierr);
 
   ierr = DMCreateGlobalVector(mesh, &x0);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) x0, "solution"); CHKERRQ(ierr);
   ierr = GetInitialCondition(mesh, x0, phys);CHKERRQ(ierr);
   ierr = TSSolve(ts, x0);CHKERRQ(ierr);
 
