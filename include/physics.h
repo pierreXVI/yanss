@@ -9,7 +9,7 @@ PetscErrorCode PhysicsBoundary_Advect_Outflow(PetscReal, const PetscReal*, const
 PetscErrorCode SetBC(PetscDS, Physics);
 
 
-PetscErrorCode PhysicsCreate_Advect(Physics);
+PetscErrorCode PhysicsCreate_Advect(Physics*);
 
 static const struct FieldDescription PhysicsFields_Advect[] = {{"U",1},{NULL,0}};
 

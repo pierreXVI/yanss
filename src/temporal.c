@@ -4,16 +4,17 @@
 static PetscErrorCode Monitor(TS ts, PetscInt stepnum, PetscReal time, Vec x, void *ctx)
 {
   PetscErrorCode ierr;
-  PetscReal      xnorm;
-  PetscInt       numGhostCells;
-  DM             mesh;
 
   PetscFunctionBeginUser;
+
+  DM             mesh;
+  PetscInt       numGhostCells;
   ierr = VecGetDM(x, &mesh); CHKERRQ(ierr);
   ierr = HideGhostCells(mesh, &numGhostCells); CHKERRQ(ierr);
   ierr = VecView(x, PETSC_VIEWER_DRAW_WORLD); CHKERRQ(ierr);
   ierr = RestoreGhostCells(mesh, numGhostCells); CHKERRQ(ierr);
 
+  PetscReal      xnorm;
   ierr = VecNorm(x, NORM_INFINITY, &xnorm); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "% 3D  time %8.4g  |x| %8.4g\n", stepnum, (double)time, (double)xnorm); CHKERRQ(ierr);
   PetscFunctionReturn(0);

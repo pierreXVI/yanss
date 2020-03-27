@@ -11,10 +11,7 @@ static PetscInt buffer_size = 32;  // TODO
 
 PetscErrorCode SetMesh(MPI_Comm comm, DM *mesh, PetscFV *fvm, Physics phys){
   PetscErrorCode ierr;
-  PetscInt       dim, dof, i, j, numGhostCells;
-  PetscBool      flag1, flag2;
-  char           buffer[buffer_size], opt[] = "draw";
-  PetscDS        system;
+  PetscInt       dim;
   DM             foo_dm;
 
   PetscFunctionBeginUser;
@@ -36,12 +33,15 @@ PetscErrorCode SetMesh(MPI_Comm comm, DM *mesh, PetscFV *fvm, Physics phys){
   ierr = PetscFVCreate(PETSC_COMM_WORLD, fvm);                                          CHKERRQ(ierr);
   ierr = PetscFVSetNumComponents(*fvm, phys->dof);                                      CHKERRQ(ierr);
   ierr = PetscFVSetSpatialDimension(*fvm, dim);                                         CHKERRQ(ierr);
+  PetscInt i, dof;
   for (i = 0, dof = 0; i < phys->nfields; i++){
     if (phys->field_desc[i].dof == 1) {
       ierr = PetscFVSetComponentName(*fvm, dof, phys->field_desc[i].name);              CHKERRQ(ierr);
     }
     else {
+      PetscInt j;
       for (j=0; j < phys->field_desc[i].dof; j++){
+        char buffer[buffer_size];
         ierr = PetscSNPrintf(buffer, buffer_size,"%s_%d", phys->field_desc[i].name, j); CHKERRQ(ierr);
         ierr = PetscFVSetComponentName(*fvm, dof + j, buffer);                          CHKERRQ(ierr);
       }
@@ -51,6 +51,7 @@ PetscErrorCode SetMesh(MPI_Comm comm, DM *mesh, PetscFV *fvm, Physics phys){
   ierr = PetscFVSetFromOptions(*fvm);                                                   CHKERRQ(ierr);
   ierr = DMAddField(*mesh, NULL, (PetscObject) *fvm);                                   CHKERRQ(ierr);
 
+  PetscDS system;
   ierr = DMCreateDS(*mesh);                                 CHKERRQ(ierr);
   ierr = DMGetDS(*mesh, &system);                           CHKERRQ(ierr);
   ierr = PetscDSSetRiemannSolver(system, 0, phys->riemann); CHKERRQ(ierr);
@@ -58,6 +59,9 @@ PetscErrorCode SetMesh(MPI_Comm comm, DM *mesh, PetscFV *fvm, Physics phys){
   ierr = SetBC(system, phys);                               CHKERRQ(ierr);
   ierr = PetscDSSetFromOptions(system);                     CHKERRQ(ierr);
 
+  char      opt[] = "draw";
+  PetscBool flag1, flag2;
+  PetscInt  numGhostCells;
   ierr = PetscOptionsGetString(NULL, NULL, "-dm_view", opt, sizeof(opt), &flag1); CHKERRQ(ierr);
   ierr = PetscStrcmp(opt, "draw", &flag2);                                        CHKERRQ(ierr);
   if (flag1 && flag2) {

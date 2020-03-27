@@ -6,28 +6,27 @@
 static char help[] = "Second Order TVD Finite Volume Example.\n";
 
 int main(int argc, char **argv){
-  PetscFV           fvm;
+  PetscErrorCode    ierr;
+
   Physics           phys;
+  DM                mesh;
+  PetscFV           fvm;
+
   PetscReal         ftime, dt, minRadius, maxspeed;
   PetscInt          nsteps;
   TS                ts;
   TSConvergedReason reason;
   Vec               x0;
 
-  PetscErrorCode    ierr;
-  DM                mesh;
 
   ierr = PetscOptionsSetValue(NULL, "-draw_pause", "-1");       // TODO: for debugging purposes
   ierr = PetscInitialize(&argc, &argv, (char*)0, help); if (ierr) return ierr;
 
-  ierr = PetscNew(&phys); CHKERRQ(ierr);
 
-  ierr = PetscMemzero(phys, sizeof(struct _n_Physics));CHKERRQ(ierr);
-  ierr = PhysicsCreate_Advect(phys);CHKERRQ(ierr);
+  ierr = PhysicsCreate_Advect(&phys);CHKERRQ(ierr);
   /* Count number of fields and dofs */
   for (phys->nfields=0, phys->dof=0; phys->field_desc[phys->nfields].name; phys->nfields++) phys->dof += phys->field_desc[phys->nfields].dof;
   if (phys->dof <= 0) SETERRQ(PETSC_COMM_WORLD,PETSC_ERR_ARG_WRONGSTATE,"Physics did not set dof");
-
 
   /* collect max maxspeed from all processes -- todo */
   ierr = MPI_Allreduce(&phys->maxspeed, &maxspeed, 1, MPIU_REAL, MPIU_MAX, PETSC_COMM_WORLD); CHKERRQ(ierr);
