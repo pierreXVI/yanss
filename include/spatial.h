@@ -1,18 +1,21 @@
 #ifndef SPATIAL
 #define SPATIAL
 
-#include "structures.h"
+#include "utils.h"
 
-PetscErrorCode SetMesh(MPI_Comm, DM*, PetscFV*, Physics);
+PetscErrorCode MeshDestroy(DM*);
+PetscErrorCode MeshLoad(MPI_Comm, const char*, DM*);
 /*
   Setup the mesh
-  Allocate the DM and the PetscFV
+  Use MeshDestroy to free the memory
 */
 
-PetscErrorCode GetInitialCondition(DM, Vec, Physics);
 
-PetscErrorCode HideGhostCells(DM, PetscInt*);
-PetscErrorCode RestoreGhostCells(DM, PetscInt);
-
+PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
+                                 PetscErrorCode (*func)(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*),
+                                 void *ctx, Vec x);
+/*
+  Apply a function on a DM
+*/
 
 #endif

@@ -7,7 +7,7 @@ $(DEP_DIR) $(OBJ_DIR) $(BIN_DIR):
 	mkdir -p $@
 
 # === List of source files
-SRC = main.c spatial.c temporal.c physics.c
+SRC = main.c spatial.c temporal.c physics.c utils.c
 
 
 $(BIN_DIR)/yanss: $(SRC:%.c=$(OBJ_DIR)/%.o) | $(BIN_DIR)

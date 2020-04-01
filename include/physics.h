@@ -1,20 +1,22 @@
 #ifndef PHYSICS
 #define PHYSICS
 
-#include "structures.h"
+#include "utils.h"
 
-PetscErrorCode PhysicsBoundary_Advect_Inflow (PetscReal, const PetscReal*, const PetscReal*, const PetscScalar*, PetscScalar*, void*);
-PetscErrorCode PhysicsBoundary_Advect_Outflow(PetscReal, const PetscReal*, const PetscReal*, const PetscScalar*, PetscScalar*, void*);
-
-PetscErrorCode SetBC(PetscDS, Physics);
-
-
-PetscErrorCode PhysicsCreate_Advect(Physics*);
-
-static const struct FieldDescription PhysicsFields_Advect[] = {{"U",1},{NULL,0}};
+PetscErrorCode PhysicsDestroy(Physics*);
+PetscErrorCode PhysicsCreate(Physics*, DM);
+/*
+  Creates the physical model
+  Use PhysicsDestroy to free the memory
+*/
 
 PetscErrorCode InitialCondition(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*);
 
-void PhysicsRiemann_Advect(PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar[], PetscScalar*, Physics);
+// void RiemannSolver(PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
+
+// PetscErrorCode SetBC(DM, Physics);
+//
+//
+//
 
 #endif

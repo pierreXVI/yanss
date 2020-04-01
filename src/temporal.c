@@ -1,8 +1,16 @@
 #include "temporal.h"
-#include "spatial.h"
 
-static PetscErrorCode Monitor(TS ts, PetscInt stepnum, PetscReal time, Vec x, void *ctx)
-{
+static PetscErrorCode TSMonitorAscii(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+  PetscErrorCode ierr;
+  PetscReal      xnorm;
+
+  PetscFunctionBeginUser;
+  ierr = VecNorm(u, NORM_INFINITY, &xnorm);                                                  CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "% 3D  time %8.4g  |x| %8.4g\n", steps, time, xnorm); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode TSMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -13,9 +21,9 @@ static PetscErrorCode Monitor(TS ts, PetscInt stepnum, PetscReal time, Vec x, vo
   ierr = PetscOptionsGetRealArray(NULL, NULL, "-vec_view_bounds", vbound, &nmax, &flg); CHKERRQ(ierr);
   if (!flg){
     static PetscInt buffer_size = 32;
-    char buffer[buffer_size];
-    ierr = VecMin(x, NULL, &vbound[0]);                                                 CHKERRQ(ierr);
-    ierr = VecMax(x, NULL, &vbound[1]);                                                 CHKERRQ(ierr);
+    char            buffer[buffer_size];
+    ierr = VecMin(u, NULL, &vbound[0]);                                                 CHKERRQ(ierr);
+    ierr = VecMax(u, NULL, &vbound[1]);                                                 CHKERRQ(ierr);
     if (vbound[1] <= vbound[0]) vbound[1] = vbound[0] + 1.0;
     ierr = PetscSNPrintf(buffer, buffer_size, "%f,%f", vbound[0], vbound[1]);           CHKERRQ(ierr);
     ierr = PetscOptionsSetValue(NULL, "-vec_view_bounds", buffer);                      CHKERRQ(ierr);
@@ -23,33 +31,31 @@ static PetscErrorCode Monitor(TS ts, PetscInt stepnum, PetscReal time, Vec x, vo
 
   DM       dm;
   PetscInt numGhostCells;
-  ierr = VecGetDM(x, &dm);                     CHKERRQ(ierr);
-  ierr = HideGhostCells(dm, &numGhostCells);   CHKERRQ(ierr);
-  ierr = VecView(x, PETSC_VIEWER_DRAW_WORLD);  CHKERRQ(ierr);
-  ierr = RestoreGhostCells(dm, numGhostCells); CHKERRQ(ierr);
+  ierr = VecGetDM(u, &dm);                                                              CHKERRQ(ierr);
+  ierr = HideGhostCells(dm, &numGhostCells);                                            CHKERRQ(ierr);
+  ierr = VecView(u, PETSC_VIEWER_DRAW_WORLD);                                           CHKERRQ(ierr);
+  ierr = RestoreGhostCells(dm, numGhostCells);                                          CHKERRQ(ierr);
 
   if (!flg){
-    ierr = PetscOptionsClearValue(NULL, "-vec_view_bounds"); CHKERRQ(ierr);
+    ierr = PetscOptionsClearValue(NULL, "-vec_view_bounds");                            CHKERRQ(ierr);
   }
 
-  PetscReal xnorm;
-  ierr = VecNorm(x, NORM_INFINITY, &xnorm);                               CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "% 3D  time %8.4g  |x| %8.4g\n", \
-                     stepnum, (double)time, (double)xnorm);               CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode SetTs(MPI_Comm comm, TS *ts, DM dm, PetscReal dt){
+
+PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, DM dm, PetscReal dt){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
   ierr = TSCreate(comm, ts);                                   CHKERRQ(ierr);
-  ierr = TSSetType(*ts, TSSSP);                                CHKERRQ(ierr);
   ierr = TSSetDM(*ts, dm);                                     CHKERRQ(ierr);
+  ierr = TSSetTimeStep(*ts, dt);                               CHKERRQ(ierr);
+  ierr = TSSetType(*ts, TSSSP);                                CHKERRQ(ierr);
   ierr = TSSetMaxTime(*ts, 2.0);                               CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER); CHKERRQ(ierr);
-  ierr = TSSetTimeStep(*ts, dt);                               CHKERRQ(ierr);
+  ierr = TSMonitorSet(*ts, TSMonitorAscii, NULL, NULL);        CHKERRQ(ierr);
+  ierr = TSMonitorSet(*ts, TSMonitorDraw, NULL, NULL);         CHKERRQ(ierr);
   ierr = TSSetFromOptions(*ts);                                CHKERRQ(ierr);
-  ierr = TSMonitorSet(*ts, Monitor, NULL, NULL);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

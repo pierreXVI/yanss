@@ -1,10 +1,10 @@
 #ifndef TEMPORAL
 #define TEMPORAL
 
-#include "structures.h"
+#include "utils.h"
 
 
-PetscErrorCode SetTs(MPI_Comm, TS*, DM, PetscReal);
+PetscErrorCode MyTsCreate(MPI_Comm, TS*, DM, PetscReal);
 /*
   Setup the PETSc Time-Stepper
   Allocate a TS

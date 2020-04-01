@@ -1,57 +1,142 @@
 #include "physics.h"
 
-PetscErrorCode SetBC(PetscDS ds, Physics phys){
+static struct FieldDescription fields_advec[] = {{"U", DOF_DIM},
+                                                 {NULL, DOF_NULL}};
+
+static PetscReal c[] = {1, 1, 0};
+
+static PetscReal bc_inflow_U[3] = {0, 0, 0};
+static struct BCDescription bc_inflow[] = {{"wall", BC_WALL, NULL},
+                                           {"outflow", BC_OUTFLOW, NULL},
+                                           {"inflow", BC_DIRICHLET, bc_inflow_U},
+                                           {NULL, BC_NULL, NULL}};
+
+
+static void RiemannSolver_Advec(PetscInt dim, PetscInt Nf,
+                                const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
+                                PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
+  Physics phys = (Physics) ctx;
+  PetscReal dot = 0;
+
+  PetscFunctionBeginUser;
+  for (PetscInt i = 0; i < dim; i++){
+    dot += phys->c[i] * n[i];
+  }
+
+  for (PetscInt i = 0; i < Nf; i++){
+    flux[i] = (dot > 0 ? uL[i] : uR[i]) * dot;
+  }
+  PetscFunctionReturnVoid();
+}
+
+static PetscErrorCode ComputeEssentialBoundary(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscScalar *xI, PetscScalar *xG, void *ctx){
+  struct BC_ctx        *bc_ctx = (struct BC_ctx*) ctx;
+  Physics              phys = bc_ctx->phys;
+  struct BCDescription bc_desc = phys->bc[bc_ctx->i];
+
+  PetscFunctionBeginUser;
+  switch (bc_desc.type) {
+    case BC_DIRICHLET:
+      for (PetscInt i = 0; i < phys->dim; i++){
+        xG[i] = bc_desc.val[i];
+      }
+      break;
+    case BC_OUTFLOW: // TODO: what is xI ?
+      for (PetscInt i = 0; i < phys->dim; i++){
+        xG[i] = xI[i];
+      }
+      break;
+    case BC_WALL: // TODO
+      break;
+    default:
+      SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition: %s\n", bc_desc.type);
+      break;
+  }
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode PhysicsDestroy(Physics *phys){
   PetscErrorCode ierr;
-  const PetscInt inflowids[] = {100,200,300};
-  const PetscInt outflowids[] = {101};
 
   PetscFunctionBeginUser;
-  ierr = PetscDSAddBoundary(ds, DM_BC_NATURAL_RIEMANN, "inflow",  "Face Sets", 0, 0, NULL, (void (*)(void)) PhysicsBoundary_Advect_Inflow,  3,  inflowids,  phys);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(ds, DM_BC_NATURAL_RIEMANN, "outflow", "Face Sets", 0, 0, NULL, (void (*)(void)) PhysicsBoundary_Advect_Outflow, 1, outflowids, phys);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-PetscErrorCode PhysicsBoundary_Advect_Inflow(PetscReal time, const PetscReal *c, const PetscReal *n, const PetscScalar *xI, PetscScalar *xG, void *ctx)
-{
-  Physics phys = (Physics)ctx;
-
-  PetscFunctionBeginUser;
-  xG[0] = phys->inflowState;
-  PetscFunctionReturn(0);
-}
-PetscErrorCode PhysicsBoundary_Advect_Outflow(PetscReal time, const PetscReal *c, const PetscReal *n, const PetscScalar *xI, PetscScalar *xG, void *ctx)
-{
-  PetscFunctionBeginUser;
-  xG[0] = xI[0];
+  ierr = PetscFree((*phys)->bc_ctx); CHKERRQ(ierr);
+  ierr = PetscFree(*phys);           CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-
-PetscErrorCode PhysicsCreate_Advect(Physics *phys){
+PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = PetscNew(phys); CHKERRQ(ierr);
-  ierr = PetscMemzero(*phys, sizeof(struct _n_Physics));CHKERRQ(ierr);
+  ierr = PetscNew(phys);                      CHKERRQ(ierr);
+  ierr = DMGetDimension(mesh, &(*phys)->dim); CHKERRQ(ierr);
 
-  (*phys)->field_desc  = PhysicsFields_Advect;
-  (*phys)->riemann     = (PetscRiemannFunc)PhysicsRiemann_Advect;
-  (*phys)->wind[0]     = 1.0;
-  (*phys)->wind[1]     = 0.0;
-  (*phys)->inflowState = 1.0;
-  (*phys)->maxspeed    = PetscSqrtReal(PetscAbsReal((*phys)->wind[0]*(*phys)->wind[0] + (*phys)->wind[1]*(*phys)->wind[1]));
+  (*phys)->fields = fields_advec;
+  for ((*phys)->nfields = 0, (*phys)->dof = 0; (*phys)->fields[(*phys)->nfields].name; (*phys)->nfields++) {
+    switch ((*phys)->fields[(*phys)->nfields].dof) {
+    case DOF_1:
+      (*phys)->fields[(*phys)->nfields].dof = 1;
+      break;
+    case DOF_DIM:
+      (*phys)->fields[(*phys)->nfields].dof = (*phys)->dim;
+      break;
+    default: break;
+    }
+    (*phys)->dof += (*phys)->fields[(*phys)->nfields].dof;
+  }
+
+  PetscFV fvm;
+  ierr = DMGetField(mesh, 0, NULL, (PetscObject*) &fvm);                               CHKERRQ(ierr);
+  ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                                CHKERRQ(ierr);
+  ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                                   CHKERRQ(ierr);
+  for (PetscInt i = 0, dof = 0; i < (*phys)->nfields; i++){
+    if ((*phys)->fields[i].dof == 1) {
+      ierr = PetscFVSetComponentName(fvm, dof, (*phys)->fields[i].name);               CHKERRQ(ierr);
+    }
+    else {
+      for (PetscInt j = 0; j < (*phys)->fields[i].dof; j++){
+        static PetscInt buffer_size = 32;
+        char buffer[buffer_size];
+        ierr = PetscSNPrintf(buffer, buffer_size,"%s_%d", (*phys)->fields[i].name, j); CHKERRQ(ierr);
+        ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                          CHKERRQ(ierr);
+      }
+      dof += (*phys)->fields[i].dof;
+    }
+  }
+  ierr = PetscFVSetFromOptions(fvm);                                                   CHKERRQ(ierr);
+
+  (*phys)->c = c;
+
+  (*phys)->bc = bc_inflow;
+  (*phys)->nbc = 0; while ((*phys)->bc[(*phys)->nbc].name) {(*phys)->nbc++;}
+  ierr = PetscMalloc1((*phys)->nbc, &((*phys)->bc_ctx)); CHKERRQ(ierr);
+
+  PetscDS system;
+  ierr = DMCreateDS(mesh);                                                                                CHKERRQ(ierr);
+  ierr = DMGetDS(mesh, &system);                                                                          CHKERRQ(ierr);
+  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Advec);                                         CHKERRQ(ierr);
+  ierr = PetscDSSetContext(system, 0, (*phys));                                                           CHKERRQ(ierr);
+  for (PetscInt i = 1; i <= (*phys)->nbc; i++) {
+    (*phys)->bc_ctx[i - 1].phys = *phys;
+    (*phys)->bc_ctx[i - 1].i = i - 1;
+    ierr = PetscDSAddBoundary(system, DM_BC_ESSENTIAL, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
+                              (void (*)(void)) ComputeEssentialBoundary, 1, &i, &(*phys)->bc_ctx[i - 1]); CHKERRQ(ierr);
+  }
+  ierr = PetscDSSetFromOptions(system);                                                                   CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar u[], void *ctx){
+PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscScalar *u, void *ctx){
+  PetscInt i;
+
   PetscFunctionBeginUser;
-  u[0] = 10;
+  for (i = 0; i < Nf; i++){
+    u[i] = 0;
+  }
+  u[0] = 2 * x[0];
+  u[1] = 2 * x[1];
   PetscFunctionReturn(0);
-}
-
-void PhysicsRiemann_Advect(PetscInt dim, PetscInt Nf, const PetscReal *qp, const PetscReal *n, const PetscScalar *xL, const PetscScalar *xR, PetscInt numConstants, const PetscScalar constants[], PetscScalar *flux, Physics phys)
-{
-  PetscReal wn;
-  wn = phys->wind[0] * n[0] + phys->wind[1] * n[1];
-  flux[0] = (wn > 0 ? xL[0] : xR[0]) * wn;
 }
