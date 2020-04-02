@@ -1,11 +1,14 @@
 #include "physics.h"
 
-static const enum FluidType fluid_type = TYPE_EULER;
+static const enum ProblemType problem_type = TYPE_ADVECTION;
 
-static struct FieldDescription fields_advec[] = {{"U", DOF_DIM},
+static const PetscReal c_advec[] = {1, 0, 0};
+
+static struct FieldDescription fields_advec[] = {{"U", DOF_DIM}, {NULL, DOF_NULL}};
+static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
+                                                 {"rho * U", DOF_DIM},
+                                                 {"rho * E", DOF_1},
                                                  {NULL, DOF_NULL}};
-
-static PetscReal c[] = {1, 1, 0};
 
 static PetscReal bc_inflow[] = {1, 0, 0};
 static struct BCDescription bc[] = {{"wall", BC_WALL, NULL},
@@ -21,8 +24,6 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
   for (i = 0; i < Nf; i++){
     u[i] = 0;
   }
-  u[0] = 2;
-  u[1] = 2;
   PetscFunctionReturn(0);
 }
 
@@ -34,14 +35,12 @@ const char * const BCTypes[] = {"BC_NULL", "Dirichlet", "Outflow", "Wall"};
 static void RiemannSolver_Advec(PetscInt dim, PetscInt Nf,
                                 const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
                                 PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
-  Physics phys = (Physics) ctx;
   PetscReal dot = 0;
 
   PetscFunctionBeginUser;
   for (PetscInt i = 0; i < dim; i++){
-    dot += phys->c[i] * n[i];
+    dot += c_advec[i] * n[i];
   }
-
   for (PetscInt i = 0; i < Nf; i++){
     flux[i] = (dot > 0 ? uL[i] : uR[i]) * dot;
   }
@@ -87,11 +86,13 @@ static PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscRe
     ;
     PetscReal dot = 0;
     for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){
-      dot += xI[0 + i] * n[i];
+      dot += xI[1 + i] * n[i];
     }
     for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){
-      xG[0 + i] = xI[0 + i] - dot * n[i];
+      xG[1 + i] = xI[1 + i] - dot * n[i];
     }
+    break;
+  default: /* is an outflow */
     break;
   }
   PetscFunctionReturn(0);
@@ -113,7 +114,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
   PetscFunctionBeginUser;
   ierr = PetscNew(phys);                      CHKERRQ(ierr);
   ierr = DMGetDimension(mesh, &(*phys)->dim); CHKERRQ(ierr);
-  (*phys)->type = fluid_type;
+  (*phys)->type = problem_type;
   (*phys)->fields = fields_advec;
   for ((*phys)->nfields = 0, (*phys)->dof = 0; (*phys)->fields[(*phys)->nfields].name; (*phys)->nfields++) {
     switch ((*phys)->fields[(*phys)->nfields].dof) {
@@ -147,8 +148,6 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
     }
   }
   ierr = PetscFVSetFromOptions(fvm);                                                   CHKERRQ(ierr);
-
-  (*phys)->c = c;
 
   (*phys)->bc = bc;
   (*phys)->nbc = 0; while ((*phys)->bc[(*phys)->nbc].name) {(*phys)->nbc++;}

@@ -8,7 +8,7 @@
 enum BCType {BC_NULL, BC_DIRICHLET, BC_OUTFLOW, BC_WALL};
 PETSC_EXTERN const char * const BCTypes[];
 
-enum FluidType {TYPE_EULER, TYPE_NS};
+enum ProblemType {TYPE_ADVECTION, TYPE_EULER, TYPE_NS};
 
 
 #define DOF_NULL 0
@@ -23,22 +23,21 @@ struct FieldDescription {
 };
 
 struct BCDescription {
-  const char   *name;
-  enum BCType  type;
-  PetscReal    *val;
+  const char   *name; // The boundary name
+  enum BCType  type;  // The boundary type
+  PetscReal    *val;  // Additional numerical values
 };
 
 struct BC_ctx {
-  Physics  phys;
-  PetscInt i;
+  Physics  phys; // The physical model
+  PetscInt i;    // The boundary number
 };
 
 struct _Physics {
-  enum FluidType          type;    // The fluid type (Euler / NS)
+  enum ProblemType        type;    // The problem type
   struct FieldDescription *fields; // The physical phields
   PetscInt                nfields; // The number of physical phields
   PetscInt                dof;     // The total number of dof
-  PetscReal               *c;      // The advection speed
   struct BCDescription    *bc;     // The boundary conditions
   struct BC_ctx           *bc_ctx; // The boundary condition contexts
   PetscInt                nbc;     // The number of boundary conditions
