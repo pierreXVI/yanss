@@ -5,7 +5,11 @@
 #include <petscds.h>
 #include <petscts.h>
 
-enum BC_TYPE {BC_NULL, BC_DIRICHLET, BC_OUTFLOW, BC_WALL};
+enum BCType {BC_NULL, BC_DIRICHLET, BC_OUTFLOW, BC_WALL};
+PETSC_EXTERN const char * const BCTypes[];
+
+enum FluidType {TYPE_EULER, TYPE_NS};
+
 
 #define DOF_NULL 0
 #define DOF_1   -1
@@ -20,18 +24,17 @@ struct FieldDescription {
 
 struct BCDescription {
   const char   *name;
-  enum BC_TYPE type;
+  enum BCType  type;
   PetscReal    *val;
 };
-
 
 struct BC_ctx {
   Physics  phys;
   PetscInt i;
 };
 
-
 struct _Physics {
+  enum FluidType          type;    // The fluid type (Euler / NS)
   struct FieldDescription *fields; // The physical phields
   PetscInt                nfields; // The number of physical phields
   PetscInt                dof;     // The total number of dof
