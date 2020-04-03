@@ -7,10 +7,10 @@ $(DEP_DIR) $(OBJ_DIR) $(BIN_DIR):
 	mkdir -p $@
 
 # === List of source files
-SRC = main.c spatial.c temporal.c physics.c utils.c
+SRC = $(wildcard $(SRC_DIR)/*.c)
 
 
-$(BIN_DIR)/yanss: $(SRC:%.c=$(OBJ_DIR)/%.o) | $(BIN_DIR)
+$(BIN_DIR)/yanss: $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o) | $(BIN_DIR)
 	@# printf "Linking %-14s " yanss
 	$(CC) -o $@ $^ $(LINK_OPTS)
 
@@ -19,7 +19,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEP_DIR) $(OBJ_DIR)
 	$(CC) -c $(COMP_OPTS) -Iinclude -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d $< -o $@
 
 
--include $(SRC:%.c=$(DEP_DIR)/%.d)
+-include $(SRC:$(SRC_DIR)/%.c=$(DEP_DIR)/%.d)
 
 
 .PHONY: test
