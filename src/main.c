@@ -23,7 +23,7 @@ int main(int argc, char **argv){
 
   ierr = MeshLoad(PETSC_COMM_WORLD, mesh_filename, &mesh); CHKERRQ(ierr);
   ierr = PhysicsCreate(&phys, mesh);                       CHKERRQ(ierr);
-  ierr = DMCreateGlobalVector(mesh, &x0);                  CHKERRQ(ierr);
+  ierr = MeshCreateGlobalVector(mesh, &x0);                CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) x0, "State");    CHKERRQ(ierr);
 
   // TODO

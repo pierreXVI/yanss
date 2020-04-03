@@ -60,3 +60,14 @@ PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
   ierr = DMProjectFunction(dm, time, &func, &ctx, INSERT_ALL_VALUES, x); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
+
+#include "private_vecview.h"
+PetscErrorCode MeshCreateGlobalVector(DM dm, Vec *x){
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = DMCreateGlobalVector(dm, x);                                      CHKERRQ(ierr);
+  ierr = VecSetOperation(*x, VECOP_VIEW, (void (*)(void)) MyVecView_Plex); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
