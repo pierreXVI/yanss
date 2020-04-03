@@ -44,7 +44,7 @@ static PetscErrorCode TSMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u
 }
 
 
-PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, DM dm, PetscReal dt){
+PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, DM dm, Physics phys, PetscReal dt){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -55,7 +55,7 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, DM dm, PetscReal dt){
   ierr = TSSetMaxTime(*ts, 2.0);                               CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER); CHKERRQ(ierr);
   ierr = TSMonitorSet(*ts, TSMonitorAscii, NULL, NULL);        CHKERRQ(ierr);
-  ierr = TSMonitorSet(*ts, TSMonitorDraw, NULL, NULL);         CHKERRQ(ierr);
+  ierr = TSMonitorSet(*ts, TSMonitorDraw, phys, NULL);         CHKERRQ(ierr);
   ierr = TSSetFromOptions(*ts);                                CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

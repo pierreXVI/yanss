@@ -32,7 +32,7 @@ int main(int argc, char **argv){
   //     CFL   * dx        / c;
   dt   = (0.9) * minRadius / 1;
 
-  ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, mesh, dt);            CHKERRQ(ierr);
+  ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, mesh, phys, dt);      CHKERRQ(ierr);
   ierr = MeshApplyFunction(mesh, 0, InitialCondition, NULL, x0); CHKERRQ(ierr);
   ierr = TSSolve(ts, x0);                                        CHKERRQ(ierr);
 
