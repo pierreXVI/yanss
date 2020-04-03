@@ -18,4 +18,11 @@ PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
   Apply a function on a DM
 */
 
+
+PetscErrorCode MeshCreateGlobalVector(DM, Vec*);
+/*
+  Create a global vector, and set the user's Viewer
+*/
+
+
 #endif
