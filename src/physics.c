@@ -2,27 +2,27 @@
 
 static const enum ProblemType problem_type = TYPE_ADVECTION;
 
-static const PetscReal c_advec[] = {1, 0, 0};
+// static const PetscReal c_advec[] = {1, 0, 0};
 
-static struct FieldDescription fields_advec[] = {{"U", DOF_DIM}, {NULL, DOF_NULL}};
+// static struct FieldDescription fields_advec[] = {{"U", DOF_DIM}, {NULL, DOF_NULL}};
 static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {"rho * U", DOF_DIM},
                                                  {"rho * E", DOF_1},
                                                  {NULL, DOF_NULL}};
 
-static PetscReal bc_inflow[] = {1, 0, 0};
+static PetscReal bc_inflow[] = {1, 1, 0, 2.5E5};
 static struct BCDescription bc[] = {{"wall", BC_WALL, NULL},
                                     {"outflow", BC_OUTFLOW, NULL},
                                     {"inflow", BC_DIRICHLET, bc_inflow},
                                     {NULL, BC_NULL, NULL}};
 
-
+static PetscReal initial_condition[] = {1, 0, 0, 2.5E5};
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscScalar *u, void *ctx){
   PetscInt i;
 
   PetscFunctionBeginUser;
   for (i = 0; i < Nf; i++){
-    u[i] = 0;
+    u[i] = initial_condition[i];
   }
   PetscFunctionReturn(0);
 }
@@ -31,7 +31,7 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
 
 const char * const BCTypes[] = {"BC_NULL", "Dirichlet", "Outflow", "Wall"};
 
-
+/*
 static void RiemannSolver_Advec(PetscInt dim, PetscInt Nf,
                                 const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
                                 PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
@@ -44,6 +44,37 @@ static void RiemannSolver_Advec(PetscInt dim, PetscInt Nf,
   for (PetscInt i = 0; i < Nf; i++){
     flux[i] = (dot > 0 ? uL[i] : uR[i]) * dot;
   }
+  PetscFunctionReturnVoid();
+}
+*/
+
+static void RiemannSolver_Euler_Centred(PetscInt dim, PetscInt Nf,
+                                const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
+                                PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
+  Physics phys = (Physics) ctx;
+  PetscReal dot = 0, square = 0, uI[Nf], pI;
+
+  PetscFunctionBeginUser;
+  for (PetscInt i = 0; i < Nf; i++){
+    uI[i] = (uL[i] + uR[i]) / 2;
+  }
+  for (PetscInt i = 0; i < dim; i++){ // dot = U.n, square = U^2
+    dot +=  n[i] * uI[1 + i] / uI[0];
+    square += uI[1 + i] * uI[1 + i];
+  }
+  pI = (phys->gamma - 1) * (uI[Nf - 1] - square/(2 * uI[0]));
+  // PetscPrintf(PETSC_COMM_WORLD, "In %f, %f, pressure is %f bar\n", x[0], x[1], pI/1E5);
+  // PetscPrintf(PETSC_COMM_WORLD, "In %f, %f, %f, %f\n", (phys->gamma - 1), uI[Nf - 1], square, uI[0]);
+  // CHKERRABORT(PETSC_COMM_WORLD, 1);
+
+  for (PetscInt i = 0; i < Nf; i++){ // (U.n) * x
+    flux[i] = dot * uI[i];
+  }
+  for (PetscInt i = 0; i < dim; i++){ // + p * n_i for rho * U_i
+    flux[i] +=  pI * n[i];
+  }
+  flux[Nf - 1] += dot * pI; // + (U.n) * p for rho * E
+
   PetscFunctionReturnVoid();
 }
 
@@ -115,7 +146,8 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
   ierr = PetscNew(phys);                      CHKERRQ(ierr);
   ierr = DMGetDimension(mesh, &(*phys)->dim); CHKERRQ(ierr);
   (*phys)->type = problem_type;
-  (*phys)->fields = fields_advec;
+  (*phys)->gamma = 1.4;
+  (*phys)->fields = fields_euler;
   for ((*phys)->nfields = 0, (*phys)->dof = 0; (*phys)->fields[(*phys)->nfields].name; (*phys)->nfields++) {
     switch ((*phys)->fields[(*phys)->nfields].dof) {
     case DOF_1:
@@ -144,8 +176,8 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
         ierr = PetscSNPrintf(buffer, buffer_size,"%s_%d", (*phys)->fields[i].name, j); CHKERRQ(ierr);
         ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                          CHKERRQ(ierr);
       }
-      dof += (*phys)->fields[i].dof;
     }
+    dof += (*phys)->fields[i].dof;
   }
   ierr = PetscFVSetFromOptions(fvm);                                                   CHKERRQ(ierr);
 
@@ -156,7 +188,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
   PetscDS system;
   ierr = DMCreateDS(mesh);                                                                                CHKERRQ(ierr);
   ierr = DMGetDS(mesh, &system);                                                                          CHKERRQ(ierr);
-  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Advec);                                         CHKERRQ(ierr);
+  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Euler_Centred);                                 CHKERRQ(ierr);
   ierr = PetscDSSetContext(system, 0, (*phys));                                                           CHKERRQ(ierr);
   for (PetscInt i = 1; i <= (*phys)->nbc; i++) {
     (*phys)->bc_ctx[i - 1].phys = *phys;

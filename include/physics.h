@@ -12,11 +12,4 @@ PetscErrorCode PhysicsCreate(Physics*, DM);
 
 PetscErrorCode InitialCondition(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*);
 
-// void RiemannSolver(PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
-
-// PetscErrorCode SetBC(DM, Physics);
-//
-//
-//
-
 #endif
