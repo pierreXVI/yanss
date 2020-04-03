@@ -1,7 +1,5 @@
 #include "private_vecview.h"
-
 #include <petsc/private/vecimpl.h>
-#include <petscdraw.h>
 
 PETSC_EXTERN PetscErrorCode VecView_Plex(Vec, PetscViewer);
 
