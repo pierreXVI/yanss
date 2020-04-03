@@ -42,6 +42,7 @@ struct _Physics {
   struct BC_ctx           *bc_ctx; // The boundary condition contexts
   PetscInt                nbc;     // The number of boundary conditions
   PetscInt                dim;     // The spatial dimention
+  PetscReal               gamma;   // The heat capacity ratio
 };
 
 
