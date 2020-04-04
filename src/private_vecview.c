@@ -82,6 +82,9 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer)
   ierr = PetscSectionGetFieldComponents(s, 0, &Nc); CHKERRQ(ierr);
   ierr = PetscSectionSelectFieldComponents(s, 0, &ndisplaycomp, &displaycomp); CHKERRQ(ierr);
 
+  if (v->hdr.prefix) {ierr = PetscStrncpy(prefix, v->hdr.prefix, sizeof(prefix)); CHKERRQ(ierr);}
+  else               {prefix[0] = '\0';}
+
   PetscInt  nmax = 2 * ndisplaycomp;
   PetscReal vbound_tot[nmax];
   ierr = PetscOptionsGetRealArray(NULL, prefix, "-vec_view_bounds", vbound_tot, &nmax, &flg); CHKERRQ(ierr);
@@ -91,8 +94,6 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer)
     }
   }
 
-  if (v->hdr.prefix) {ierr = PetscStrncpy(prefix, v->hdr.prefix, sizeof(prefix)); CHKERRQ(ierr);}
-  else               {prefix[0] = '\0';}
   for (i = 0; i < ndisplaycomp; ++i) {
     comp = displaycomp[i];
     const char *compName;
