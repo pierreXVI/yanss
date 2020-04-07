@@ -9,6 +9,7 @@ enum BCType {BC_NULL, BC_DIRICHLET, BC_OUTFLOW, BC_WALL};
 PETSC_EXTERN const char * const BCTypes[];
 
 enum ProblemType {TYPE_ADVECTION, TYPE_EULER, TYPE_NS};
+PETSC_EXTERN const char * const ProblemTypes[];
 
 
 #define DOF_NULL 0

@@ -17,7 +17,7 @@ int main(int argc, char **argv){
   // TODO: for debugging purposes
   PetscOptionsSetValue(NULL, "-options_left", "no");
   PetscOptionsSetValue(NULL, "-draw_pause", "-1");
-  PetscOptionsSetValue(NULL, "-vec_view_bounds", "0,2");
+  // PetscOptionsSetValue(NULL, "-vec_view_bounds", "0,10,0,10,0,10,2E5,5E5");
 
   ierr = PetscInitialize(&argc, &argv, NULL, help); if (ierr) return ierr;
 

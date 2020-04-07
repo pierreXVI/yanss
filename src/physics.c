@@ -1,6 +1,6 @@
 #include "physics.h"
 
-static const enum ProblemType problem_type = TYPE_ADVECTION;
+static const enum ProblemType problem_type = TYPE_EULER;
 
 // static const PetscReal c_advec[] = {1, 0, 0};
 
@@ -10,7 +10,7 @@ static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {"rho * E", DOF_1},
                                                  {NULL, DOF_NULL}};
 
-static PetscReal bc_inflow[] = {1, 1, 0, 2.5E5};
+static PetscReal bc_inflow[4] = {1, 01, 0, 2.5E5 + 0.1*0.1/2};
 static struct BCDescription bc[] = {{"wall", BC_WALL, NULL},
                                     {"outflow", BC_OUTFLOW, NULL},
                                     {"inflow", BC_DIRICHLET, bc_inflow},
@@ -18,18 +18,17 @@ static struct BCDescription bc[] = {{"wall", BC_WALL, NULL},
 
 static PetscReal initial_condition[] = {1, 0, 0, 2.5E5};
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscScalar *u, void *ctx){
-  PetscInt i;
 
   PetscFunctionBeginUser;
-  for (i = 0; i < Nf; i++){
-    u[i] = initial_condition[i];
-  }
+  for (PetscInt i = 0; i < Nf; i++){u[i] = initial_condition[i];}
   PetscFunctionReturn(0);
 }
+
 
 /*____________________________________________________________________________________________________________________*/
 
 const char * const BCTypes[] = {"BC_NULL", "Dirichlet", "Outflow", "Wall"};
+const char * const ProblemTypes[] = {"Advection", "Euler", "Navier-Stokes"};
 
 /*
 static void RiemannSolver_Advec(PetscInt dim, PetscInt Nf,
@@ -48,32 +47,13 @@ static void RiemannSolver_Advec(PetscInt dim, PetscInt Nf,
 }
 */
 
-static void RiemannSolver_Euler_Centred(PetscInt dim, PetscInt Nf,
+static void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
                                 const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
                                 PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
-  Physics phys = (Physics) ctx;
-  PetscReal dot = 0, square = 0, uI[Nf], pI;
+  // Physics phys = (Physics) ctx;
+  // PetscReal dot = 0, square = 0, uI[Nf], pI;
 
   PetscFunctionBeginUser;
-  for (PetscInt i = 0; i < Nf; i++){
-    uI[i] = (uL[i] + uR[i]) / 2;
-  }
-  for (PetscInt i = 0; i < dim; i++){ // dot = U.n, square = U^2
-    dot +=  n[i] * uI[1 + i] / uI[0];
-    square += uI[1 + i] * uI[1 + i];
-  }
-  pI = (phys->gamma - 1) * (uI[Nf - 1] - square/(2 * uI[0]));
-  // PetscPrintf(PETSC_COMM_WORLD, "In %f, %f, pressure is %f bar\n", x[0], x[1], pI/1E5);
-  // PetscPrintf(PETSC_COMM_WORLD, "In %f, %f, %f, %f\n", (phys->gamma - 1), uI[Nf - 1], square, uI[0]);
-  // CHKERRABORT(PETSC_COMM_WORLD, 1);
-
-  for (PetscInt i = 0; i < Nf; i++){ // (U.n) * x
-    flux[i] = dot * uI[i];
-  }
-  for (PetscInt i = 0; i < dim; i++){ // + p * n_i for rho * U_i
-    flux[i] +=  pI * n[i];
-  }
-  flux[Nf - 1] += dot * pI; // + (U.n) * p for rho * E
 
   PetscFunctionReturnVoid();
 }
@@ -103,27 +83,25 @@ static PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscRe
   struct BC_ctx *bc_ctx = (struct BC_ctx*) ctx;
 
   PetscFunctionBeginUser;
-  for (PetscInt i = 0; i < bc_ctx->phys->dof; i++){
-    xG[i] = xI[i];
-  }
-
   switch (bc_ctx->phys->type) {
-  case TYPE_NS: /* u <- 0 */
-    for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){
-      xG[1 + i] = 0;
-    }
-    break;
   case TYPE_EULER: /* u <- u - (u.n)n */
-    ;
-    PetscReal dot = 0;
+    xG[0] = xI[0];
+    xG[bc_ctx->phys->dof - 1] = xI[bc_ctx->phys->dof - 1];
+
+    PetscReal dot = 0, norm2 = 0;
     for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){
       dot += xI[1 + i] * n[i];
+      norm2 += n[i] * n[i];
     }
-    for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){
-      xG[1 + i] = xI[1 + i] - dot * n[i];
-    }
+    for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){xG[1 + i] = xI[1 + i] - 2 * dot * n[i] / norm2;}
     break;
-  default: /* is an outflow */
+  case TYPE_NS: /* u <- 0 */
+    xG[0] = xI[0];
+    xG[bc_ctx->phys->dof - 1] = xI[bc_ctx->phys->dof - 1];
+    for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){xG[1 + i] = -xI[1 + i];}
+    break;
+  default: /* TODO */
+    SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Wall boundary condition not implemented for this physics (%d)\n", bc_ctx->phys->type);
     break;
   }
   PetscFunctionReturn(0);
@@ -188,7 +166,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
   PetscDS system;
   ierr = DMCreateDS(mesh);                                                                                CHKERRQ(ierr);
   ierr = DMGetDS(mesh, &system);                                                                          CHKERRQ(ierr);
-  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Euler_Centred);                                 CHKERRQ(ierr);
+  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Euler_Exact);                                   CHKERRQ(ierr);
   ierr = PetscDSSetContext(system, 0, (*phys));                                                           CHKERRQ(ierr);
   for (PetscInt i = 1; i <= (*phys)->nbc; i++) {
     (*phys)->bc_ctx[i - 1].phys = *phys;
@@ -196,19 +174,19 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
 
     switch ((*phys)->bc[i - 1].type) {
       case BC_DIRICHLET:
-        ierr = PetscDSAddBoundary(system, DM_BC_ESSENTIAL, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
+        ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
                                   (void (*)(void)) BCDirichlet, 1, &i, &(*phys)->bc_ctx[i - 1]);          CHKERRQ(ierr);
         break;
       case BC_OUTFLOW:
-        ierr = PetscDSAddBoundary(system, DM_BC_NATURAL, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
+        ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
                                   (void (*)(void)) BCOutflow, 1, &i, &(*phys)->bc_ctx[i - 1]);            CHKERRQ(ierr);
         break;
       case BC_WALL:
-        ierr = PetscDSAddBoundary(system, DM_BC_NATURAL, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
+        ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
                                   (void (*)(void)) BCWall, 1, &i, &(*phys)->bc_ctx[i - 1]);               CHKERRQ(ierr);
         break;
       default:
-        SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition: %s\n", BCTypes[(*phys)->bc[i - 1].type]);
+        SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%d)\n", (*phys)->bc[i - 1].type);
         break;
     }
   }
