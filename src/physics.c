@@ -16,11 +16,20 @@ static struct BCDescription bc[] = {{"wall", BC_WALL, NULL},
                                     {"inflow", BC_DIRICHLET, bc_inflow},
                                     {NULL, BC_NULL, NULL}};
 
-static PetscReal initial_condition[] = {1, 0, 0, 2.5E5};
+static const PetscReal r0 = 1;
+static const PetscReal u0[] = {0, 0, 0};
+static const PetscReal p0 = 1E5;
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscScalar *u, void *ctx){
+  Physics   phys = (Physics) ctx;
+  PetscReal norm2 = 0;
 
   PetscFunctionBeginUser;
-  for (PetscInt i = 0; i < Nf; i++){u[i] = initial_condition[i];}
+  u[0] = r0;
+  for (PetscInt i = 0; i < dim; i++){
+    u[1 + i] = r0 * u0[i];
+    norm2 += PetscSqr(u0[i]);
+  }
+  u[Nf - 1] = p0 / (phys->gamma - 1) + 0.5 * r0 * norm2;
   PetscFunctionReturn(0);
 }
 
@@ -50,7 +59,7 @@ static void RiemannSolver_Advec(PetscInt dim, PetscInt Nf,
 static void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
                                 const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
                                 PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
-  Physics   phys = (Physics) ctx;
+  Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
 
