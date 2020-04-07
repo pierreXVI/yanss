@@ -93,19 +93,13 @@ static void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
   PetscReal cl = PetscSqrtReal(phys->gamma * pl / rl); // left speed of sound
   PetscReal cr = PetscSqrtReal(phys->gamma * pr / rr); // right speed of sound
 
-  if (ul - ur + 2 * (cl - cr) / (phys->gamma - 1) < 0) {
-    PetscPrintf(PETSC_COMM_WORLD, "Cavitation in x = [");
-    for (PetscInt i = 0; i < dim; i++){PetscPrintf(PETSC_COMM_WORLD, "% f, ", x[i]);}
-    PetscPrintf(PETSC_COMM_WORLD, "\033[2D], n = (");
-    for (PetscInt i = 0; i < dim; i++){PetscPrintf(PETSC_COMM_WORLD, "% f, ", n[i]);}
-    PetscPrintf(PETSC_COMM_WORLD, "\033[2D)\n");
-  }
-
   PetscReal alpha = (phys->gamma + 1) / (2 * phys->gamma);
   PetscReal beta  = (phys->gamma - 1) / (2 * phys->gamma);
   PetscReal delta = (phys->gamma + 1) / (phys->gamma - 1);
 
-  PetscReal pstar = pl, ml, mr, flg_sl, flg_sr;
+  PetscReal pstar = PetscPowReal((beta * (ul - ur) + cl + cr) / (cl * PetscPowReal(pl, -beta) + cr * PetscPowReal(pr, -beta)), 1 / beta);
+  PetscReal ml, mr;
+  PetscBool flg_sl, flg_sr;
   for (PetscInt i = 0; i < N_ITER_RIEMANN; i++) {
     PetscReal pratiol = pstar / pl;
     PetscReal pratior = pstar / pr;
@@ -114,20 +108,7 @@ static void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
     ml = (flg_sl) ? rl * cl * PetscSqrtReal(1 + alpha * (pratiol - 1)) : rl * cl * beta * (1 - pratiol) / (1 - PetscPowReal(pratiol, beta));
     mr = (flg_sr) ? rr * cr * PetscSqrtReal(1 + alpha * (pratior - 1)) : rr * cr * beta * (1 - pratior) / (1 - PetscPowReal(pratior, beta));
     pstar = (mr * pl + ml * pr + ml * mr * (ul - ur)) / (ml + mr);
-    if (pstar < 0) {break;}
-  }
-  if (pstar < 0) { // need to try again from pr
-    pstar = pr;
-    for (PetscInt i = 0; i < N_ITER_RIEMANN; i++) {
-      PetscReal pratiol = pstar / pl;
-      PetscReal pratior = pstar / pr;
-      flg_sl = pratiol >= 1;
-      flg_sr = pratior >= 1;
-      ml = (flg_sl) ? rl * cl * PetscSqrtReal(1 + alpha * (pratiol - 1)) : rl * cl * beta * (1 - pratiol) / (1 - PetscPowReal(pratiol, beta));
-      mr = (flg_sr) ? rr * cr * PetscSqrtReal(1 + alpha * (pratior - 1)) : rr * cr * beta * (1 - pratior) / (1 - PetscPowReal(pratior, beta));
-      pstar = (mr * pl + ml * pr + ml * mr * (ul - ur)) / (ml + mr);
-      if (pstar < 0) {PetscPrintf(PETSC_COMM_WORLD, "ERROR : p* < 0\n");}
-    }
+    if (pstar < 0) {SETERRABORT(PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");}
   }
 
   PetscReal ustar = (ml * ul + mr * ur + pl - pr) / (ml + mr);
