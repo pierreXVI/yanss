@@ -3,6 +3,8 @@
 
 #include "utils.h"
 
+#define N_ITER_RIEMANN 10
+
 PetscErrorCode PhysicsDestroy(Physics*);
 PetscErrorCode PhysicsCreate(Physics*, DM);
 /*

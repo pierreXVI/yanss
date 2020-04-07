@@ -51,7 +51,7 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, DM dm, Physics phys, PetscReal 
   ierr = TSCreate(comm, ts);                                   CHKERRQ(ierr);
   ierr = TSSetDM(*ts, dm);                                     CHKERRQ(ierr);
   ierr = TSSetTimeStep(*ts, dt);                               CHKERRQ(ierr);
-  ierr = TSSetType(*ts, TSSSP);                                CHKERRQ(ierr);
+  ierr = TSSetType(*ts, TSEULER);                              CHKERRQ(ierr);
   ierr = TSSetMaxTime(*ts, 2.0);                               CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER); CHKERRQ(ierr);
   ierr = TSMonitorSet(*ts, TSMonitorAscii, NULL, NULL);        CHKERRQ(ierr);

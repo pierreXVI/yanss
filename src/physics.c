@@ -10,7 +10,7 @@ static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {"rho * E", DOF_1},
                                                  {NULL, DOF_NULL}};
 
-static PetscReal bc_inflow[4] = {1, 01, 0, 2.5E5 + 0.1*0.1/2};
+static PetscReal bc_inflow[4] = {1, 1 * 0.1, 0, 2.5E5 + 0.5 * 1 * PetscSqr(0.1)};
 static struct BCDescription bc[] = {{"wall", BC_WALL, NULL},
                                     {"outflow", BC_OUTFLOW, NULL},
                                     {"inflow", BC_DIRICHLET, bc_inflow},
@@ -50,10 +50,128 @@ static void RiemannSolver_Advec(PetscInt dim, PetscInt Nf,
 static void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
                                 const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
                                 PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
-  // Physics phys = (Physics) ctx;
-  // PetscReal dot = 0, square = 0, uI[Nf], pI;
+  Physics   phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
+
+  PetscReal area = 0, nn[dim]; // n = area * nn, nn normal vector to the surface
+  for (PetscInt i = 0; i < dim; i++){area += PetscSqr(n[i]);}
+  area = PetscSqrtReal(area);
+  for (PetscInt i = 0; i < dim; i++){nn[i] = n[i] / area;}
+
+
+  PetscReal rl = uL[0], rr = uR[0]; // left and right densities
+  PetscReal ul = 0, ur = 0; // left and right normal speeds
+  for (PetscInt i = 0; i < dim; i++){
+    ul += uL[1 + i] * nn[i];
+    ur += uR[1 + i] * nn[i];
+  }
+  ul /= rl;
+  ur /= rr;
+  PetscReal utl[dim], utr[dim]; // left and right tangent speeds
+  for (PetscInt i = 0; i < dim; i++){
+    utl[i] = uL[1 + i] / rl - ul * nn[i];
+    utr[i] = uR[1 + i] / rr - ur * nn[i];
+  }
+  PetscReal norm2l = 0, norm2r = 0;
+  for (PetscInt i = 0; i < dim; i++){
+    norm2l += PetscSqr(uL[1 + i]);
+    norm2r += PetscSqr(uR[1 + i]);
+  }
+  PetscReal pl = (phys->gamma - 1) * (uL[Nf - 1] - 0.5 * norm2l / rl); // left pressure
+  PetscReal pr = (phys->gamma - 1) * (uR[Nf - 1] - 0.5 * norm2r / rr); // right pressure
+
+  PetscReal cl = PetscSqrtReal(phys->gamma * pl / rl); // left speed of sound
+  PetscReal cr = PetscSqrtReal(phys->gamma * pr / rr); // right speed of sound
+
+  if (ul - ur + 2 * (cl - cr) / (phys->gamma - 1) < 0) {
+    PetscPrintf(PETSC_COMM_WORLD, "Cavitation in x = [");
+    for (PetscInt i = 0; i < dim; i++){PetscPrintf(PETSC_COMM_WORLD, "% f, ", x[i]);}
+    PetscPrintf(PETSC_COMM_WORLD, "\033[2D], n = (");
+    for (PetscInt i = 0; i < dim; i++){PetscPrintf(PETSC_COMM_WORLD, "% f, ", n[i]);}
+    PetscPrintf(PETSC_COMM_WORLD, "\033[2D)\n");
+  }
+
+  PetscReal alpha = (phys->gamma + 1) / (2 * phys->gamma);
+  PetscReal beta  = (phys->gamma - 1) / (2 * phys->gamma);
+  PetscReal delta = (phys->gamma + 1) / (phys->gamma - 1);
+
+  PetscReal pstar = pl, ml, mr, flg_sl, flg_sr;
+  for (PetscInt i = 0; i < N_ITER_RIEMANN; i++) {
+    PetscReal pratiol = pstar / pl;
+    PetscReal pratior = pstar / pr;
+    flg_sl = pratiol >= 1;
+    flg_sr = pratior >= 1;
+    ml = (flg_sl) ? rl * cl * PetscSqrtReal(1 + alpha * (pratiol - 1)) : rl * cl * beta * (1 - pratiol) / (1 - PetscPowReal(pratiol, beta));
+    mr = (flg_sr) ? rr * cr * PetscSqrtReal(1 + alpha * (pratior - 1)) : rr * cr * beta * (1 - pratior) / (1 - PetscPowReal(pratior, beta));
+    pstar = (mr * pl + ml * pr + ml * mr * (ul - ur)) / (ml + mr);
+    if (pstar < 0) {break;}
+  }
+  if (pstar < 0) { // need to try again from pr
+    pstar = pr;
+    for (PetscInt i = 0; i < N_ITER_RIEMANN; i++) {
+      PetscReal pratiol = pstar / pl;
+      PetscReal pratior = pstar / pr;
+      flg_sl = pratiol >= 1;
+      flg_sr = pratior >= 1;
+      ml = (flg_sl) ? rl * cl * PetscSqrtReal(1 + alpha * (pratiol - 1)) : rl * cl * beta * (1 - pratiol) / (1 - PetscPowReal(pratiol, beta));
+      mr = (flg_sr) ? rr * cr * PetscSqrtReal(1 + alpha * (pratior - 1)) : rr * cr * beta * (1 - pratior) / (1 - PetscPowReal(pratior, beta));
+      pstar = (mr * pl + ml * pr + ml * mr * (ul - ur)) / (ml + mr);
+      if (pstar < 0) {PetscPrintf(PETSC_COMM_WORLD, "ERROR : p* < 0\n");}
+    }
+  }
+
+  PetscReal ustar = (ml * ul + mr * ur + pl - pr) / (ml + mr);
+
+  PetscReal rout, uout, *utout, pout; // density, normal and tangent speeds, and pressure at the interface
+  if (ustar > 0) {
+    utout = utl;
+    PetscReal pratiol = pstar / pl;
+    if (flg_sl) { // shock -> uL*
+      uout = ustar;
+      pout = pstar;
+      rout = rl * (1 + delta * pratiol) / (delta + pratiol);
+    } else {
+      PetscReal rstarl = rl * PetscPowReal(pratiol, 1 / phys->gamma);
+      PetscReal cstarl = PetscSqrtReal(phys->gamma * pstar / rstarl);
+      if (ustar < cstarl) { // rarefaction -> uL*
+        uout = ustar;
+        pout = pstar;
+        rout = rstarl;
+      } else { // sonic rarefaction
+        uout = (ul * cstarl - ustar * cl) / (ul - ustar + cstarl - cl);
+        pout = pl * PetscPowReal(uout / cl, 1 / beta);
+        rout = rl * PetscPowReal(pout / pl, 1 / phys->gamma);
+      }
+    }
+  } else {
+    utout = utr;
+    PetscReal pratior = pstar / pr;
+    if (flg_sr) { // shock -> uR*
+      uout = ustar;
+      pout = pstar;
+      rout = rr * (1 + delta * pratior) / (delta + pratior);
+    } else {
+      PetscReal rstarr = rr * PetscPowReal(pratior, 1 / phys->gamma);
+      PetscReal cstarr = PetscSqrtReal(phys->gamma * pstar / rstarr);
+      if (ustar < cstarr) { // rarefaction -> uR*
+        uout = ustar;
+        pout = pstar;
+        rout = rstarr;
+      } else { // sonic rarefaction
+        uout = (ur * cstarr - ustar * cr) / (ur - ustar + cstarr - cr);
+        pout = pr * PetscPowReal(uout / cr, 1 / beta);
+        rout = rr * PetscPowReal(pout / pr, 1 / phys->gamma);
+      }
+    }
+  }
+
+  PetscReal un = uout * area, unorm2 = PetscSqr(uout);
+  for (PetscInt i = 0; i < dim; i++) {unorm2 += PetscSqr(utout[i]);}
+
+  flux[0] = rout * un;
+  for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = rout * (uout * nn[i] + utout[i]) * un + pout * n[i];}
+  flux[Nf - 1] = (pout * phys->gamma / (phys->gamma - 1) + 0.5 * rout * unorm2) * un;
 
   PetscFunctionReturnVoid();
 }
@@ -91,7 +209,7 @@ static PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscRe
     PetscReal dot = 0, norm2 = 0;
     for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){
       dot += xI[1 + i] * n[i];
-      norm2 += n[i] * n[i];
+      norm2 += PetscSqr(n[i]);
     }
     for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){xG[1 + i] = xI[1 + i] - 2 * dot * n[i] / norm2;}
     break;
