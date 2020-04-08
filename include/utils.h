@@ -26,7 +26,7 @@ struct FieldDescription {
 struct BCDescription {
   const char        *name; // The boundary name
   const enum BCType type;  // The boundary type
-  const PetscReal   *val;  // Additional numerical values
+  PetscReal         *val;  // Additional numerical values
 };
 
 struct BC_ctx {

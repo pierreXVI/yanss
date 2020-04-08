@@ -7,8 +7,8 @@ static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {NULL, DOF_NULL}};
 
 #define RHO_0 1
-#define U_0   1
-#define U_1   1
+#define U_0   0
+#define U_1   0
 #define P_0   1E5
 
 PetscReal bc_inflow[4] = {RHO_0, U_1, 0, P_0};
@@ -84,38 +84,56 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
   }
   ierr = PetscFVSetFromOptions(fvm);                                                   CHKERRQ(ierr);
 
-  (*phys)->bc = bc;
-  (*phys)->nbc = 0; while ((*phys)->bc[(*phys)->nbc].name) {(*phys)->nbc++;}
-  ierr = PetscMalloc1((*phys)->nbc, &((*phys)->bc_ctx)); CHKERRQ(ierr);
 
   PetscDS system;
   ierr = DMCreateDS(mesh);                                                                                CHKERRQ(ierr);
   ierr = DMGetDS(mesh, &system);                                                                          CHKERRQ(ierr);
   ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Euler_Exact);                                   CHKERRQ(ierr);
   ierr = PetscDSSetContext(system, 0, (*phys));                                                           CHKERRQ(ierr);
-  for (PetscInt i = 1; i <= (*phys)->nbc; i++) {
-    (*phys)->bc_ctx[i - 1].phys = *phys;
-    (*phys)->bc_ctx[i - 1].i = i - 1;
+  ierr = PhysSetupBC(*phys, system, bc);                         CHKERRQ(ierr);
 
-    switch ((*phys)->bc[i - 1].type) {
-      case BC_DIRICHLET:
-        ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
-                                  (void (*)(void)) BCDirichlet, 1, &i, &(*phys)->bc_ctx[i - 1]);          CHKERRQ(ierr);
-        break;
-      case BC_OUTFLOW_P:
-        ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
-                                  (void (*)(void)) BCOutflow_P, 1, &i, &(*phys)->bc_ctx[i - 1]);          CHKERRQ(ierr);
-        break;
-      case BC_WALL:
-        ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i - 1].name, "Face Sets", 0, 0, NULL,
-                                  (void (*)(void)) BCWall, 1, &i, &(*phys)->bc_ctx[i - 1]);               CHKERRQ(ierr);
-        break;
-      default:
-        SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%d)\n", (*phys)->bc[i - 1].type);
-        break;
-    }
-  }
   ierr = PetscDSSetFromOptions(system);                                                                   CHKERRQ(ierr);
 
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode PhysSetupBC(Physics phys, PetscDS system, struct BCDescription *bc){
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  phys->bc = bc;
+  while (bc[phys->nbc].name) {phys->nbc++;}
+  ierr = PetscMalloc1(phys->nbc, &phys->bc_ctx); CHKERRQ(ierr);
+
+  for (PetscInt i = 1; i <= phys->nbc; i++) {
+    phys->bc_ctx[i - 1].phys = phys;
+    phys->bc_ctx[i - 1].i = i - 1;
+
+    switch (phys->bc[i - 1].type) {
+    case BC_DIRICHLET:
+      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, phys->bc[i - 1].name, "Face Sets", 0, 0, NULL,
+                                (void (*)(void)) BCDirichlet, 1, &i, &phys->bc_ctx[i - 1]); CHKERRQ(ierr);
+
+      // Convert from primitive (r, u, p) to conservative (r, ru, rE)
+      PetscReal norm2 = 0;
+      for (PetscInt j = 0; j < phys->dim; j++) {
+        norm2 += PetscSqr(bc[i - 1].val[1 + j]);
+        bc[i - 1].val[1 + j] *= bc[i - 1].val[0];
+      }
+      bc[i - 1].val[phys->dof - 1] = bc[i - 1].val[phys->dof - 1] / (phys->gamma - 1) + 0.5 * bc[i - 1].val[0] * norm2;
+      break;
+    case BC_OUTFLOW_P:
+      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, phys->bc[i - 1].name, "Face Sets", 0, 0, NULL,
+                                (void (*)(void)) BCOutflow_P, 1, &i, &phys->bc_ctx[i - 1]); CHKERRQ(ierr);
+      break;
+    case BC_WALL:
+      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, phys->bc[i - 1].name, "Face Sets", 0, 0, NULL,
+                                (void (*)(void)) BCWall, 1, &i, &phys->bc_ctx[i - 1]);      CHKERRQ(ierr);
+      break;
+    default:
+      SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%d)\n", phys->bc[i - 1].type);
+      break;
+    }
+  }
   PetscFunctionReturn(0);
 }

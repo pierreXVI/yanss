@@ -1,6 +1,7 @@
 #include "physics.h"
 
-/*____________________________________________________________________________________________________________________*/
+// #define MONITOR_BC
+
 
 const char * const BCTypes[] = {"BC_NULL", "Dirichlet", "Outflow_P", "Wall"};
 
@@ -11,7 +12,9 @@ PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[3], const PetscReal
   for (PetscInt i = 0; i < bc_ctx->phys->dof; i++){
     xG[i] = bc_ctx->phys->bc[bc_ctx->i].val[i];
   }
+#ifdef MONITOR_BC
   PetscPrintf(PETSC_COMM_WORLD, "BCDirichlet : xI = %3f, % 3f, % 3f, %.3E, xG = %3f, % 3f, % 3f, %.3E\n", xI[0], xI[1], xI[2], xI[3], xG[0], xG[1], xG[2], xG[3]);
+#endif
   PetscFunctionReturn(0);
 }
 
@@ -37,7 +40,9 @@ PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[3], const PetscReal
     norm2 += PetscSqr(xG[1 + i]);
   }
   xG[bc_ctx->phys->dof - 1] = bc_ctx->phys->bc[bc_ctx->i].val[0] / (bc_ctx->phys->gamma - 1) + 0.5 * norm2 / xG[0];
+#ifdef MONITOR_BC
   PetscPrintf(PETSC_COMM_WORLD, "BCOutflow_P : xI = %3f, % 3f, % 3f, %.3E, xG = %3f, % 3f, % 3f, %.3E\n", xI[0], xI[1], xI[2], xI[3], xG[0], xG[1], xG[2], xG[3]);
+#endif
 
   PetscFunctionReturn(0);
 }
@@ -67,6 +72,8 @@ PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscReal n[3]
     SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Wall boundary condition not implemented for this physics (%d)\n", bc_ctx->phys->type);
     break;
   }
+#ifdef MONITOR_BC
   PetscPrintf(PETSC_COMM_WORLD, "BCWall      : xI = %3f, % 3f, % 3f, %.3E, xG = %3f, % 3f, % 3f, %.3E\n", xI[0], xI[1], xI[2], xI[3], xG[0], xG[1], xG[2], xG[3]);
+#endif
   PetscFunctionReturn(0);
 }
