@@ -5,7 +5,7 @@
 #include <petscds.h>
 #include <petscts.h>
 
-enum BCType {BC_NULL, BC_DIRICHLET, BC_OUTFLOW, BC_WALL};
+enum BCType {BC_NULL, BC_DIRICHLET, BC_OUTFLOW_P, BC_WALL};
 PETSC_EXTERN const char * const BCTypes[];
 
 enum ProblemType {TYPE_EULER, TYPE_NS};
@@ -24,9 +24,9 @@ struct FieldDescription {
 };
 
 struct BCDescription {
-  const char   *name; // The boundary name
-  enum BCType  type;  // The boundary type
-  PetscReal    *val;  // Additional numerical values
+  const char        *name; // The boundary name
+  const enum BCType type;  // The boundary type
+  const PetscReal   *val;  // Additional numerical values
 };
 
 struct BC_ctx {
