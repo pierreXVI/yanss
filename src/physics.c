@@ -2,9 +2,6 @@
 
 static const enum ProblemType problem_type = TYPE_EULER;
 
-// static const PetscReal c_advec[] = {1, 0, 0};
-
-// static struct FieldDescription fields_advec[] = {{"U", DOF_DIM}, {NULL, DOF_NULL}};
 static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {"rho * U", DOF_DIM},
                                                  {"rho * E", DOF_1},
@@ -37,24 +34,9 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
 /*____________________________________________________________________________________________________________________*/
 
 const char * const BCTypes[] = {"BC_NULL", "Dirichlet", "Outflow", "Wall"};
-const char * const ProblemTypes[] = {"Advection", "Euler", "Navier-Stokes"};
+const char * const ProblemTypes[] = {"Euler", "Navier-Stokes"};
 
-/*
-static void RiemannSolver_Advec(PetscInt dim, PetscInt Nf,
-                                const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
-                                PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
-  PetscReal dot = 0;
-
-  PetscFunctionBeginUser;
-  for (PetscInt i = 0; i < dim; i++){
-    dot += c_advec[i] * n[i];
-  }
-  for (PetscInt i = 0; i < Nf; i++){
-    flux[i] = (dot > 0 ? uL[i] : uR[i]) * dot;
-  }
-  PetscFunctionReturnVoid();
 }
-*/
 
 static void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
                                 const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
