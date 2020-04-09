@@ -2,11 +2,33 @@
 
 static PetscErrorCode TSMonitorAscii(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
   PetscErrorCode ierr;
-  PetscReal      xnorm;
 
   PetscFunctionBeginUser;
-  ierr = VecNorm(u, NORM_INFINITY, &xnorm);                                                  CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "% 3D  time %8.4g  |x| %8.4g\n", steps, time, xnorm); CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  ", steps, time); CHKERRQ(ierr);
+
+  DM       dm;
+  PetscFV  fvm;
+  PetscInt Nc, size;
+  ierr = VecGetDM(u, &dm);                             CHKERRQ(ierr);
+  ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
+  ierr = VecGetLocalSize(u, &size);                    CHKERRQ(ierr);
+  for (PetscInt comp = 0; comp < Nc; comp++) {
+    IS         is;
+    Vec        subv;
+    PetscReal   min, max;
+    const char *compName;
+    ierr = ISCreateStride(PetscObjectComm((PetscObject) u), size / Nc, comp, Nc, &is);     CHKERRQ(ierr);
+    ierr = VecGetSubVector(u, is, &subv);                                                  CHKERRQ(ierr);
+    ierr = VecMin(subv, NULL, &min);                                                       CHKERRQ(ierr);
+    ierr = VecMax(subv, NULL, &max);                                                       CHKERRQ(ierr);
+    ierr = VecDestroy(&subv);                                                              CHKERRQ(ierr);
+    ierr = ISDestroy(&is);                                                                 CHKERRQ(ierr);
+    ierr = PetscFVGetComponentName(fvm, comp, &compName);                                  CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "%s : [% 10.4g, % 10.4g], ", compName, min, max); CHKERRQ(ierr);
+  }
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "\033[2D\n"); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
