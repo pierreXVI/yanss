@@ -6,11 +6,6 @@ static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {"rho * E", DOF_1},
                                                  {NULL, DOF_NULL}};
 
-#define RHO_0 1
-#define U_0   0
-#define U_1   0
-#define P_0   1E5
-
 PetscReal bc_inflow[4] = {RHO_0, U_1, 0, P_0};
 PetscReal bc_outflow[1] = {P_0};
 static struct BCDescription bc[] = {{"wall", BC_WALL, NULL},
@@ -32,6 +27,27 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
 /*____________________________________________________________________________________________________________________*/
 
 const char * const ProblemTypes[] = {"Euler", "Navier-Stokes"};
+
+PetscErrorCode PrimitiveToConservative(Physics phys, const PetscReal in[], PetscReal out[]){
+  PetscFunctionBeginUser;
+  PetscReal norm2 = 0;
+  for (PetscInt i = 0; i < phys->dim; i++){norm2 += PetscSqr(in[1 + i]);}
+  out[0] = in[0];
+  for (PetscInt i = 0; i < phys->dim; i++){out[1 + i] = in[1 + i] * in[0];}
+  out[phys->dof - 1] = in[phys->dof - 1] / (phys->gamma - 1) + 0.5 * norm2 * in[0];
+  PetscFunctionReturn(0);
+}
+PetscErrorCode ConservativeToPrimitive(Physics phys, const PetscReal in[], PetscReal out[]){
+  PetscFunctionBeginUser;
+  PetscReal norm2 = 0;
+  for (PetscInt i = 0; i < phys->dim; i++){norm2 += PetscSqr(in[1 + i]);}
+
+  out[0] = in[0];
+  for (PetscInt i = 0; i < phys->dim; i++){out[1 + i] = in[1 + i] / in[0];}
+  out[phys->dof - 1] = (phys->gamma - 1) * (in[phys->dof - 1] - 0.5 * norm2 / in[0]);
+  PetscFunctionReturn(0);
+}
+
 
 PetscErrorCode PhysicsDestroy(Physics *phys){
   PetscErrorCode ierr;
@@ -86,13 +102,13 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
 
 
   PetscDS system;
-  ierr = DMCreateDS(mesh);                                                                                CHKERRQ(ierr);
-  ierr = DMGetDS(mesh, &system);                                                                          CHKERRQ(ierr);
-  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Euler_Exact);                                   CHKERRQ(ierr);
-  ierr = PetscDSSetContext(system, 0, (*phys));                                                           CHKERRQ(ierr);
-  ierr = PhysSetupBC(*phys, system, bc);                         CHKERRQ(ierr);
+  ierr = DMCreateDS(mesh);                                              CHKERRQ(ierr);
+  ierr = DMGetDS(mesh, &system);                                        CHKERRQ(ierr);
+  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Euler_Exact); CHKERRQ(ierr);
+  ierr = PetscDSSetContext(system, 0, (*phys));                         CHKERRQ(ierr);
+  ierr = PhysSetupBC(*phys, system, bc);                                CHKERRQ(ierr);
 
-  ierr = PetscDSSetFromOptions(system);                                                                   CHKERRQ(ierr);
+  ierr = PetscDSSetFromOptions(system);                                 CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
