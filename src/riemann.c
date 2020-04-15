@@ -9,6 +9,7 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
 
   PetscBool flag = PETSC_FALSE;
   // flag = (x[0] < 0.2);
+  flag = PETSC_TRUE;
 
   PetscReal area = 0, nn[dim]; // n = area * nn, nn normal vector to the surface
   for (PetscInt i = 0; i < dim; i++){area += PetscSqr(n[i]);}
@@ -16,8 +17,8 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
   for (PetscInt i = 0; i < dim; i++){nn[i] = n[i] / area;}
 
   PetscScalar wL[Nf], wR[Nf];
-  PrimitiveToConservative(phys, uL, wL);
-  PrimitiveToConservative(phys, uR, wR);
+  ConservativeToPrimitive(phys, uL, wL);
+  ConservativeToPrimitive(phys, uR, wR);
 
   PetscReal rl = wL[0], rr = wR[0]; // left and right densities
   PetscReal ul = 0, ur = 0; // left and right normal speeds
@@ -118,7 +119,7 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
       }
     }
   }
-  if (flag) {PetscPrintf(PETSC_COMM_WORLD, "\tr = %.3E, u = % .3E, p = %.3E\n", rout, ustar, pout);}
+  if (flag) {PetscPrintf(PETSC_COMM_WORLD, "\tr = %.3E, u = % .3E, p = %.3E", rout, ustar, pout);}
 
   // rout = RHO_0;
   // pout = P_0;
@@ -273,8 +274,8 @@ void RiemannSolver_Euler_Lax(PetscInt dim, PetscInt Nf,
   PetscFunctionBeginUser;
 
   PetscScalar wL[Nf], wR[Nf];
-  PrimitiveToConservative(phys, uL, wL);
-  PrimitiveToConservative(phys, uR, wR);
+  ConservativeToPrimitive(phys, uL, wL);
+  ConservativeToPrimitive(phys, uR, wR);
 
   PetscReal dotl = 0, dotr = 0;
   for (PetscInt i = 0; i < dim; i++) {
