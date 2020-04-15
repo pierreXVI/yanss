@@ -1,6 +1,6 @@
 #include "physics.h"
 
-#define MONITOR_BC
+// #define MONITOR_BC
 
 
 const char * const BCTypes[] = {"BC_NULL", "Dirichlet", "Outflow_P", "Wall"};

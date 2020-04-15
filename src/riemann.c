@@ -7,10 +7,6 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
 
   PetscFunctionBeginUser;
 
-  PetscBool flag = PETSC_FALSE;
-  // flag = (x[0] < 0.2);
-  flag = PETSC_TRUE;
-
   PetscReal area = 0, nn[dim]; // n = area * nn, nn normal vector to the surface
   for (PetscInt i = 0; i < dim; i++){area += PetscSqr(n[i]);}
   area = PetscSqrtReal(area);
@@ -32,9 +28,6 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
     utr[i] = wR[1 + i] - ur * nn[i];
   }
   PetscReal pl = wL[Nf - 1], pr = wR[Nf - 1]; // left and right pressures
-
-  if (flag) {PetscPrintf(PETSC_COMM_WORLD, "wL = %.3f, % .3f, %.1E ", rl, ul, pl);}
-  if (flag) {PetscPrintf(PETSC_COMM_WORLD, "wR = %.3f, % .3f, %.1E ", rr, ur, pr);}
 
   PetscReal cl = PetscSqrtReal(phys->gamma * pl / rl); // left speed of sound
   PetscReal cr = PetscSqrtReal(phys->gamma * pr / rr); // right speed of sound
@@ -119,16 +112,6 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
       }
     }
   }
-  if (flag) {PetscPrintf(PETSC_COMM_WORLD, "\tr = %.3E, u = % .3E, p = %.3E", rout, ustar, pout);}
-
-  // rout = RHO_0;
-  // pout = P_0;
-  // uout = U_0 * nn[0];
-  // utout[0] = U_0 * (1 - nn[0] * nn[0]);
-  // utout[1] = -U_0 * nn[0]*nn[1];
-
-  for (PetscInt i = 0; i < Nf; i++) {flux[i] = 0;}
-
 
   PetscReal un = uout * area, unorm2 = 0;
   for (PetscInt i = 0; i < dim; i++) {unorm2 += PetscSqr(uout * nn[i] + utout[i]);}
@@ -136,8 +119,6 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
   flux[0] = rout * un;
   for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = rout * (uout * nn[i] + utout[i]) * un + pout * n[i];}
   flux[Nf - 1] = (pout * phys->gamma / (phys->gamma - 1) + 0.5 * rout * unorm2) * un;
-
-  if (flag) {PetscPrintf(PETSC_COMM_WORLD, "Flux : % .1E, % .1E, % .1E, % .1E\n", flux[0], flux[1], flux[2], flux[3]);}
 
   PetscFunctionReturnVoid();
 }
