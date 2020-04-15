@@ -31,8 +31,8 @@ PetscErrorCode PhysSetupBC(Physics, PetscDS, struct BCDescription*);
 
 PetscErrorCode InitialCondition(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*);
 
-PetscErrorCode PrimitiveToConservative(Physics, const PetscReal*, PetscReal*);
-PetscErrorCode ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
+void PrimitiveToConservative(Physics, const PetscReal*, PetscReal*);
+void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
 
 
 void RiemannSolver_Euler_Exact(PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);

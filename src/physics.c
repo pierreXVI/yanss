@@ -28,16 +28,16 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
 
 const char * const ProblemTypes[] = {"Euler", "Navier-Stokes"};
 
-PetscErrorCode PrimitiveToConservative(Physics phys, const PetscReal in[], PetscReal out[]){
+void PrimitiveToConservative(Physics phys, const PetscReal in[], PetscReal out[]){
   PetscFunctionBeginUser;
   PetscReal norm2 = 0;
   for (PetscInt i = 0; i < phys->dim; i++){norm2 += PetscSqr(in[1 + i]);}
   out[0] = in[0];
   for (PetscInt i = 0; i < phys->dim; i++){out[1 + i] = in[1 + i] * in[0];}
   out[phys->dof - 1] = in[phys->dof - 1] / (phys->gamma - 1) + 0.5 * norm2 * in[0];
-  PetscFunctionReturn(0);
+  PetscFunctionReturnVoid();
 }
-PetscErrorCode ConservativeToPrimitive(Physics phys, const PetscReal in[], PetscReal out[]){
+void ConservativeToPrimitive(Physics phys, const PetscReal in[], PetscReal out[]){
   PetscFunctionBeginUser;
   PetscReal norm2 = 0;
   for (PetscInt i = 0; i < phys->dim; i++){norm2 += PetscSqr(in[1 + i]);}
@@ -45,7 +45,7 @@ PetscErrorCode ConservativeToPrimitive(Physics phys, const PetscReal in[], Petsc
   out[0] = in[0];
   for (PetscInt i = 0; i < phys->dim; i++){out[1 + i] = in[1 + i] / in[0];}
   out[phys->dof - 1] = (phys->gamma - 1) * (in[phys->dof - 1] - 0.5 * norm2 / in[0]);
-  PetscFunctionReturn(0);
+  PetscFunctionReturnVoid();
 }
 
 
