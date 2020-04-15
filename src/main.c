@@ -29,8 +29,7 @@ int main(int argc, char **argv){
   // TODO
   PetscReal dt, minRadius;
   ierr = DMPlexTSGetGeometryFVM(mesh, NULL, NULL, &minRadius); CHKERRQ(ierr);
-  //     CFL   * dx        / c;
-  dt   = (0.9) * minRadius / 1;
+  dt   = (0.1) * minRadius / (PetscMax(U_0, U_1) + PetscSqrtReal(phys->gamma * P_0 / RHO_0));
 
   ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, mesh, phys, dt);      CHKERRQ(ierr);
   ierr = MeshApplyFunction(mesh, 0, InitialCondition, phys, x0); CHKERRQ(ierr);

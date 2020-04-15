@@ -36,6 +36,7 @@ PetscErrorCode ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
 
 
 void RiemannSolver_Euler_Exact(PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
+void RiemannSolver_Euler_Lax  (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
 
 PetscErrorCode BCDirichlet(PetscReal, const PetscReal[3], const PetscReal[3], const PetscScalar*, PetscScalar*, void*);
 PetscErrorCode BCOutflow_P(PetscReal, const PetscReal[3], const PetscReal[3], const PetscScalar*, PetscScalar*, void*);

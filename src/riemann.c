@@ -7,34 +7,30 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
 
   PetscFunctionBeginUser;
 
-  PetscBool flag = (x[0] < 0.5);
+  PetscBool flag = PETSC_FALSE;
+  // flag = (x[0] < 0.2);
 
   PetscReal area = 0, nn[dim]; // n = area * nn, nn normal vector to the surface
   for (PetscInt i = 0; i < dim; i++){area += PetscSqr(n[i]);}
   area = PetscSqrtReal(area);
   for (PetscInt i = 0; i < dim; i++){nn[i] = n[i] / area;}
 
+  PetscScalar wL[Nf], wR[Nf];
+  PrimitiveToConservative(phys, uL, wL);
+  PrimitiveToConservative(phys, uR, wR);
 
-  PetscReal rl = uL[0], rr = uR[0]; // left and right densities
+  PetscReal rl = wL[0], rr = wR[0]; // left and right densities
   PetscReal ul = 0, ur = 0; // left and right normal speeds
   for (PetscInt i = 0; i < dim; i++){
-    ul += uL[1 + i] * nn[i];
-    ur += uR[1 + i] * nn[i];
+    ul += wL[1 + i] * nn[i];
+    ur += wR[1 + i] * nn[i];
   }
-  ul /= rl;
-  ur /= rr;
   PetscReal utl[dim], utr[dim]; // left and right tangent speeds
   for (PetscInt i = 0; i < dim; i++){
-    utl[i] = uL[1 + i] / rl - ul * nn[i];
-    utr[i] = uR[1 + i] / rr - ur * nn[i];
+    utl[i] = wL[1 + i] - ul * nn[i];
+    utr[i] = wR[1 + i] - ur * nn[i];
   }
-  PetscReal norm2l = 0, norm2r = 0;
-  for (PetscInt i = 0; i < dim; i++){
-    norm2l += PetscSqr(uL[1 + i]);
-    norm2r += PetscSqr(uR[1 + i]);
-  }
-  PetscReal pl = (phys->gamma - 1) * (uL[Nf - 1] - 0.5 * norm2l / rl); // left pressure
-  PetscReal pr = (phys->gamma - 1) * (uR[Nf - 1] - 0.5 * norm2r / rr); // right pressure
+  PetscReal pl = wL[Nf - 1], pr = wR[Nf - 1]; // left and right pressures
 
   if (flag) {PetscPrintf(PETSC_COMM_WORLD, "wL = %.3f, % .3f, %.1E ", rl, ul, pl);}
   if (flag) {PetscPrintf(PETSC_COMM_WORLD, "wR = %.3f, % .3f, %.1E ", rr, ur, pr);}
@@ -51,13 +47,31 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
   PetscBool flg_sl, flg_sr;
   for (PetscInt i = 0; i < N_ITER_RIEMANN; i++) {
     PetscReal pratiol = pstar / pl;
+    if (pratiol > 1) {
+      ml = rl * cl * PetscSqrtReal(1 + alpha * (pratiol - 1));
+      flg_sl = PETSC_TRUE;
+    } else if (pratiol < 1 - EPS_RIEMANN) {
+      ml = rl * cl * beta * (1 - pratiol) / (1 - PetscPowReal(pratiol, beta));
+      flg_sl = PETSC_FALSE;
+    } else {
+      ml = rl * cl * (3 - pratiol) / 2; // Linearisation of the rarefaction formula
+      flg_sl = PETSC_FALSE;
+    }
+
     PetscReal pratior = pstar / pr;
-    flg_sl = pratiol >= 1;
-    flg_sr = pratior >= 1;
-    ml = (flg_sl) ? rl * cl * PetscSqrtReal(1 + alpha * (pratiol - 1)) : rl * cl * beta * (1 - pratiol) / (1 - PetscPowReal(pratiol, beta));
-    mr = (flg_sr) ? rr * cr * PetscSqrtReal(1 + alpha * (pratior - 1)) : rr * cr * beta * (1 - pratior) / (1 - PetscPowReal(pratior, beta));
+    if (pratior > 1) {
+      mr = rr * cr * PetscSqrtReal(1 + alpha * (pratior - 1));
+      flg_sr = PETSC_TRUE;
+    } else if (pratior < 1 - EPS_RIEMANN) {
+      mr = rr * cr * beta * (1 - pratior) / (1 - PetscPowReal(pratior, beta));
+      flg_sr = PETSC_FALSE;
+    } else {
+      mr = rr * cr * (3 - pratior) / 2; // Linearisation of the rarefaction formula
+      flg_sr = PETSC_FALSE;
+    }
+
     pstar = (mr * pl + ml * pr + ml * mr * (ul - ur)) / (ml + mr);
-    if (flag) {PetscPrintf(PETSC_COMM_WORLD, "pstar %f, %f\n", ml, mr);}
+
     if (pstar < 0) {SETERRABORT(PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");}
   }
 
@@ -104,6 +118,16 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
       }
     }
   }
+  if (flag) {PetscPrintf(PETSC_COMM_WORLD, "\tr = %.3E, u = % .3E, p = %.3E\n", rout, ustar, pout);}
+
+  // rout = RHO_0;
+  // pout = P_0;
+  // uout = U_0 * nn[0];
+  // utout[0] = U_0 * (1 - nn[0] * nn[0]);
+  // utout[1] = -U_0 * nn[0]*nn[1];
+
+  for (PetscInt i = 0; i < Nf; i++) {flux[i] = 0;}
+
 
   PetscReal un = uout * area, unorm2 = 0;
   for (PetscInt i = 0; i < dim; i++) {unorm2 += PetscSqr(uout * nn[i] + utout[i]);}
@@ -113,6 +137,161 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
   flux[Nf - 1] = (pout * phys->gamma / (phys->gamma - 1) + 0.5 * rout * unorm2) * un;
 
   if (flag) {PetscPrintf(PETSC_COMM_WORLD, "Flux : % .1E, % .1E, % .1E, % .1E\n", flux[0], flux[1], flux[2], flux[3]);}
+
+  PetscFunctionReturnVoid();
+}
+
+/*
+void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nf,
+                                const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
+                                PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
+  Physics phys = (Physics) ctx;
+
+  PetscFunctionBeginUser;
+
+  PetscReal area = 0, nn[dim]; // n = area * nn, nn normal vector to the surface
+  for (PetscInt i = 0; i < dim; i++){area += PetscSqr(n[i]);}
+  area = PetscSqrtReal(area);
+  for (PetscInt i = 0; i < dim; i++){nn[i] = n[i] / area;}
+
+
+  PetscReal rl = uL[0], rr = uR[0]; // left and right densities
+  PetscReal ul = 0, ur = 0; // left and right normal speeds
+  for (PetscInt i = 0; i < dim; i++){
+    ul += uL[1 + i] * nn[i];
+    ur += uR[1 + i] * nn[i];
+  }
+  PetscReal utl[dim], utr[dim]; // left and right tangent speeds
+  for (PetscInt i = 0; i < dim; i++){
+    utl[i] = uL[1 + i] - ul * nn[i];
+    utr[i] = uR[1 + i] - ur * nn[i];
+  }
+  PetscReal pl = uL[Nf - 1], pr = uR[Nf - 1]; // left and right pressures
+
+  PetscReal cl = PetscSqrtReal(phys->gamma * pl / rl); // left speed of sound
+  PetscReal cr = PetscSqrtReal(phys->gamma * pr / rr); // right speed of sound
+
+  PetscReal alpha = PetscSqrtReal(rr / rl);
+  PetscReal uROE[Nf];
+  for (PetscInt i = 0; i < Nf; i++) {uRoe[i] = (uL[i] + alpha * uR[i]) / (1 + alpha);}
+
+
+   // right hand side
+  rr = max(face%primr(1,iface), cutoff)
+  ur = face%primr(2,iface)
+  vr = face%primr(3,iface)
+  wr = face%primr(4,iface)
+  pr = face%primr(5,iface)
+  hp = gamma*pr*(1 / (phys->gamma - 1))/rr +HALF*(ur*ur+vr*vr+wr*wr)
+
+  // left hand side
+  rl = max(face%priml(1,iface), cutoff)
+  ul = face%priml(2,iface)
+  vl = face%priml(3,iface)
+  wl = face%priml(4,iface)
+  pl = face%priml(5,iface)
+  hm = gamma*pl*(1 / (phys->gamma - 1))/rl +HALF*(ul*ul+vl*vl+wl*wl)
+
+  // r  = sqrt(max(rr/rl, cutoff))
+  // rr = sqrt(max(rr*rl, cutoff))
+  alpha = PetscSqrtReal(rr / rl);
+  beta = PetscSqrtReal(rr * rl);
+
+  uu = (ur*r+ul)/(r+ONE)
+  vv = (vr*r+vl)/(r+ONE)
+  ww = (wr*r+wl)/(r+ONE)
+  ee = HALF*(uu**2+vv**2+ww**2)
+  hh = (hp*r+hm)/(r+ONE)
+  cc = SQRT(max((phys->gamma - 1)*(hh-ee), cutoff))
+  vn = uu*nn[0] + vv*nn[1]+ww*nn[2]
+
+   // harten correction
+  lambda1 = ABS(vn)
+  lambda4 = ABS(vn+cc)
+  lambda5 = ABS(vn-cc)
+
+  // L. Tourrette formulation
+  small = (2-global%HartenType)*global%HartenCoeff*(ABS(uu)+ABS(vv)+ABS(ww)+cc)  & ! Formulation 1 (harten_type = 1)
+       + (global%HartenType-1)*global%HartenCoeff*(ABS(vn)+cc)                    ! Formulation 2 (harten_type = 2)
+
+  q1 = HALF + SIGN(HALF,lambda1-small)
+  k1 = HALF - SIGN(HALF,lambda1-small)
+  q4 = HALF + SIGN(HALF,lambda4-small)
+  k4 = HALF - SIGN(HALF,lambda4-small)
+  q5 = HALF + SIGN(HALF,lambda5-small)
+  k5 = HALF - SIGN(HALF,lambda5-small)
+
+  oneonsmall = ONE/small
+  mask = HALF + SIGN(HALF, small)
+  aa1 = mask * (q1 * lambda1 + 0.5 * k1 * (lambda1 * lambda1 + small * small) / small) + (ONE - mask) * lambda1
+  aa4 = mask * (q4*lambda4 &
+      +k4*HALF*(lambda4*lambda4+small*small)*oneonsmall) + &
+      (ONE-mask)*lambda4
+  aa5 = mask * (q5*lambda5 &
+      +k5*HALF*(lambda5*lambda5+small*small)*oneonsmall) + &
+      (ONE-mask)*lambda5
+
+  du  = ur-ul
+  dv  = vr-vl
+  dw  = wr-wl
+  dvn = du*nn[0]+dv*nn[1]+dw*nn[2]
+  dd1 = (rr-rl)-(pr-pl)/cc**2
+  dd4 = HALF*(pr-pl+rr*cc*dvn)/cc**2
+  dd5 = HALF*(pr-pl-rr*cc*dvn)/cc**2
+  df12 = aa1*(dd1*uu+rr*(du-nn[0]*dvn))
+  df13 = aa1*(dd1*vv+rr*(dv-nn[1]*dvn))
+  df14 = aa1*(dd1*ww+rr*(dw-nn[2]*dvn))
+  df15 = aa1*(dd1*ee+rr*(uu*du+vv*dv+ww*dw-vn*dvn))
+
+  df452 = aa4*dd4*(uu+nn[0]*cc) + aa5*dd5*(uu-nn[0]*cc)
+  df453 = aa4*dd4*(vv+nn[1]*cc) + aa5*dd5*(vv-nn[1]*cc)
+  df454 = aa4*dd4*(ww+nn[2]*cc) + aa5*dd5*(ww-nn[2]*cc)
+  df455 = aa4*dd4*(hh+vn*cc) + aa5*dd5*(hh-vn*cc)
+
+  // Centred flux
+  flux[0] = 0.5 * (uL[0] * unl + uR[0] * unr);
+  for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = 0.5 * (uL[1 + i] * unl + uR[1 + i] * unr + (pl + pr) * n[i]);}
+  flux[Nf - 1] = 0.5 * ((uL[Nf - 1] + pl) * unl + (uR[Nf - 1] + pr) * unr);
+
+  // Correction
+  flux[0] -= 0.5 * area * (aa1*dd1 + aa4*dd4 + aa5*dd5);
+  flux[1 + 0] -= 0.5 * area * (df12 + df452);
+  flux[1 + 1] -= 0.5 * area * (df13 + df453);
+  flux[1 + 2] -= 0.5 * area * (df14 + df454);
+  flux[5] -= 0.5 * area * (df15 + df455);
+
+
+  PetscFunctionReturnVoid();
+}
+*/
+
+void RiemannSolver_Euler_Lax(PetscInt dim, PetscInt Nf,
+                             const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
+                             PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
+  Physics phys = (Physics) ctx;
+
+  PetscFunctionBeginUser;
+
+  PetscScalar wL[Nf], wR[Nf];
+  PrimitiveToConservative(phys, uL, wL);
+  PrimitiveToConservative(phys, uR, wR);
+
+  PetscReal dotl = 0, dotr = 0;
+  for (PetscInt i = 0; i < dim; i++) {
+    dotl += wL[1 + i] * n[i];
+    dotr += wR[1 + i] * n[i];
+  }
+
+  for (PetscInt i = 0; i < Nf; i++) {flux[i] = 0;}
+
+  flux[0] = 0.5 * (uL[0] * dotl + uR[0] * dotr);
+  for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = 0.5 * (uL[1 + i] * dotl + uR[1 + i] * dotr + (wL[Nf - 1] + wR[Nf - 1]) * n[i]);}
+  flux[Nf - 1] = 0.5 * ((uL[Nf - 1] + wL[Nf - 1]) * dotl + (uR[Nf - 1] + wR[Nf - 1]) * dotr);
+
+  PetscReal coeff = 0.5*PetscSqrtReal(phys->gamma * P_0 / RHO_0) / (2 * 0.9); // c / (2 * CFL)
+  flux[0] -= coeff * (uR[0] - uL[0]);
+  for (PetscInt i = 0; i < dim; i++) {flux[1 + i] -= coeff * (uR[1 + i] - uL[1 + i]);}
+  flux[Nf - 1] -= coeff * (uR[Nf - 1] - uL[Nf - 1]);
 
   PetscFunctionReturnVoid();
 }

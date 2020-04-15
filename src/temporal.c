@@ -1,6 +1,6 @@
 #include "temporal.h"
 
-static PetscErrorCode TSMonitorAscii(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+PetscErrorCode TSMonitorAscii(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -32,7 +32,7 @@ static PetscErrorCode TSMonitorAscii(TS ts, PetscInt steps, PetscReal time, Vec 
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode TSMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+PetscErrorCode TSMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -76,7 +76,7 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, DM dm, Physics phys, PetscReal 
   ierr = TSSetType(*ts, TSEULER);                              CHKERRQ(ierr);
   ierr = TSSetMaxTime(*ts, 2.0);                               CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER); CHKERRQ(ierr);
-  ierr = TSMonitorSet(*ts, TSMonitorAscii, NULL, NULL);        CHKERRQ(ierr);
+  // ierr = TSMonitorSet(*ts, TSMonitorAscii, NULL, NULL);        CHKERRQ(ierr);
   ierr = TSMonitorSet(*ts, TSMonitorDraw, phys, NULL);         CHKERRQ(ierr);
   ierr = TSSetFromOptions(*ts);                                CHKERRQ(ierr);
   PetscFunctionReturn(0);
