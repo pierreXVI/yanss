@@ -1,0 +1,30 @@
+#  Physics
+gamma: 1.4
+
+# Initial condition
+initialConditions:
+  rho: 1
+  u:
+    - 0
+    - 0
+    - 0
+  p: 1.0e+05
+
+# Boundary condition
+boundaryConditions:
+  10:
+    name: wall
+    type: BC_WALL
+  20:
+    name: outflow
+    type: BC_OUTFLOW_P
+    p: 1.0e+05
+  30:
+    name: inflow
+    type: BC_DIRICHLET
+    rho: 1
+    u:
+      - 1
+      - 0
+      - 0
+    p: 1.0e+05

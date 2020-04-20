@@ -21,14 +21,6 @@ PetscErrorCode PhysicsCreate(Physics*, DM);
   Use PhysicsDestroy to free the memory
 */
 
-PetscErrorCode PhysSetupBC(Physics, PetscDS, struct BCDescription*);
-/*
-  Load the BC
-  Register the BC in the PetscDS
-  Pre-process them if needed
-*/
-
-
 PetscErrorCode InitialCondition(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*);
 
 void PrimitiveToConservative(Physics, const PetscReal*, PetscReal*);

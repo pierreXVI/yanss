@@ -9,9 +9,9 @@ Line(1) = {1, 2};
 Line(2) = {2, 3};
 Line(3) = {3, 4};
 Line(4) = {4, 1};
-Physical Curve("wall") = {1, 3};
-Physical Curve("outflow") = {2};
-Physical Curve("inflow") = {4};
+Physical Curve(10) = {1, 3};
+Physical Curve(20) = {2};
+Physical Curve(30) = {4};
 //+
 Line Loop(1) = {1, 2, 3, 4};
 //+

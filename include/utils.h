@@ -5,11 +5,9 @@
 #include <petscds.h>
 #include <petscts.h>
 
-enum BCType {BC_NULL, BC_DIRICHLET, BC_OUTFLOW_P, BC_WALL};
-PETSC_EXTERN const char * const BCTypes[];
+enum BCType {BC_DIRICHLET, BC_OUTFLOW_P, BC_WALL};
 
 enum ProblemType {TYPE_EULER, TYPE_NS};
-PETSC_EXTERN const char * const ProblemTypes[];
 
 
 #define DOF_NULL 0
@@ -24,9 +22,9 @@ struct FieldDescription {
 };
 
 struct BCDescription {
-  const char        *name; // The boundary name
-  const enum BCType type;  // The boundary type
-  PetscReal         *val;  // Additional numerical values
+  const char  *name; // The boundary name
+  enum BCType type;  // The boundary type
+  PetscReal   *val;  // Additional numerical values
 };
 
 struct BC_ctx {
@@ -44,10 +42,13 @@ struct _Physics {
   PetscInt                nbc;     // The number of boundary conditions
   PetscInt                dim;     // The spatial dimention
   PetscReal               gamma;   // The heat capacity ratio
+  PetscReal               *init;   // The initial conditions
 };
 
 
-PetscErrorCode HideGhostCells(DM, PetscInt*);
-PetscErrorCode RestoreGhostCells(DM, PetscInt);
+PetscErrorCode DMPlexHideGhostCells(DM, PetscInt*);
+PetscErrorCode DMPlexRestoreGhostCells(DM, PetscInt);
+
+PetscErrorCode MyStrdup(const char*, const char**);
 
 #endif

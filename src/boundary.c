@@ -3,7 +3,7 @@
 // #define MONITOR_BC
 
 
-const char * const BCTypes[] = {"BC_NULL", "Dirichlet", "Outflow_P", "Wall"};
+const char * const BCTypes[] = {"Dirichlet", "Outflow_P", "Wall"};
 
 PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscScalar *xI, PetscScalar *xG, void *ctx){
   struct BC_ctx *bc_ctx = (struct BC_ctx*) ctx;

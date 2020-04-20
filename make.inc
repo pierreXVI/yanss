@@ -7,4 +7,4 @@ BIN_DIR = build/bin
 
 CC = mpicc
 COMP_OPTS = -I/home/pierre/.local/include -Wall
-LINK_OPTS = -L/home/pierre/.local/lib -lpetsc -lm
+LINK_OPTS = -L/home/pierre/.local/lib -lpetsc -lm -lyaml

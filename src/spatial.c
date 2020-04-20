@@ -43,9 +43,9 @@ PetscErrorCode MeshLoad(MPI_Comm comm, const char *filename, DM *mesh){
   PetscInt  numGhostCells;
   ierr = PetscOptionsGetString(NULL, NULL, "-dm_view", opt, sizeof(opt), NULL); CHKERRQ(ierr);
   ierr = PetscStrcmp(opt, "draw", &flag);                                       CHKERRQ(ierr);
-  if (flag) {ierr = HideGhostCells(*mesh, &numGhostCells);                      CHKERRQ(ierr);}
+  if (flag) {ierr = DMPlexHideGhostCells(*mesh, &numGhostCells);                CHKERRQ(ierr);}
   ierr = DMViewFromOptions(*mesh, NULL, "-dm_view");                            CHKERRQ(ierr);
-  if (flag) {ierr = RestoreGhostCells(*mesh, numGhostCells);                    CHKERRQ(ierr);}
+  if (flag) {ierr = DMPlexRestoreGhostCells(*mesh, numGhostCells);              CHKERRQ(ierr);}
 
   PetscFunctionReturn(0);
 }
