@@ -1,7 +1,7 @@
 #include "io.h"
 #include <yaml.h>
 
-#define CHKERRQ_PARSER(ierr, parser) if ((ierr)) {CHKERRQ(yaml_parser_my_delete(&(parser))); CHKERRQ(ierr);}
+#define ERR_HIGHLIGHT "\e[1;33m"
 
 /*
   Linked list of `yaml_event_t`
@@ -28,18 +28,18 @@ static PetscErrorCode yaml_event_list_delete(struct yaml_event_list *node){
   PetscFunctionReturn(0);
 }
 
+
 /*
   Create a parser with the given input file.
   The parser must be destroyed with `yaml_parser_my_delete`
 */
 static PetscErrorCode yaml_parser_my_initialize(yaml_parser_t *parser, const char *filename) {
-  PetscErrorCode ierr;
   PetscFunctionBeginUser;
   FILE *input = fopen(filename, "rb");
   if (!input) {
-    SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "Failed to open: %s", filename);
+    SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "%sFailed to open %s\e[0;39m", ERR_HIGHLIGHT, filename);
   }
-  ierr = !yaml_parser_initialize(parser); CHKERRQ(ierr);
+  if (!yaml_parser_initialize(parser)) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER, "%sCannot initialize parser\e[0;39m", ERR_HIGHLIGHT);
   yaml_parser_set_input_file(parser, input);
   PetscFunctionReturn(0);
 }
@@ -51,7 +51,7 @@ static PetscErrorCode yaml_parser_my_delete(yaml_parser_t *parser) {
   PetscFunctionBeginUser;
   FILE *input = parser->input.file;
   yaml_parser_delete(parser);
-  PetscErrorCode ierr = fclose(input); CHKERRQ(ierr);
+  if(fclose(input)) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SYS, "%sError on fclose\e[0;39m", ERR_HIGHLIGHT);
   PetscFunctionReturn(0);
 }
 
@@ -60,10 +60,10 @@ static PetscErrorCode yaml_parser_my_delete(yaml_parser_t *parser) {
 */
 static PetscErrorCode yaml_parser_my_parse(yaml_parser_t *parser, yaml_event_t *event) {
   PetscFunctionBeginUser;
-  PetscErrorCode ierr = !yaml_parser_parse(parser, event); CHKERRQ(ierr);
-  if (ierr) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Failed to parse: %s", parser->problem);
+  if (!yaml_parser_parse(parser, event)) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "%sFailed to parse: %s\e[0;39m", ERR_HIGHLIGHT, parser->problem);
   PetscFunctionReturn(0);
 }
+
 
 /*
   Seek for the scalar 'scalarname' at the current level
@@ -94,11 +94,13 @@ static PetscErrorCode IOMoveToScalar(yaml_parser_t *parser, const char *filename
     default: break;
     }
     if (level < 0){
-      SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%s not found in %s", scalarname, filename);
+      SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%s%s not found in %s\e[0;39m", ERR_HIGHLIGHT, scalarname, filename);
     }
   }
 }
 
+
+#define CHKERRQ_PARSER(ierr, parser)  if ((ierr)) {CHKERRQ(yaml_parser_my_delete(&(parser)));  CHKERRQ(ierr);}
 
 PetscErrorCode IOLoadVarFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, const char **var){
   PetscErrorCode ierr;
@@ -116,6 +118,7 @@ PetscErrorCode IOLoadVarFromLoc(const char *filename, const char *varname, Petsc
 
   yaml_event_t event;
   ierr = yaml_parser_my_parse(&parser, &event);                CHKERRQ_PARSER(ierr, parser);
+  if (event.type != YAML_SCALAR_EVENT) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%sCannot read %s in %s\e[0;39m", ERR_HIGHLIGHT, varname, filename);
   ierr = MyStrdup((const char*) event.data.scalar.value, var); CHKERRQ_PARSER(ierr, parser);
   yaml_event_delete(&event);
 
@@ -172,7 +175,7 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
     else if (done == -1) {
       ierr = yaml_event_list_delete(root);             CHKERRQ_PARSER(ierr, parser);
       ierr = yaml_parser_my_delete(&parser);           CHKERRQ(ierr);
-      SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s", varname, filename);
+      SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%sCannot read list %s in %s\e[0;39m", ERR_HIGHLIGHT, varname, filename);
     }
   }
 
@@ -189,6 +192,7 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
 }
 
 
+#define CHKERRQ_BC(ierr, bc) do {if (PetscUnlikely(ierr)) {PetscErrorPrintf("%sCannot read boundaryConditions > %s\e[0;39m\n", ERR_HIGHLIGHT, (bc)); CHKERRQ(ierr);}} while(0)
 PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, const PetscInt dim, struct BCDescription *bc){
   PetscErrorCode ierr;
 
@@ -198,10 +202,10 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, const PetscInt 
 
   const char* loc[] = {"boundaryConditions", id_str};
 
-  ierr = IOLoadVarFromLoc(filename, "name", 2, loc, &bc->name); CHKERRQ(ierr);
+  ierr = IOLoadVarFromLoc(filename, "name", 2, loc, &bc->name); CHKERRQ_BC(ierr, id_str);
 
   const char *buffer_type;
-  ierr = IOLoadVarFromLoc(filename, "type", 2, loc, &buffer_type); CHKERRQ(ierr);
+  ierr = IOLoadVarFromLoc(filename, "type", 2, loc, &buffer_type); CHKERRQ_BC(ierr, id_str);
   if (!strcmp(buffer_type, "BC_DIRICHLET")) {
     bc->type = BC_DIRICHLET;
     ierr = PetscMalloc1(dim + 2, &bc->val); CHKERRQ(ierr);
@@ -210,16 +214,17 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, const PetscInt 
     const char **buffer_vals;
     PetscInt   size;
 
-    ierr = IOLoadVarFromLoc(filename, "rho", 2, loc, &buffer_val); CHKERRQ(ierr);
+    ierr = IOLoadVarFromLoc(filename, "rho", 2, loc, &buffer_val); CHKERRQ_BC(ierr, id_str);
     bc->val[0] = atof(buffer_val);
     ierr = PetscFree(buffer_val);                                  CHKERRQ(ierr);
 
-    ierr = IOLoadVarArrayFromLoc(filename, "u", 2, loc, &size, &buffer_vals); CHKERRQ(ierr);
+    ierr = IOLoadVarArrayFromLoc(filename, "u", 2, loc, &size, &buffer_vals); CHKERRQ_BC(ierr, id_str);
+    if (size < dim) SETERRQ4(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%sFailed to read boundaryConditions > %s > u : not enough values (expected %d, got %d)\e[0;39m", ERR_HIGHLIGHT, id_str, dim, size);
     for (PetscInt i = 0; i < dim; i++) {bc->val[1 + i] = atof(buffer_vals[i]);}
     for (PetscInt i = 0; i < size; i++) {ierr = PetscFree(buffer_vals[i]);    CHKERRQ(ierr);}
     ierr = PetscFree(buffer_vals);                                            CHKERRQ(ierr);
 
-    ierr = IOLoadVarFromLoc(filename, "p", 2, loc, &buffer_val); CHKERRQ(ierr);
+    ierr = IOLoadVarFromLoc(filename, "p", 2, loc, &buffer_val); CHKERRQ_BC(ierr, id_str);
     bc->val[dim + 1] = atof(buffer_val);
     ierr = PetscFree(buffer_val);                                CHKERRQ(ierr);
 
@@ -228,7 +233,7 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, const PetscInt 
     ierr = PetscMalloc1(1, &bc->val); CHKERRQ(ierr);
 
     const char *buffer_val;
-    ierr = IOLoadVarFromLoc(filename, "p", 2, loc, &buffer_val); CHKERRQ(ierr);
+    ierr = IOLoadVarFromLoc(filename, "p", 2, loc, &buffer_val); CHKERRQ_BC(ierr, id_str);
     bc->val[0] = atof(buffer_val);
     ierr = PetscFree(buffer_val);                                CHKERRQ(ierr);
 
@@ -237,13 +242,14 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, const PetscInt 
     bc->val = PETSC_NULL;
   }
   else {
-    SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)\n", buffer_type);
+    SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%sUnknown boundary condition (%s)\n", ERR_HIGHLIGHT, buffer_type);
   }
   ierr = PetscFree(buffer_type);                                   CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
 
+#define CHKERRQ_IC(ierr) do {if (PetscUnlikely(ierr)) {PetscErrorPrintf("%sCannot read initialConditions\e[0;39m\n", ERR_HIGHLIGHT); CHKERRQ(ierr);}} while(0)
 PetscErrorCode IOLoadInitialCondition(const char *filename, const PetscInt dim, PetscReal **initialConditions){
   PetscErrorCode ierr;
 
@@ -256,16 +262,17 @@ PetscErrorCode IOLoadInitialCondition(const char *filename, const PetscInt dim, 
   const char **buffer_vals;
   PetscInt   size;
 
-  ierr = IOLoadVarFromLoc(filename, "rho", 1, &loc, &buffer_val); CHKERRQ(ierr);
+  ierr = IOLoadVarFromLoc(filename, "rho", 1, &loc, &buffer_val); CHKERRQ_IC(ierr);
   (*initialConditions)[0] = atof(buffer_val);
   ierr = PetscFree(buffer_val);                                   CHKERRQ(ierr);
 
-  ierr = IOLoadVarArrayFromLoc(filename, "u", 1, &loc, &size, &buffer_vals); CHKERRQ(ierr);
+  ierr = IOLoadVarArrayFromLoc(filename, "u", 1, &loc, &size, &buffer_vals); CHKERRQ_IC(ierr);
+  if (size < dim) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%sFailed to read initialConditions > u : not enough values (expected %d, got %d)\e[0;39m", ERR_HIGHLIGHT, dim, size);
   for (PetscInt i = 0; i < dim; i++) {(*initialConditions)[1 + i] = atof(buffer_vals[i]);}
   for (PetscInt i = 0; i < size; i++) {ierr = PetscFree(buffer_vals[i]);     CHKERRQ(ierr);}
   ierr = PetscFree(buffer_vals);                                             CHKERRQ(ierr);
 
-  ierr = IOLoadVarFromLoc(filename, "p", 1, &loc, &buffer_val); CHKERRQ(ierr);
+  ierr = IOLoadVarFromLoc(filename, "p", 1, &loc, &buffer_val); CHKERRQ_IC(ierr);
   (*initialConditions)[dim + 1] = atof(buffer_val);
   ierr = PetscFree(buffer_val);                                 CHKERRQ(ierr);
 
