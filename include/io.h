@@ -2,7 +2,6 @@
 #define IO
 
 #include "utils.h"
-#include <yaml.h>
 
 /*
   Functions for input file parsing

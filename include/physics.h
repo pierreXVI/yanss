@@ -24,6 +24,24 @@ void PrimitiveToConservative(Physics, const PetscReal*, PetscReal*);
 void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
 
 
+/*
+  Pointwise Riemann solver functions, with the following calling sequence:
+
+  ```
+  func(PetscInt dim, PetscInt Nf, const PetscReal x[], const PetscReal n[], const PetscScalar uL[],
+       const PetscScalar uR[], PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx)
+    dim          - Spatial dimension
+    Nf           - Number of fields
+    x            - Coordinates at a point on the interface
+    n            - Area-scaled normal vector to the interface
+    uL           - State vector to the left of the interface
+    uR           - State vector to the right of the interface
+    flux         - Output array of flux through the interface
+    numConstants - Number of constant parameters
+    constants    - Constant parameters
+    ctx          - Context, to be casted to (Physics)
+  ```
+*/
 void RiemannSolver_Euler_Exact(PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
 void RiemannSolver_Euler_Lax  (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
 

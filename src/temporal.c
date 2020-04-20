@@ -7,16 +7,15 @@ static PetscErrorCode TSMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal tim
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  ", steps, time); CHKERRQ(ierr);
 
   DM       dm;
   PetscFV  fvm;
   PetscInt Nc, size;
-  ierr = VecGetDM(u, &dm);                             CHKERRQ(ierr);
+  ierr = VecGetDM(u, &dm);                                   CHKERRQ(ierr);
   ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
-  ierr = VecGetLocalSize(u, &size);                    CHKERRQ(ierr);
+  ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
+  ierr = VecGetLocalSize(u, &size);                          CHKERRQ(ierr);
   for (PetscInt comp = 0; comp < Nc; comp++) {
     IS         is;
     Vec        subv;
@@ -24,8 +23,8 @@ static PetscErrorCode TSMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal tim
     const char *compName;
     ierr = ISCreateStride(PetscObjectComm((PetscObject) u), size / Nc, comp, Nc, &is);     CHKERRQ(ierr);
     ierr = VecGetSubVector(u, is, &subv);                                                  CHKERRQ(ierr);
-    ierr = VecMin(subv, PETSC_NULL, &min);                                                       CHKERRQ(ierr);
-    ierr = VecMax(subv, PETSC_NULL, &max);                                                       CHKERRQ(ierr);
+    ierr = VecMin(subv, PETSC_NULL, &min);                                                 CHKERRQ(ierr);
+    ierr = VecMax(subv, PETSC_NULL, &max);                                                 CHKERRQ(ierr);
     ierr = VecDestroy(&subv);                                                              CHKERRQ(ierr);
     ierr = ISDestroy(&is);                                                                 CHKERRQ(ierr);
     ierr = PetscFVGetComponentName(fvm, comp, &compName);                                  CHKERRQ(ierr);
@@ -43,7 +42,6 @@ static PetscErrorCode TSMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, 
 
   PetscFunctionBeginUser;
   if (steps % 100 != 0) {PetscFunctionReturn(0);}
-
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  ", steps, time); CHKERRQ(ierr);
 
   Vec flux;
@@ -53,10 +51,10 @@ static PetscErrorCode TSMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, 
   DM       dm;
   PetscFV  fvm;
   PetscInt Nc, size;
-  ierr = VecGetDM(u, &dm);                             CHKERRQ(ierr);
+  ierr = VecGetDM(u, &dm);                                   CHKERRQ(ierr);
   ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
-  ierr = VecGetLocalSize(flux, &size);                 CHKERRQ(ierr);
+  ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
+  ierr = VecGetLocalSize(flux, &size);                       CHKERRQ(ierr);
   for (PetscInt comp = 0; comp < Nc; comp++) {
     IS         is;
     Vec        subv;
@@ -64,19 +62,15 @@ static PetscErrorCode TSMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, 
     const char *compName;
     ierr = ISCreateStride(PetscObjectComm((PetscObject) flux), size / Nc, comp, Nc, &is);  CHKERRQ(ierr);
     ierr = VecGetSubVector(flux, is, &subv);                                               CHKERRQ(ierr);
-    ierr = VecMin(subv, PETSC_NULL, &min);                                                       CHKERRQ(ierr);
-    ierr = VecMax(subv, PETSC_NULL, &max);                                                       CHKERRQ(ierr);
+    ierr = VecMin(subv, PETSC_NULL, &min);                                                 CHKERRQ(ierr);
+    ierr = VecMax(subv, PETSC_NULL, &max);                                                 CHKERRQ(ierr);
     ierr = VecDestroy(&subv);                                                              CHKERRQ(ierr);
     ierr = ISDestroy(&is);                                                                 CHKERRQ(ierr);
     ierr = PetscFVGetComponentName(fvm, comp, &compName);                                  CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD, "%s : % 10.4g, ", compName, PetscMax(-min, max)); CHKERRQ(ierr);
   }
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "\033[2D\n"); CHKERRQ(ierr);
-
-
   ierr = VecDestroy(&flux);
-
-  // ierr = PetscPrintf(PETSC_COMM_WORLD, "\n"); CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "\033[2D\n"); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -121,16 +115,16 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, DM dm, Physics phys, PetscReal 
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = TSCreate(comm, ts);                                   CHKERRQ(ierr);
-  ierr = TSSetDM(*ts, dm);                                     CHKERRQ(ierr);
-  ierr = TSSetTimeStep(*ts, dt);                               CHKERRQ(ierr);
-  ierr = TSSetType(*ts, TSEULER);                              CHKERRQ(ierr);
-  // ierr = TSSetMaxTime(*ts, 0.001);                               CHKERRQ(ierr);
-  ierr = TSSetMaxTime(*ts, 2);                               CHKERRQ(ierr);
-  ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER); CHKERRQ(ierr);
+  ierr = TSCreate(comm, ts);                                               CHKERRQ(ierr);
+  ierr = TSSetDM(*ts, dm);                                                 CHKERRQ(ierr);
+  ierr = TSSetTimeStep(*ts, dt);                                           CHKERRQ(ierr);
+  ierr = TSSetType(*ts, TSEULER);                                          CHKERRQ(ierr);
+  // ierr = TSSetMaxTime(*ts, 0.001);                                         CHKERRQ(ierr);
+  ierr = TSSetMaxTime(*ts, 2);                                             CHKERRQ(ierr);
+  ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER);             CHKERRQ(ierr);
   ierr = TSMonitorSet(*ts, TSMonitorAscii_Res, PETSC_NULL, PETSC_NULL);    CHKERRQ(ierr);
-  // ierr = TSMonitorSet(*ts, TSMonitorAscii_MinMax, PETSC_NULL, PETSC_NULL); CHKERRQ(ierr);
+  ierr = TSMonitorSet(*ts, TSMonitorAscii_MinMax, PETSC_NULL, PETSC_NULL); CHKERRQ(ierr);
   ierr = TSMonitorSet(*ts, TSMonitorDraw, PETSC_NULL, PETSC_NULL);         CHKERRQ(ierr);
-  ierr = TSSetFromOptions(*ts);                                CHKERRQ(ierr);
+  ierr = TSSetFromOptions(*ts);                                            CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

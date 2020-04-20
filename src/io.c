@@ -1,4 +1,5 @@
 #include "io.h"
+#include <yaml.h>
 
 /*
   Linked list of `yaml_event_t`

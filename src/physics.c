@@ -1,18 +1,19 @@
 #include "physics.h"
+#include "io.h"
+
+/*____________________________________________________________________________________________________________________*/
 
 static const enum ProblemType problem_type = TYPE_EULER;
 static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {"rho * U", DOF_DIM},
                                                  {"rho * E", DOF_1},
-                                                 {PETSC_NULL, DOF_NULL}};
+                                                 {PETSC_NULL, 0}};
 
 /*____________________________________________________________________________________________________________________*/
 
-#include "io.h"
-
 
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscScalar *u, void *ctx){
-  Physics   phys = (Physics) ctx;
+  Physics phys = (Physics) ctx;
   PetscFunctionBeginUser;
   PrimitiveToConservative(phys, phys->init, u);
   PetscFunctionReturn(0);
@@ -23,6 +24,7 @@ void PrimitiveToConservative(Physics phys, const PetscReal in[], PetscReal out[]
   PetscFunctionBeginUser;
   PetscReal norm2 = 0;
   for (PetscInt i = 0; i < phys->dim; i++){norm2 += PetscSqr(in[1 + i]);}
+
   out[0] = in[0];
   for (PetscInt i = 0; i < phys->dim; i++){out[1 + i] = in[1 + i] * out[0];}
   out[phys->dof - 1] = in[phys->dof - 1] / (phys->gamma - 1) + 0.5 * norm2 * out[0];
@@ -68,38 +70,39 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   PetscFree(buffer);
 
   (*phys)->type = problem_type;
-  (*phys)->fields = fields_euler;
-  for ((*phys)->nfields = 0, (*phys)->dof = 0; (*phys)->fields[(*phys)->nfields].name; (*phys)->nfields++) {
-    switch ((*phys)->fields[(*phys)->nfields].dof) {
+  struct FieldDescription *fields = fields_euler;
+  PetscInt nfields;
+  for (nfields = 0, (*phys)->dof = 0; fields[nfields].name; nfields++) {
+    switch (fields[nfields].dof) {
     case DOF_1:
-      (*phys)->fields[(*phys)->nfields].dof = 1;
+      fields[nfields].dof = 1;
       break;
     case DOF_DIM:
-      (*phys)->fields[(*phys)->nfields].dof = (*phys)->dim;
+      fields[nfields].dof = (*phys)->dim;
       break;
     default: break;
     }
-    (*phys)->dof += (*phys)->fields[(*phys)->nfields].dof;
+    (*phys)->dof += fields[nfields].dof;
   }
 
   PetscFV fvm;
-  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm);                              CHKERRQ(ierr);
-  ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                                   CHKERRQ(ierr);
-  ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                                      CHKERRQ(ierr);
-  for (PetscInt i = 0, dof = 0; i < (*phys)->nfields; i++){
-    if ((*phys)->fields[i].dof == 1) {
-      ierr = PetscFVSetComponentName(fvm, dof, (*phys)->fields[i].name);                  CHKERRQ(ierr);
+  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm);                     CHKERRQ(ierr);
+  ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                          CHKERRQ(ierr);
+  ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                             CHKERRQ(ierr);
+  for (PetscInt i = 0, dof = 0; i < nfields; i++){
+    if (fields[i].dof == 1) {
+      ierr = PetscFVSetComponentName(fvm, dof, fields[i].name);                  CHKERRQ(ierr);
     }
     else {
-      for (PetscInt j = 0; j < (*phys)->fields[i].dof; j++){
+      for (PetscInt j = 0; j < fields[i].dof; j++){
         char buffer[32];
-        ierr = PetscSNPrintf(buffer, sizeof(buffer),"%s_%d", (*phys)->fields[i].name, j); CHKERRQ(ierr);
-        ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                             CHKERRQ(ierr);
+        ierr = PetscSNPrintf(buffer, sizeof(buffer),"%s_%d", fields[i].name, j); CHKERRQ(ierr);
+        ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                    CHKERRQ(ierr);
       }
     }
-    dof += (*phys)->fields[i].dof;
+    dof += fields[i].dof;
   }
-  ierr = PetscFVSetFromOptions(fvm);                                                      CHKERRQ(ierr);
+  ierr = PetscFVSetFromOptions(fvm);                                             CHKERRQ(ierr);
 
   PetscDS system;
   DMLabel label;
@@ -117,9 +120,9 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   ierr = ISGetIndices(is, &indices);                                      CHKERRQ(ierr);
   ierr = DMGetDS(dm, &system);                                            CHKERRQ(ierr);
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
-    ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc + i); CHKERRQ(ierr);
     (*phys)->bc_ctx[i].phys = *phys;
     (*phys)->bc_ctx[i].i = i;
+    ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc + i);                           CHKERRQ(ierr);
     switch ((*phys)->bc[i].type) {
     case BC_DIRICHLET:
       PrimitiveToConservative(*phys, (*phys)->bc[i].val, (*phys)->bc[i].val);                       CHKERRQ(ierr);
@@ -140,7 +143,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   ierr = ISDestroy(&is);                                                  CHKERRQ(ierr);
   ierr = PetscDSSetFromOptions(system);                                   CHKERRQ(ierr);
 
-  ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
+  ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init);  CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

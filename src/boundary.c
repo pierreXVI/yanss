@@ -1,9 +1,5 @@
 #include "physics.h"
 
-// #define MONITOR_BC
-
-
-const char * const BCTypes[] = {"Dirichlet", "Outflow_P", "Wall"};
 
 PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscScalar *xI, PetscScalar *xG, void *ctx){
   struct BC_ctx *bc_ctx = (struct BC_ctx*) ctx;
@@ -12,9 +8,6 @@ PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[3], const PetscReal
   for (PetscInt i = 0; i < bc_ctx->phys->dof; i++){
     xG[i] = bc_ctx->phys->bc[bc_ctx->i].val[i];
   }
-#ifdef MONITOR_BC
-  PetscPrintf(PETSC_COMM_WORLD, "BCDirichlet : xI = %3f, % 3f, % 3f, %.3E, xG = %3f, % 3f, % 3f, %.3E\n", xI[0], xI[1], xI[2], xI[3], xG[0], xG[1], xG[2], xG[3]);
-#endif
   PetscFunctionReturn(0);
 }
 
@@ -38,9 +31,6 @@ PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[3], const PetscReal
   }
   wG[bc_ctx->phys->dof - 1] = bc_ctx->phys->bc[bc_ctx->i].val[0];
   PrimitiveToConservative(bc_ctx->phys, wG, xG);
-#ifdef MONITOR_BC
-  PetscPrintf(PETSC_COMM_WORLD, "BCOutflow_P : xI = %3f, % 3f, % 3f, %.3E, xG = %3f, % 3f, % 3f, %.3E\n", xI[0], xI[1], xI[2], xI[3], xG[0], xG[1], xG[2], xG[3]);
-#endif
 
   PetscFunctionReturn(0);
 }
@@ -61,17 +51,17 @@ PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscReal n[3]
     }
     for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){xG[1 + i] = xI[1 + i] - 2 * dot * n[i] / norm2;}
     break;
+
   case TYPE_NS: /* u <- 0 */
     xG[0] = xI[0];
     xG[bc_ctx->phys->dof - 1] = xI[bc_ctx->phys->dof - 1];
+
     for (PetscInt i = 0; i < bc_ctx->phys->dim; i++){xG[1 + i] = -xI[1 + i];}
     break;
+
   default:
-    SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Wall boundary condition not implemented for this physics (%d)\n", bc_ctx->phys->type);
+    SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Wall boundary condition not implemented for this model (%d)\n", bc_ctx->phys->type);
     break;
   }
-#ifdef MONITOR_BC
-  PetscPrintf(PETSC_COMM_WORLD, "BCWall      : xI = %3f, % 3f, % 3f, %.3E, xG = %3f, % 3f, % 3f, %.3E\n", xI[0], xI[1], xI[2], xI[3], xG[0], xG[1], xG[2], xG[3]);
-#endif
   PetscFunctionReturn(0);
 }

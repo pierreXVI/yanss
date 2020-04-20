@@ -6,13 +6,13 @@
 #define EPS_RIEMANN 1E-14
 
 void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
-                                const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
-                                PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
+                               const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
+                               PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
 
-  PetscReal area = 0, nn[dim]; // n = area * nn, nn normal vector to the surface
+  PetscReal area = 0, nn[dim]; // n = area * nn, nn normal unitary vector to the surface
   for (PetscInt i = 0; i < dim; i++){area += PetscSqr(n[i]);}
   area = PetscSqrtReal(area);
   for (PetscInt i = 0; i < dim; i++){nn[i] = n[i] / area;}
