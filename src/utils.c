@@ -9,8 +9,8 @@ PetscErrorCode DMPlexHideGhostCells(DM dm, PetscInt *n){
 
   PetscFunctionBeginUser;
   ierr = DMGetDimension(dm, &dim);                    CHKERRQ(ierr);
-  ierr = DMPlexGetDepthStratum(dm, dim, NULL, &pEnd); CHKERRQ(ierr);
-  ierr = DMPlexGetGhostCellStratum(dm, &pHyb, NULL);  CHKERRQ(ierr);
+  ierr = DMPlexGetDepthStratum(dm, dim, PETSC_NULL, &pEnd); CHKERRQ(ierr);
+  ierr = DMPlexGetGhostCellStratum(dm, &pHyb, PETSC_NULL);  CHKERRQ(ierr);
   ierr = DMPlexGetDepthLabel(dm, &label);             CHKERRQ(ierr);
   label->points[dim]->max -= (pEnd - pHyb);
   if (n) *n = (pEnd - pHyb);

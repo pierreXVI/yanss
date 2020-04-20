@@ -5,7 +5,7 @@ PetscErrorCode MeshDestroy(DM *mesh){
   PetscFV        fvm;
 
   PetscFunctionBeginUser;
-  ierr = DMGetField(*mesh, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = DMGetField(*mesh, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
   ierr = PetscFVDestroy(&fvm);                            CHKERRQ(ierr);
   ierr = DMDestroy(mesh);                                 CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -17,15 +17,15 @@ PetscErrorCode MeshLoad(MPI_Comm comm, const char *filename, DM *mesh){
 
   PetscFunctionBeginUser;
   ierr = DMPlexCreateFromFile(comm, filename, PETSC_TRUE, mesh); CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*mesh, NULL, "-dm_view_orig");        CHKERRQ(ierr);
+  ierr = DMViewFromOptions(*mesh, PETSC_NULL, "-dm_view_orig");        CHKERRQ(ierr);
   ierr = DMSetBasicAdjacency(*mesh, PETSC_TRUE, PETSC_FALSE);    CHKERRQ(ierr);
-  ierr = DMPlexDistribute(*mesh, 1, NULL, &foo_dm);              CHKERRQ(ierr);
+  ierr = DMPlexDistribute(*mesh, 1, PETSC_NULL, &foo_dm);              CHKERRQ(ierr);
   if (foo_dm) {
     ierr = DMDestroy(mesh);                                      CHKERRQ(ierr);
     *mesh = foo_dm;
   }
   ierr = DMSetFromOptions(*mesh);                                CHKERRQ(ierr);
-  ierr = DMPlexConstructGhostCells(*mesh, NULL, NULL, &foo_dm);  CHKERRQ(ierr);
+  ierr = DMPlexConstructGhostCells(*mesh, PETSC_NULL, PETSC_NULL, &foo_dm);  CHKERRQ(ierr);
   ierr = DMDestroy(mesh);                                        CHKERRQ(ierr);
   *mesh = foo_dm;
   ierr = PetscObjectSetName((PetscObject) *mesh, "Mesh");        CHKERRQ(ierr);
@@ -33,18 +33,18 @@ PetscErrorCode MeshLoad(MPI_Comm comm, const char *filename, DM *mesh){
   PetscFV  fvm;
   ierr = PetscFVCreate(PETSC_COMM_WORLD, &fvm);             CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fvm, "FV Model"); CHKERRQ(ierr);
-  ierr = DMAddField(*mesh, NULL, (PetscObject) fvm);        CHKERRQ(ierr);
+  ierr = DMAddField(*mesh, PETSC_NULL, (PetscObject) fvm);        CHKERRQ(ierr);
 
-  ierr = DMTSSetBoundaryLocal(*mesh, DMPlexTSComputeBoundary, NULL);          CHKERRQ(ierr);
-  ierr = DMTSSetRHSFunctionLocal(*mesh, DMPlexTSComputeRHSFunctionFVM, NULL); CHKERRQ(ierr);
+  ierr = DMTSSetBoundaryLocal(*mesh, DMPlexTSComputeBoundary, PETSC_NULL);          CHKERRQ(ierr);
+  ierr = DMTSSetRHSFunctionLocal(*mesh, DMPlexTSComputeRHSFunctionFVM, PETSC_NULL); CHKERRQ(ierr);
 
   char      opt[] = "____";
   PetscBool flag;
   PetscInt  numGhostCells;
-  ierr = PetscOptionsGetString(NULL, NULL, "-dm_view", opt, sizeof(opt), NULL); CHKERRQ(ierr);
+  ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-dm_view", opt, sizeof(opt), PETSC_NULL); CHKERRQ(ierr);
   ierr = PetscStrcmp(opt, "draw", &flag);                                       CHKERRQ(ierr);
   if (flag) {ierr = DMPlexHideGhostCells(*mesh, &numGhostCells);                CHKERRQ(ierr);}
-  ierr = DMViewFromOptions(*mesh, NULL, "-dm_view");                            CHKERRQ(ierr);
+  ierr = DMViewFromOptions(*mesh, PETSC_NULL, "-dm_view");                            CHKERRQ(ierr);
   if (flag) {ierr = DMPlexRestoreGhostCells(*mesh, numGhostCells);              CHKERRQ(ierr);}
 
   PetscFunctionReturn(0);

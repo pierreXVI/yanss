@@ -68,13 +68,6 @@ static PetscErrorCode IOMoveToScalar(yaml_parser_t *parser, const char *filename
 
   PetscFunctionBeginUser;
 
-  // Sanitise next token : should be YAML_STREAM_START_TOKEN or YAML_VALUE_TOKEN
-  // yaml_token_t *token = (parser->token_available || yaml_parser_fetch_more_tokens(parser)) ? parser->tokens.head : NULL;
-  // if (token->type != YAML_STREAM_START_TOKEN && token->type != YAML_VALUE_TOKEN) {
-    // PetscPrintf(PETSC_COMM_WORLD, "\e[33mWrong token type (%d)\e[39m\n", token->type);
-  // }
-  // token->type = (token->type == YAML_STREAM_START_TOKEN) ? YAML_STREAM_START_TOKEN : YAML_VALUE_TOKEN;
-
   while (PETSC_TRUE) {
     yaml_event_t event;
     ierr = yaml_parser_my_parse(parser, &event); CHKERRQ(ierr);
@@ -139,13 +132,13 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
   }
   ierr = IOMoveToScalar(&parser, filename, varname);  CHKERRQ(ierr);
 
-  struct yaml_event_list *root = NULL, *current, *node;
+  struct yaml_event_list *root = PETSC_NULL, *current, *node;
   PetscInt done = -1;
   *len = 0;
   while (PETSC_TRUE) {
     ierr = PetscNew(&node);                             CHKERRQ(ierr);
     ierr = yaml_parser_my_parse(&parser, &node->event); CHKERRQ(ierr);
-    node->next = NULL;
+    node->next = PETSC_NULL;
 
     switch (node->event.type) {
     case YAML_SEQUENCE_START_EVENT:

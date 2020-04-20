@@ -15,11 +15,11 @@ int main(int argc, char **argv){
   Vec               x0;
 
   // TODO: for debugging purposes
-  PetscOptionsSetValue(NULL, "-options_left", "no");
-  PetscOptionsSetValue(NULL, "-draw_pause", "-1");
-  // PetscOptionsSetValue(NULL, "-vec_view_bounds", "0,10,0,10,0,10,2E5,5E5");
+  PetscOptionsSetValue(PETSC_NULL, "-options_left", "no");
+  PetscOptionsSetValue(PETSC_NULL, "-draw_pause", "-1");
+  // PetscOptionsSetValue(PETSC_NULL, "-vec_view_bounds", "0,10,0,10,0,10,2E5,5E5");
 
-  ierr = PetscInitialize(&argc, &argv, NULL, help); if (ierr) return ierr;
+  ierr = PetscInitialize(&argc, &argv, PETSC_NULL, help); if (ierr) return ierr;
 
   ierr = MeshLoad(PETSC_COMM_WORLD, mesh_filename, &mesh); CHKERRQ(ierr);
   ierr = PhysicsCreate(&phys, mesh);                       CHKERRQ(ierr);
@@ -28,7 +28,7 @@ int main(int argc, char **argv){
 
   // TODO
   PetscReal dt, minRadius;
-  ierr = DMPlexTSGetGeometryFVM(mesh, NULL, NULL, &minRadius); CHKERRQ(ierr);
+  ierr = DMPlexTSGetGeometryFVM(mesh, PETSC_NULL, PETSC_NULL, &minRadius); CHKERRQ(ierr);
   dt   = (0.1) * minRadius / (PetscMax(U_0, U_1) + PetscSqrtReal(phys->gamma * P_0 / RHO_0));
 
   ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, mesh, phys, dt);      CHKERRQ(ierr);

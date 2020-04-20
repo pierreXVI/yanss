@@ -6,7 +6,7 @@ static const enum ProblemType problem_type = TYPE_EULER;
 static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {"rho * U", DOF_DIM},
                                                  {"rho * E", DOF_1},
-                                                 {NULL, DOF_NULL}};
+                                                 {PETSC_NULL, DOF_NULL}};
 
 
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscScalar *u, void *ctx){
@@ -68,15 +68,15 @@ PetscErrorCode PhysSetupBC(Physics phys, DM dm, const char *input_file){
     switch (phys->bc[i].type) {
     case BC_DIRICHLET:
       PrimitiveToConservative(phys, phys->bc[i].val, phys->bc[i].val); CHKERRQ(ierr);
-      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, phys->bc[i].name, "Face Sets", 0, 0, NULL,
+      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, phys->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
                                 (void (*)(void)) BCDirichlet, 1, indices + i, phys->bc_ctx + i); CHKERRQ(ierr);
       break;
     case BC_OUTFLOW_P:
-      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, phys->bc[i].name, "Face Sets", 0, 0, NULL,
+      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, phys->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
                                 (void (*)(void)) BCOutflow_P, 1, indices + i, phys->bc_ctx + i); CHKERRQ(ierr);
       break;
     case BC_WALL:
-      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, phys->bc[i].name, "Face Sets", 0, 0, NULL,
+      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, phys->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
                                 (void (*)(void)) BCWall, 1, indices + i, phys->bc_ctx + i);      CHKERRQ(ierr);
       break;
     }
@@ -111,7 +111,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
   ierr = DMGetDimension(mesh, &(*phys)->dim); CHKERRQ(ierr);
 
   const char *buffer;
-  ierr = IOLoadVarFromLoc(INPUT_FILE, "gamma", 0, NULL, &buffer); CHKERRQ(ierr);
+  ierr = IOLoadVarFromLoc(INPUT_FILE, "gamma", 0, PETSC_NULL, &buffer); CHKERRQ(ierr);
   (*phys)->gamma = atof(buffer);
   PetscFree(buffer);
 
@@ -131,7 +131,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, DM mesh){
   }
 
   PetscFV fvm;
-  ierr = DMGetField(mesh, 0, NULL, (PetscObject*) &fvm);                                  CHKERRQ(ierr);
+  ierr = DMGetField(mesh, 0, PETSC_NULL, (PetscObject*) &fvm);                                  CHKERRQ(ierr);
   ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                                   CHKERRQ(ierr);
   ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                                      CHKERRQ(ierr);
   for (PetscInt i = 0, dof = 0; i < (*phys)->nfields; i++){
