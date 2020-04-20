@@ -1,5 +1,5 @@
-#ifndef PHYSICS
-#define PHYSICS
+#ifndef INCLUDE_FLAG_PHYSICS
+#define INCLUDE_FLAG_PHYSICS
 
 #include "utils.h"
 

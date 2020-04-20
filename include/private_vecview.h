@@ -1,5 +1,5 @@
-#ifndef PRIVATE_VECVIEW
-#define PRIVATE_VECVIEW
+#ifndef INCLUDE_FLAG_PRIVATE_VECVIEW
+#define INCLUDE_FLAG_PRIVATE_VECVIEW
 
 #include <petscdmplex.h>
 #include <petscdraw.h>

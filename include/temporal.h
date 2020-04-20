@@ -1,5 +1,5 @@
-#ifndef TEMPORAL
-#define TEMPORAL
+#ifndef INCLUDE_FLAG_TEMPORAL
+#define INCLUDE_FLAG_TEMPORAL
 
 #include "utils.h"
 

@@ -1,5 +1,5 @@
-#ifndef IO
-#define IO
+#ifndef INCLUDE_FLAG_IO
+#define INCLUDE_FLAG_IO
 
 #include "utils.h"
 

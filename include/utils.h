@@ -1,5 +1,5 @@
-#ifndef UTILS
-#define UTILS
+#ifndef INCLUDE_FLAG_UTILS
+#define INCLUDE_FLAG_UTILS
 
 #include <petscdmplex.h>
 #include <petscds.h>

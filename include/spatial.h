@@ -1,5 +1,5 @@
-#ifndef SPATIAL
-#define SPATIAL
+#ifndef INCLUDE_FLAG_SPATIAL
+#define INCLUDE_FLAG_SPATIAL
 
 #include "utils.h"
 
