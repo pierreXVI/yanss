@@ -20,6 +20,10 @@ PetscErrorCode PhysicsCreate(Physics*, const char*, DM);
 PetscErrorCode InitialCondition(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*);
 
 
+/*
+  Convert the variable between primitive and conservative.
+  It is safe to call it with `in` == `out`
+*/
 void PrimitiveToConservative(Physics, const PetscReal*, PetscReal*);
 void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
 
