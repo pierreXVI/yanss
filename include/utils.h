@@ -5,13 +5,21 @@
 #include <petscds.h>
 #include <petscts.h>
 
+/*
+  The boudrary condition types. For each type correspond a value array:
+    BC_DIRICHLET: the conservative field values
+    BC_OUTFLOW_P: the pressure value
+    BC_WALL:      no value
+*/
 enum BCType {BC_DIRICHLET, BC_OUTFLOW_P, BC_WALL};
+
 
 enum ProblemType {TYPE_EULER, TYPE_NS};
 
 
 #define DOF_1   -1
 #define DOF_DIM -2
+
 
 typedef struct _Physics *Physics;
 
@@ -43,7 +51,7 @@ struct _Physics {
   struct BC_ctx           *bc_ctx; // Boundary condition contexts
   PetscInt                nbc;     // Number of boundary conditions
 
-  PetscReal               *init;   // Initial conditions
+  PetscReal               *init;   // Initial conditions, in primitive variables
 };
 
 /*
