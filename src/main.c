@@ -3,7 +3,8 @@
 #include "temporal.h"
 
 static char help[] = "Second Order TVD Finite Volume Example.\n";
-static char mesh_filename[] = "/home/pierre/c/yanss/data/box.msh";  // TODO
+static char mesh_filename[] = "/home/pierre/c/yanss/data/box.msh";
+static char phys_filename[] = "/home/pierre/c/yanss/data/input.yaml";
 
 
 int main(int argc, char **argv){
@@ -21,15 +22,15 @@ int main(int argc, char **argv){
 
   ierr = PetscInitialize(&argc, &argv, PETSC_NULL, help); if (ierr) return ierr;
 
-  ierr = MeshLoad(PETSC_COMM_WORLD, mesh_filename, &mesh); CHKERRQ(ierr);
-  ierr = PhysicsCreate(&phys, mesh);                       CHKERRQ(ierr);
-  ierr = MeshCreateGlobalVector(mesh, &x0);                CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) x0, "State");    CHKERRQ(ierr);
+  ierr = MeshLoadFromFile(PETSC_COMM_WORLD, mesh_filename, &mesh); CHKERRQ(ierr);
+  ierr = PhysicsCreate(&phys, phys_filename, mesh);                CHKERRQ(ierr);
+  ierr = MeshCreateGlobalVector(mesh, &x0);                        CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) x0, "State");            CHKERRQ(ierr);
 
   // TODO
   PetscReal dt, minRadius;
   ierr = DMPlexTSGetGeometryFVM(mesh, PETSC_NULL, PETSC_NULL, &minRadius); CHKERRQ(ierr);
-  dt   = (0.1) * minRadius / (PetscMax(U_0, U_1) + PetscSqrtReal(phys->gamma * P_0 / RHO_0));
+  dt   = (0.1) * minRadius / (PetscMax(phys->init[1], phys->init[2]) + PetscSqrtReal(phys->gamma * phys->init[3] / phys->init[0]));
 
   ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, mesh, phys, dt);      CHKERRQ(ierr);
   ierr = MeshApplyFunction(mesh, 0, InitialCondition, phys, x0); CHKERRQ(ierr);

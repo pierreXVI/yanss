@@ -11,7 +11,7 @@ PetscErrorCode MeshDestroy(DM *mesh){
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshLoad(MPI_Comm comm, const char *filename, DM *mesh){
+PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, DM *mesh){
   PetscErrorCode ierr;
   DM             foo_dm;
 

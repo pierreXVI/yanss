@@ -1,6 +1,9 @@
 #include "temporal.h"
 
-PetscErrorCode TSMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+/*
+  Print for each field "field_name : min_value, max_value"
+*/
+static PetscErrorCode TSMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -32,7 +35,10 @@ PetscErrorCode TSMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TSMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+/*
+  Print for each field "field_name : min_flux_value, max_fluxvalue"
+*/
+static PetscErrorCode TSMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -74,7 +80,10 @@ PetscErrorCode TSMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode TSMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+/*
+  Draw the fields
+*/
+static PetscErrorCode TSMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;

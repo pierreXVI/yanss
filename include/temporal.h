@@ -3,12 +3,10 @@
 
 #include "utils.h"
 
-
-PetscErrorCode MyTsCreate(MPI_Comm, TS*, DM, Physics, PetscReal);
 /*
   Setup the PETSc Time-Stepper
-  Allocate a TS
+  The `TS` must be freed with `TSDestroy`
 */
-
+PetscErrorCode MyTsCreate(MPI_Comm, TS*, DM, Physics, PetscReal);
 
 #endif

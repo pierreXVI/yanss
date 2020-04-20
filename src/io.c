@@ -1,26 +1,16 @@
 #include "io.h"
 
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#define INDENT "  "
-#define STRVAL(x) ((x) ? (char*)(x) : "")
-
-void indent(int level)
-{
-    int i;
-    for (i = 0; i < level; i++) {
-        printf("%s", INDENT);
-    }
-}
-
+/*
+  Linked list of `yaml_event_t`
+*/
 struct yaml_event_list {
   yaml_event_t           event;
   struct yaml_event_list *next;
 };
 
+/*
+  Delete an event linked list, fron the node to the end
+*/
 static PetscErrorCode yaml_event_list_delete(struct yaml_event_list *node){
   PetscErrorCode ierr;
   struct yaml_event_list *next = node;
@@ -35,7 +25,10 @@ static PetscErrorCode yaml_event_list_delete(struct yaml_event_list *node){
   PetscFunctionReturn(0);
 }
 
-
+/*
+  Create a parser with the given input file.
+  The parser must be destroyed with `yaml_parser_my_delete`
+*/
 static PetscErrorCode yaml_parser_my_initialize(yaml_parser_t *parser, const char *filename) {
   PetscFunctionBeginUser;
   FILE *input = fopen(filename, "rb");
@@ -44,6 +37,9 @@ static PetscErrorCode yaml_parser_my_initialize(yaml_parser_t *parser, const cha
   PetscFunctionReturn(0);
 }
 
+/*
+  Delete the given parser and close the input file
+*/
 static PetscErrorCode yaml_parser_my_delete(yaml_parser_t *parser) {
   PetscFunctionBeginUser;
   fclose(parser->input.file);
@@ -51,13 +47,15 @@ static PetscErrorCode yaml_parser_my_delete(yaml_parser_t *parser) {
   PetscFunctionReturn(0);
 }
 
+/*
+  Get the next event from the parser
+*/
 static PetscErrorCode yaml_parser_my_parse(yaml_parser_t *parser, yaml_event_t *event) {
   PetscFunctionBeginUser;
   PetscInt ierr = yaml_parser_parse(parser, event);
   if (!ierr) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Failed to parse: %s", parser->problem);
   PetscFunctionReturn(0);
 }
-
 
 /*
   Seek for the scalar 'scalarname' at the current level
@@ -94,6 +92,7 @@ static PetscErrorCode IOMoveToScalar(yaml_parser_t *parser, const char *filename
     }
   }
 }
+
 
 PetscErrorCode IOLoadVarFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, const char **var){
   PetscErrorCode ierr;

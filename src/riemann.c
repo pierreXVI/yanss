@@ -1,5 +1,10 @@
 #include "physics.h"
 
+// Number of iterations of the fixed point pressure solver for the Riemann problem
+#define N_ITER_RIEMANN 10
+// Epsilon of the pressure solver for the Riemann problem
+#define EPS_RIEMANN 1E-14
+
 void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
                                 const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
                                 PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
@@ -270,7 +275,7 @@ void RiemannSolver_Euler_Lax(PetscInt dim, PetscInt Nf,
   for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = 0.5 * (uL[1 + i] * dotl + uR[1 + i] * dotr + (wL[Nf - 1] + wR[Nf - 1]) * n[i]);}
   flux[Nf - 1] = 0.5 * ((uL[Nf - 1] + wL[Nf - 1]) * dotl + (uR[Nf - 1] + wR[Nf - 1]) * dotr);
 
-  PetscReal coeff = 0.5*PetscSqrtReal(phys->gamma * P_0 / RHO_0) / (2 * 0.9); // c / (2 * CFL)
+  PetscReal coeff = 0.5*PetscSqrtReal(phys->gamma * phys->init[Nf - 1] / phys->init[0]) / (2 * 0.9); // c / (2 * CFL)
   flux[0] -= coeff * (uR[0] - uL[0]);
   for (PetscInt i = 0; i < dim; i++) {flux[1 + i] -= coeff * (uR[1 + i] - uL[1 + i]);}
   flux[Nf - 1] -= coeff * (uR[Nf - 1] - uL[Nf - 1]);
