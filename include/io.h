@@ -37,7 +37,7 @@ PetscErrorCode IOLoadVarFromLoc(const char*, const char*, PetscInt, const char**
     loc[0] > loc[1] > ... > loc[depth - 1] > varname : [array of length `len`]
     The output value must be freed with `PetscFree`
 */
-PetscErrorCode IOLoadVarArrayFromLoc(const char*, const char*, PetscInt, const char**, PetscInt*, const char***);
+PetscErrorCode IOLoadVarArrayFromLoc(const char*, const char*, PetscInt, const char**, PetscInt, const char***);
 
 
 /*
