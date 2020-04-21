@@ -6,5 +6,5 @@ OBJ_DIR = build/obj
 BIN_DIR = build/bin
 
 CC = mpicc
-COMP_OPTS = -I/home/pierre/.local/include -Wall
+COMP_OPTS = -I/home/pierre/.local/include -Wall -g
 LINK_OPTS = -L/home/pierre/.local/lib -lpetsc -lm -lyaml
