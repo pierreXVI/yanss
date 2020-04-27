@@ -58,16 +58,15 @@ static PetscErrorCode TSMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, 
   for (PetscInt comp = 0; comp < Nc; comp++) {
     IS         is;
     Vec        subv;
-    PetscReal   min, max;
+    PetscReal  norm;
     const char *compName;
     ierr = ISCreateStride(PetscObjectComm((PetscObject) flux), size / Nc, comp, Nc, &is);  CHKERRQ(ierr);
     ierr = VecGetSubVector(flux, is, &subv);                                               CHKERRQ(ierr);
-    ierr = VecMin(subv, PETSC_NULL, &min);                                                 CHKERRQ(ierr);
-    ierr = VecMax(subv, PETSC_NULL, &max);                                                 CHKERRQ(ierr);
+    ierr = VecNorm(subv, NORM_INFINITY, &norm);                                            CHKERRQ(ierr);
     ierr = VecDestroy(&subv);                                                              CHKERRQ(ierr);
     ierr = ISDestroy(&is);                                                                 CHKERRQ(ierr);
     ierr = PetscFVGetComponentName(fvm, comp, &compName);                                  CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "%s : % 10.4g, ", compName, PetscMax(-min, max)); CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "%s : % 10.4g, ", compName, norm);                CHKERRQ(ierr);
   }
   ierr = VecDestroy(&flux);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "\033[2D\n"); CHKERRQ(ierr);
