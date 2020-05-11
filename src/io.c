@@ -153,6 +153,11 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
 
     switch (node->event.type) {
     case YAML_SCALAR_EVENT:
+      if (done == -1) {
+        i = 0;
+        done = 1;
+        break;
+      }
       i++;
       if (!root) {
         current = root = node;
@@ -292,7 +297,6 @@ PetscErrorCode IOLoadInitialCondition(const char *filename, PetscInt dim, PetscR
   ierr = PetscFree(buffer_val);                                   CHKERRQ(ierr);
 
   ierr = IOLoadVarArrayFromLoc(filename, "u", 1, &loc, &dim, &buffer_vals); CHKERRQ(ierr);
-  // if (size < dim) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%sFailed to read initialConditions > u : not enough values (expected %d, got %d)\e[0;39m", ERR_HIGHLIGHT, dim, size);
   for (PetscInt i = 0; i < dim; i++) {
     (*initialConditions)[1 + i] = atof(buffer_vals[i]);
     ierr = PetscFree(buffer_vals[i]);                                      CHKERRQ(ierr);

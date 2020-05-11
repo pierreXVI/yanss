@@ -23,7 +23,8 @@
       ...
 
   PetscOptions;
-    - ...
+    [- ...]
+
 */
 
 /*
@@ -57,7 +58,7 @@ PetscErrorCode IOLoadBC(const char*, const PetscInt, PetscInt, struct BCDescript
 PetscErrorCode IOLoadInitialCondition(const char*, PetscInt, PetscReal**);
 
 /*
-  Load the list of string options and register them into the database 
+  Load the list of string options and register them into the database
 */
 PetscErrorCode IOLoadPetscOptions(const char*);
 
