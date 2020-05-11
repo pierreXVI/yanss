@@ -1,7 +1,7 @@
 #include "physics.h"
 #include "spatial.h"
 #include "temporal.h"
-#include "io.h"
+#include "input.h"
 
 static const char help[] = "Finite Volume solver\n";
 static const char mesh_filename[] = "/home/pierre/c/yanss/data/box.msh";

@@ -1,5 +1,5 @@
-#ifndef INCLUDE_FLAG_IO
-#define INCLUDE_FLAG_IO
+#ifndef INCLUDE_FLAG_INPUT
+#define INCLUDE_FLAG_INPUT
 
 #include "utils.h"
 
