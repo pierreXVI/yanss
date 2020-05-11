@@ -109,6 +109,18 @@ static PetscErrorCode TSMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u
 }
 
 
+static PetscErrorCode TSMonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  PetscReal dt;
+  TSGetTimeStep(ts, &dt);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  dt = %e\n", steps, time, dt); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+
 PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, DM dm, Physics phys, PetscReal dt){
   PetscErrorCode ierr;
 
@@ -117,12 +129,13 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, DM dm, Physics phys, PetscReal 
   ierr = TSSetDM(*ts, dm);                                                 CHKERRQ(ierr);
   ierr = TSSetTimeStep(*ts, dt);                                           CHKERRQ(ierr);
   ierr = TSSetType(*ts, TSEULER);                                          CHKERRQ(ierr);
-  // ierr = TSSetMaxTime(*ts, 0.001);                                         CHKERRQ(ierr);
-  ierr = TSSetMaxTime(*ts, 2);                                             CHKERRQ(ierr);
+  ierr = TSSetMaxTime(*ts, 0.001);                                         CHKERRQ(ierr);
+  // ierr = TSSetMaxTime(*ts, 2);                                             CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER);             CHKERRQ(ierr);
-  ierr = TSMonitorSet(*ts, TSMonitorAscii_Res, PETSC_NULL, PETSC_NULL);    CHKERRQ(ierr);
-  ierr = TSMonitorSet(*ts, TSMonitorAscii_MinMax, PETSC_NULL, PETSC_NULL); CHKERRQ(ierr);
-  ierr = TSMonitorSet(*ts, TSMonitorDraw, PETSC_NULL, PETSC_NULL);         CHKERRQ(ierr);
+  // ierr = TSMonitorSet(*ts, TSMonitorAscii_Res, PETSC_NULL, PETSC_NULL);    CHKERRQ(ierr);
+  // ierr = TSMonitorSet(*ts, TSMonitorAscii_MinMax, PETSC_NULL, PETSC_NULL); CHKERRQ(ierr);
+  // ierr = TSMonitorSet(*ts, TSMonitorDraw, PETSC_NULL, PETSC_NULL);         CHKERRQ(ierr);
+  ierr = TSMonitorSet(*ts, TSMonitorDEBUG, PETSC_NULL, PETSC_NULL);         CHKERRQ(ierr);
   ierr = TSSetFromOptions(*ts);                                            CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

@@ -28,3 +28,8 @@ boundaryConditions:
       - 0
       - 0
     p: 1.0e+05
+
+PetscOptions:
+  - -draw_pause -1
+  - -dm_view draw
+  - -vec_view_bounds 0,10,0,10,0,10,2E5,5E5

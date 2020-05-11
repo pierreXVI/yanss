@@ -130,7 +130,7 @@ PetscErrorCode IOLoadVarFromLoc(const char *filename, const char *varname, Petsc
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, PetscInt len, const char ***var){
+PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, PetscInt *len, const char ***var){
   PetscErrorCode ierr;
   yaml_parser_t  parser;
 
@@ -192,12 +192,16 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
     }
   }
 
-  if (i < len) SETERRQ4(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s: not enough values (expected %d, got %d)", varname, filename, len, i);
+  if (*len > 0 && i < *len) {
+    SETERRQ4(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s: not enough values (expected %d, got %d)", varname, filename, *len, i);
+  } else if (*len == 0) {
+    *len = i;
+  }
 
-  ierr = PetscMalloc1(len, var); CHKERRQ(ierr);
+  ierr = PetscMalloc1(*len, var); CHKERRQ(ierr);
 
   node = root;
-  for (PetscInt i = 0; i < len; i++){
+  for (PetscInt i = 0; i < *len; i++){
     ierr = MyStrdup((const char*) node->event.data.scalar.value, (*var) + i); CHKERRQ(ierr);
     node = node->next;
   }
@@ -214,7 +218,7 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
 }
 
 
-PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, const PetscInt dim, struct BCDescription *bc){
+PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, struct BCDescription *bc){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -240,12 +244,12 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, const PetscInt 
     bc->val[0] = atof(buffer_val);
     ierr = PetscFree(buffer_val);                                  CHKERRQ(ierr);
 
-    ierr = IOLoadVarArrayFromLoc(filename, "u", 2, loc, dim, &buffer_vals); CHKERRQ(ierr);
+    ierr = IOLoadVarArrayFromLoc(filename, "u", 2, loc, &dim, &buffer_vals); CHKERRQ(ierr);
     for (PetscInt i = 0; i < dim; i++) {
       bc->val[1 + i] = atof(buffer_vals[i]);
       ierr = PetscFree(buffer_vals[i]);                                     CHKERRQ(ierr);
     }
-    ierr = PetscFree(buffer_vals);                                          CHKERRQ(ierr);
+    ierr = PetscFree(buffer_vals);                                           CHKERRQ(ierr);
 
     ierr = IOLoadVarFromLoc(filename, "p", 2, loc, &buffer_val); CHKERRQ(ierr);
     bc->val[dim + 1] = atof(buffer_val);
@@ -272,7 +276,7 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, const PetscInt 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode IOLoadInitialCondition(const char *filename, const PetscInt dim, PetscReal **initialConditions){
+PetscErrorCode IOLoadInitialCondition(const char *filename, PetscInt dim, PetscReal **initialConditions){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -287,17 +291,34 @@ PetscErrorCode IOLoadInitialCondition(const char *filename, const PetscInt dim, 
   (*initialConditions)[0] = atof(buffer_val);
   ierr = PetscFree(buffer_val);                                   CHKERRQ(ierr);
 
-  ierr = IOLoadVarArrayFromLoc(filename, "u", 1, &loc, dim, &buffer_vals); CHKERRQ(ierr);
+  ierr = IOLoadVarArrayFromLoc(filename, "u", 1, &loc, &dim, &buffer_vals); CHKERRQ(ierr);
   // if (size < dim) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%sFailed to read initialConditions > u : not enough values (expected %d, got %d)\e[0;39m", ERR_HIGHLIGHT, dim, size);
   for (PetscInt i = 0; i < dim; i++) {
     (*initialConditions)[1 + i] = atof(buffer_vals[i]);
     ierr = PetscFree(buffer_vals[i]);                                      CHKERRQ(ierr);
   }
-  ierr = PetscFree(buffer_vals);                                           CHKERRQ(ierr);
+  ierr = PetscFree(buffer_vals);                                            CHKERRQ(ierr);
 
   ierr = IOLoadVarFromLoc(filename, "p", 1, &loc, &buffer_val); CHKERRQ(ierr);
   (*initialConditions)[dim + 1] = atof(buffer_val);
   ierr = PetscFree(buffer_val);                                 CHKERRQ(ierr);
 
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode IOLoadPetscOptions(const char *filename){
+  PetscErrorCode ierr;
+  const char     **buffer_vals;
+  PetscInt       len = 0;
+
+  PetscFunctionBeginUser;
+  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read PetscOptions: ");  CHKERRQ(ierr);
+  ierr = IOLoadVarArrayFromLoc(filename, "PetscOptions", 0, NULL, &len, &buffer_vals); CHKERRQ(ierr);
+  for (PetscInt i = 0; i < len; i++){
+    ierr = PetscOptionsInsertString(PETSC_NULL, buffer_vals[i]);                       CHKERRQ(ierr);
+    ierr = PetscFree(buffer_vals[i]);                                                  CHKERRQ(ierr);
+  }
+  ierr = PetscFree(buffer_vals);                                                       CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
