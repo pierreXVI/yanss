@@ -121,9 +121,11 @@ PetscErrorCode IOSeekVarFromLoc(const char *filename, const char *varname, Petsc
   ierr = IOMoveToScalar(&parser, filename, varname);
   if (ierr == PETSC_ERR_USER_INPUT) {
     *found = PETSC_FALSE;
+    ierr = PetscPopErrorHandler();                                CHKERRQ(ierr);
     ierr = yaml_parser_my_delete(&parser);                        CHKERRQ(ierr);
     PetscFunctionReturn(0);
   }
+  ierr = PetscPopErrorHandler();                                  CHKERRQ(ierr);
   ierr = yaml_parser_my_delete(&parser);                          CHKERRQ(ierr);
   *found = PETSC_TRUE;
   PetscFunctionReturn(0);
