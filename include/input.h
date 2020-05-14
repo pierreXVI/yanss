@@ -7,14 +7,15 @@
   Functions for input file parsing
   The input is a yaml file, and follows the structure :
 
-  gamma: value
+  Physics:
+    gamma: value
 
-  initialConditions:
+  InitialConditions:
     field1D: value
     fieldND: array
     ...
 
-  boundaryConditions:
+  BoundaryConditions:
     id:
       name: value
       type: value
@@ -22,10 +23,17 @@
       [fieldND: array]
       ...
 
-  PetscOptions;
+  [PETScOptions:]
     [- ...]
 
 */
+
+/*
+  Look for the key `varname` in the file named `filename`
+  The location of the key is specified in the array `loc`, of size `depth` :
+    loc[0] > loc[1] > ... > loc[depth - 1] > varname : var
+*/
+PetscErrorCode IOSeekVarFromLoc(const char*, const char*, PetscInt, const char**, PetscBool*);
 
 /*
   Load the value associated to the key `varname` in the file named `filename`

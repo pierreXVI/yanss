@@ -1,17 +1,17 @@
-#  Physics
-gamma: 1.4
+Physics:
+  gamma: 1.4
 
-# Initial condition
-initialConditions:
+
+InitialConditions:
   rho: 1
   u:
-    - 0
+    - 1
     - 0
     - 0
   p: 1.0e+05
 
-# Boundary condition
-boundaryConditions:
+
+BoundaryConditions:
   10:
     name: wall
     type: BC_WALL
@@ -29,7 +29,9 @@ boundaryConditions:
       - 0
     p: 1.0e+05
 
-PetscOptions:
-  - -draw_pause -1
-  - -dm_view draw
-  - -vec_view_bounds 0,10,0,10,0,10,2E5,5E5
+PETScOptions:
+  # - -draw_pause -1
+  # - -vec_view_bounds 0,10,0,10,0,10,2E5,5E5
+  # - -ts_max_time 0.0001
+  # - -ts_max_time 0
+  - -ts_max_steps 10

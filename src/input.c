@@ -106,6 +106,24 @@ static PetscErrorCode IOMoveToScalar(yaml_parser_t *parser, const char *filename
 }
 
 
+PetscErrorCode IOSeekVarFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, PetscBool *found){
+  PetscErrorCode ierr;
+  yaml_parser_t  parser;
+
+  PetscFunctionBeginUser;
+  ierr = yaml_parser_my_initialize(&parser, filename);            CHKERRQ(ierr);
+  ierr = PetscPushErrorHandler(PetscReturnErrorHandler, &parser); CHKERRQ(ierr);
+  ierr = IOMoveToScalar(&parser, filename, "PETScOptions");
+  if (ierr == PETSC_ERR_USER_INPUT) {
+    *found = PETSC_FALSE;
+    ierr = yaml_parser_my_delete(&parser);                        CHKERRQ(ierr);
+    PetscFunctionReturn(0);
+  }
+  ierr = yaml_parser_my_delete(&parser);                          CHKERRQ(ierr);
+  *found = PETSC_TRUE;
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode IOLoadVarFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, const char **var){
   PetscErrorCode ierr;
   yaml_parser_t  parser;
@@ -227,12 +245,12 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read boundaryConditions > %d: ", id); CHKERRQ(ierr);
+  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read BoundaryConditions > %d: ", id); CHKERRQ(ierr);
 
   char id_str[8];
   ierr = PetscSNPrintf(id_str, sizeof(id_str), "%d", id);
 
-  const char* loc[] = {"boundaryConditions", id_str};
+  const char* loc[] = {"BoundaryConditions", id_str};
 
   ierr = IOLoadVarFromLoc(filename, "name", 2, loc, &bc->name); CHKERRQ(ierr);
 
@@ -285,10 +303,10 @@ PetscErrorCode IOLoadInitialCondition(const char *filename, PetscInt dim, PetscR
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read initialConditions: "); CHKERRQ(ierr);
+  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read InitialConditions: "); CHKERRQ(ierr);
   ierr = PetscMalloc1(dim + 2, initialConditions);                                        CHKERRQ(ierr);
 
-  const char *loc = "initialConditions";
+  const char *loc = "InitialConditions";
   const char *buffer_val;
   const char **buffer_vals;
 
@@ -315,14 +333,17 @@ PetscErrorCode IOLoadPetscOptions(const char *filename){
   PetscErrorCode ierr;
   const char     **buffer_vals;
   PetscInt       len = 0;
+  PetscBool      found;
 
   PetscFunctionBeginUser;
-  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read PetscOptions: ");  CHKERRQ(ierr);
-  ierr = IOLoadVarArrayFromLoc(filename, "PetscOptions", 0, NULL, &len, &buffer_vals); CHKERRQ(ierr);
+  ierr = IOSeekVarFromLoc(filename, "PETScOptions", 0, PETSC_NULL, &found);                  CHKERRQ(ierr);
+  if (!found) PetscFunctionReturn(0);
+  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read PETScOptions: ");        CHKERRQ(ierr);
+  ierr = IOLoadVarArrayFromLoc(filename, "PETScOptions", 0, PETSC_NULL, &len, &buffer_vals); CHKERRQ(ierr);
   for (PetscInt i = 0; i < len; i++){
-    ierr = PetscOptionsInsertString(PETSC_NULL, buffer_vals[i]);                       CHKERRQ(ierr);
-    ierr = PetscFree(buffer_vals[i]);                                                  CHKERRQ(ierr);
+    ierr = PetscOptionsInsertString(PETSC_NULL, buffer_vals[i]);                             CHKERRQ(ierr);
+    ierr = PetscFree(buffer_vals[i]);                                                        CHKERRQ(ierr);
   }
-  ierr = PetscFree(buffer_vals);                                                       CHKERRQ(ierr);
+  ierr = PetscFree(buffer_vals);                                                             CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
