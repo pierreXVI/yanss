@@ -70,4 +70,11 @@ PetscErrorCode IOLoadInitialCondition(const char*, PetscInt, PetscReal**);
 */
 PetscErrorCode IOLoadPetscOptions(const char*);
 
+
+/*
+  Load the parameters for each available monitor
+  If the monitor with the desired `name` is found, then `set` is `PETSC_TRUE`, else `PETSC_FALSE`
+*/
+PetscErrorCode IOLoadMonitorOptions(const char*, const char*, PetscBool*, PetscInt*);
+
 #endif

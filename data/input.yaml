@@ -29,6 +29,15 @@ BoundaryConditions:
       - 0
     p: 1.0e+05
 
+
+MonitorOptions:
+  Ascii_Res:
+      n_iter: 5
+  Ascii_MinMax:
+      n_iter: 2
+
+
+
 PETScOptions:
   # - -draw_pause -1
   # - -vec_view_bounds 0,10,0,10,0,10,2E5,5E5

@@ -113,7 +113,12 @@ PetscErrorCode IOSeekVarFromLoc(const char *filename, const char *varname, Petsc
   PetscFunctionBeginUser;
   ierr = yaml_parser_my_initialize(&parser, filename);            CHKERRQ(ierr);
   ierr = PetscPushErrorHandler(PetscReturnErrorHandler, &parser); CHKERRQ(ierr);
-  ierr = IOMoveToScalar(&parser, filename, "PETScOptions");
+  while (depth > 0) {
+    ierr = IOMoveToScalar(&parser, filename, loc[0]); CHKERRQ(ierr);
+    depth--;
+    loc++;
+  }
+  ierr = IOMoveToScalar(&parser, filename, varname);
   if (ierr == PETSC_ERR_USER_INPUT) {
     *found = PETSC_FALSE;
     ierr = yaml_parser_my_delete(&parser);                        CHKERRQ(ierr);
@@ -345,5 +350,28 @@ PetscErrorCode IOLoadPetscOptions(const char *filename){
     ierr = PetscFree(buffer_vals[i]);                                                        CHKERRQ(ierr);
   }
   ierr = PetscFree(buffer_vals);                                                             CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode IOLoadMonitorOptions(const char *filename, const char *name, PetscBool *set, PetscInt *n_iter){
+  PetscErrorCode ierr;
+  PetscBool      found;
+  const char     *buffer_val;
+
+  PetscFunctionBeginUser;
+  *set = PETSC_FALSE;
+  const char* loc[] = {"MonitorOptions", name};
+  ierr = IOSeekVarFromLoc(filename, loc[0], 0, PETSC_NULL, &found); CHKERRQ(ierr);
+  if (!found) PetscFunctionReturn(0);
+  ierr = IOSeekVarFromLoc(filename, loc[1], 1, loc, &found);        CHKERRQ(ierr);
+  if (!found) PetscFunctionReturn(0);
+  *set = PETSC_TRUE;
+
+  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read InitialConditions: "); CHKERRQ(ierr);
+  ierr = IOLoadVarFromLoc(filename, "n_iter", 2, loc, &buffer_val);                        CHKERRQ(ierr);
+  *n_iter = atof(buffer_val);
+  ierr = PetscFree(buffer_val);                                                            CHKERRQ(ierr);
+
   PetscFunctionReturn(0);
 }

@@ -4,9 +4,12 @@
   Print for each field "field_name : min_value, max_value"
 */
 PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
-  PetscErrorCode ierr;
+  PetscErrorCode     ierr;
+  struct Monitor_ctx *ctx = (struct Monitor_ctx*) mctx;
 
   PetscFunctionBeginUser;
+  if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
+
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  ", steps, time); CHKERRQ(ierr);
 
   DM       dm;
@@ -38,10 +41,12 @@ PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec 
   Print for each field "field_name : min_flux_value, max_fluxvalue"
 */
 PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
-  PetscErrorCode ierr;
+  PetscErrorCode     ierr;
+  struct Monitor_ctx *ctx = (struct Monitor_ctx*) mctx;
 
   PetscFunctionBeginUser;
-  if (steps % 100 != 0) {PetscFunctionReturn(0);}
+  if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
+
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  ", steps, time); CHKERRQ(ierr);
 
   Vec flux;
@@ -77,9 +82,11 @@ PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, 
   Draw the fields
 */
 PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
-  PetscErrorCode ierr;
+  PetscErrorCode     ierr;
+  struct Monitor_ctx *ctx = (struct Monitor_ctx*) mctx;
 
   PetscFunctionBeginUser;
+  if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
 
   // PetscBool flg;
   // PetscInt  nmax = 2;

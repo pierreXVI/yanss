@@ -64,8 +64,8 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   ierr = PetscNew(phys);                    CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &(*phys)->dim); CHKERRQ(ierr);
 
-  const char *buffer;
-  ierr = IOLoadVarFromLoc(filename, "gamma", 0, PETSC_NULL, &buffer); CHKERRQ(ierr);
+  const char *buffer, *loc = "Physics";
+  ierr = IOLoadVarFromLoc(filename, "gamma", 1, &loc, &buffer); CHKERRQ(ierr);
   (*phys)->gamma = atof(buffer);
   PetscFree(buffer);
 
