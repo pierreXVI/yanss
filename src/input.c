@@ -341,17 +341,22 @@ PetscErrorCode IOLoadPetscOptions(const char *filename){
   const char     **buffer_vals;
   PetscInt       len = 0;
   PetscBool      found;
+  char           *copts;
 
   PetscFunctionBeginUser;
   ierr = IOSeekVarFromLoc(filename, "PETScOptions", 0, PETSC_NULL, &found);                  CHKERRQ(ierr);
   if (!found) PetscFunctionReturn(0);
   ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read PETScOptions: ");        CHKERRQ(ierr);
   ierr = IOLoadVarArrayFromLoc(filename, "PETScOptions", 0, PETSC_NULL, &len, &buffer_vals); CHKERRQ(ierr);
+  ierr = PetscOptionsGetAll(PETSC_NULL, &copts);                                             CHKERRQ(ierr);
+  ierr = PetscOptionsClear(PETSC_NULL);                                                      CHKERRQ(ierr);
   for (PetscInt i = 0; i < len; i++){
     ierr = PetscOptionsInsertString(PETSC_NULL, buffer_vals[i]);                             CHKERRQ(ierr);
     ierr = PetscFree(buffer_vals[i]);                                                        CHKERRQ(ierr);
   }
+  ierr = PetscOptionsInsertString(PETSC_NULL, copts);                                        CHKERRQ(ierr);
   ierr = PetscFree(buffer_vals);                                                             CHKERRQ(ierr);
+  ierr = PetscFree(copts);                                                                   CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
