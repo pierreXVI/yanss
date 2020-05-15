@@ -21,10 +21,7 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Ph
   ierr = TSCreate(comm, ts);                                   CHKERRQ(ierr);
   ierr = TSSetDM(*ts, dm);                                     CHKERRQ(ierr);
   ierr = TSSetTimeStep(*ts, dt);                               CHKERRQ(ierr);
-  ierr = TSSetType(*ts, TSEULER);                              CHKERRQ(ierr);
-  ierr = TSSetMaxTime(*ts, 1);                                 CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER); CHKERRQ(ierr);
-
   for (PetscInt i = 0; MonitorList[i].name; i++) {
     PetscBool set;
     PetscInt  n_iter;
