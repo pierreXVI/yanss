@@ -117,9 +117,12 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
 
 
 PetscErrorCode IOMonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
-  PetscErrorCode ierr;
+  PetscErrorCode     ierr;
+  struct Monitor_ctx *ctx = (struct Monitor_ctx*) mctx;
 
   PetscFunctionBeginUser;
+  if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
+  
   PetscReal dt;
   ierr = TSGetTimeStep(ts, &dt); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  dt = %e\n", steps, time, dt); CHKERRQ(ierr);

@@ -31,7 +31,7 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, DM *mesh){
   ierr = PetscObjectSetName((PetscObject) *mesh, "Mesh");                   CHKERRQ(ierr);
 
   PetscFV  fvm;
-  ierr = PetscFVCreate(PETSC_COMM_WORLD, &fvm);                                     CHKERRQ(ierr);
+  ierr = PetscFVCreate(comm, &fvm);                                                 CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fvm, "FV Model");                         CHKERRQ(ierr);
   ierr = DMAddField(*mesh, PETSC_NULL, (PetscObject) fvm);                          CHKERRQ(ierr);
 

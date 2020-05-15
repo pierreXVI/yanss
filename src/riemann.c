@@ -71,7 +71,7 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
 
     pstar = (mr * pl + ml * pr + ml * mr * (ul - ur)) / (ml + mr);
 
-    if (pstar < 0) {SETERRABORT(PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");}
+    if (pstar < 0) {SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");}
   }
 
   PetscReal ustar = (ml * ul + mr * ur + pl - pr) / (ml + mr);

@@ -8,6 +8,7 @@ struct MonitorFunctionList {
 } MonitorList[] = {{"Ascii_Res",    IOMonitorAscii_Res},
                    {"Ascii_MinMax", IOMonitorAscii_MinMax},
                    {"Draw",         IOMonitorDraw},
+                   {"Debug",        IOMonitorDEBUG},
                    {PETSC_NULL,     PETSC_NULL}};
 
 static PetscErrorCode PetscFreeWrapper(void **mctx) {return PetscFree(*mctx);}
@@ -35,8 +36,6 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Ph
       ierr = TSMonitorSet(*ts, MonitorList[i].func, ctx, PetscFreeWrapper); CHKERRQ(ierr);
     }
   }
-  ierr = TSMonitorSet(*ts, IOMonitorDEBUG, PETSC_NULL, PETSC_NULL); CHKERRQ(ierr);
-
   ierr = TSSetFromOptions(*ts); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

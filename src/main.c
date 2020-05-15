@@ -29,7 +29,7 @@ int main(int argc, char **argv){
   ierr = DMPlexTSGetGeometryFVM(mesh, PETSC_NULL, PETSC_NULL, &minRadius); CHKERRQ(ierr);
   dt   = (0.1) * minRadius / (PetscMax(phys->init[1], phys->init[2]) + PetscSqrtReal(phys->gamma * phys->init[3] / phys->init[0]));
   // dt   = (0.1) * minRadius / (PetscMax(PetscMax(phys->init[1], phys->init[2]), phys->init[3]) + PetscSqrtReal(phys->gamma * phys->init[4] / phys->init[0]));
-  PetscPrintf(PETSC_COMM_SELF, "Dt = %g\n", dt);
+  PetscPrintf(PETSC_COMM_WORLD, "Dt = %g\n", dt);
 
   ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, dt); CHKERRQ(ierr);
   ierr = MeshApplyFunction(mesh, 0, InitialCondition, phys, x0);            CHKERRQ(ierr);
