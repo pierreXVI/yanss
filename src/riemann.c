@@ -32,7 +32,7 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
     utl[i] = wL[1 + i] - ul * nn[i];
     utr[i] = wR[1 + i] - ur * nn[i];
   }
-  PetscReal pl = wL[Nf - 1], pr = wR[Nf - 1]; // left and right pressures
+  PetscReal pl = wL[dim + 1], pr = wR[dim + 1]; // left and right pressures
 
   PetscReal cl = PetscSqrtReal(phys->gamma * pl / rl); // left speed of sound
   PetscReal cr = PetscSqrtReal(phys->gamma * pr / rr); // right speed of sound
@@ -123,7 +123,7 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
 
   flux[0] = rout * un;
   for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = rout * (uout * nn[i] + utout[i]) * un + pout * n[i];}
-  flux[Nf - 1] = (pout * phys->gamma / (phys->gamma - 1) + 0.5 * rout * unorm2) * un;
+  flux[dim + 1] = (pout * phys->gamma / (phys->gamma - 1) + 0.5 * rout * unorm2) * un;
 
   PetscFunctionReturnVoid();
 }
@@ -153,7 +153,7 @@ void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nf,
     utl[i] = uL[1 + i] - ul * nn[i];
     utr[i] = uR[1 + i] - ur * nn[i];
   }
-  PetscReal pl = uL[Nf - 1], pr = uR[Nf - 1]; // left and right pressures
+  PetscReal pl = uL[dim + 1], pr = uR[dim + 1]; // left and right pressures
 
   PetscReal cl = PetscSqrtReal(phys->gamma * pl / rl); // left speed of sound
   PetscReal cr = PetscSqrtReal(phys->gamma * pr / rr); // right speed of sound
@@ -238,7 +238,7 @@ void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nf,
   // Centred flux
   flux[0] = 0.5 * (uL[0] * unl + uR[0] * unr);
   for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = 0.5 * (uL[1 + i] * unl + uR[1 + i] * unr + (pl + pr) * n[i]);}
-  flux[Nf - 1] = 0.5 * ((uL[Nf - 1] + pl) * unl + (uR[Nf - 1] + pr) * unr);
+  flux[dim + 1] = 0.5 * ((uL[dim + 1] + pl) * unl + (uR[dim + 1] + pr) * unr);
 
   // Correction
   flux[0] -= 0.5 * area * (aa1*dd1 + aa4*dd4 + aa5*dd5);
@@ -272,13 +272,13 @@ void RiemannSolver_Euler_Lax(PetscInt dim, PetscInt Nf,
   for (PetscInt i = 0; i < Nf; i++) {flux[i] = 0;}
 
   flux[0] = 0.5 * (uL[0] * dotl + uR[0] * dotr);
-  for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = 0.5 * (uL[1 + i] * dotl + uR[1 + i] * dotr + (wL[Nf - 1] + wR[Nf - 1]) * n[i]);}
-  flux[Nf - 1] = 0.5 * ((uL[Nf - 1] + wL[Nf - 1]) * dotl + (uR[Nf - 1] + wR[Nf - 1]) * dotr);
+  for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = 0.5 * (uL[1 + i] * dotl + uR[1 + i] * dotr + (wL[dim + 1] + wR[dim + 1]) * n[i]);}
+  flux[dim + 1] = 0.5 * ((uL[dim + 1] + wL[dim + 1]) * dotl + (uR[dim + 1] + wR[dim + 1]) * dotr);
 
-  PetscReal coeff = 0.5*PetscSqrtReal(phys->gamma * phys->init[Nf - 1] / phys->init[0]) / (2 * 0.9); // c / (2 * CFL)
+  PetscReal coeff = 0.5*PetscSqrtReal(phys->gamma * phys->init[dim + 1] / phys->init[0]) / (2 * 0.9); // c / (2 * CFL)
   flux[0] -= coeff * (uR[0] - uL[0]);
   for (PetscInt i = 0; i < dim; i++) {flux[1 + i] -= coeff * (uR[1 + i] - uL[1 + i]);}
-  flux[Nf - 1] -= coeff * (uR[Nf - 1] - uL[Nf - 1]);
+  flux[dim + 1] -= coeff * (uR[dim + 1] - uL[dim + 1]);
 
   PetscFunctionReturnVoid();
 }

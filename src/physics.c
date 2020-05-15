@@ -27,7 +27,7 @@ void PrimitiveToConservative(Physics phys, const PetscReal in[], PetscReal out[]
 
   out[0] = in[0];
   for (PetscInt i = 0; i < phys->dim; i++){out[1 + i] = in[1 + i] * out[0];}
-  out[phys->dof - 1] = in[phys->dof - 1] / (phys->gamma - 1) + 0.5 * norm2 * out[0];
+  out[phys->dim + 1] = in[phys->dim + 1] / (phys->gamma - 1) + 0.5 * norm2 * out[0];
   PetscFunctionReturnVoid();
 }
 void ConservativeToPrimitive(Physics phys, const PetscReal in[], PetscReal out[]){
@@ -37,7 +37,7 @@ void ConservativeToPrimitive(Physics phys, const PetscReal in[], PetscReal out[]
 
   out[0] = in[0];
   for (PetscInt i = 0; i < phys->dim; i++){out[1 + i] = in[1 + i] / out[0];}
-  out[phys->dof - 1] = (phys->gamma - 1) * (in[phys->dof - 1] - 0.5 * norm2 / out[0]);
+  out[phys->dim + 1] = (phys->gamma - 1) * (in[phys->dim + 1] - 0.5 * norm2 / out[0]);
   PetscFunctionReturnVoid();
 }
 
