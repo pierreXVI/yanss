@@ -5,7 +5,7 @@ Physics:
 InitialConditions:
   rho: 1
   u:
-    - 1
+    - 0
     - 0
     - 0
   p: 1.0e+05
@@ -32,15 +32,19 @@ BoundaryConditions:
 
 MonitorOptions:
   Ascii_Res:
-      n_iter: 5
+      n_iter: 0
   Ascii_MinMax:
-      n_iter: 2
+      n_iter: 50
+  Draw:
+      n_iter: 0
+  Debug:
+      n_iter: 1
 
 
-
-PETScOptions:
-  # - -draw_pause -1
-  # - -vec_view_bounds 0,10,0,10,0,10,2E5,5E5
+Options:
+  - -options_left no
+  - -draw_pause -1
+  - -vec_view_bounds 9.9,1.1,-0.01,1.01,-0.01,0.01,2E5,5E5
   # - -ts_max_time 0.0001
   # - -ts_max_time 0
-  - -ts_max_steps 10
+  - -ts_max_steps 1000

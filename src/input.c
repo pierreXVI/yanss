@@ -344,10 +344,10 @@ PetscErrorCode IOLoadPetscOptions(const char *filename){
   char           *copts;
 
   PetscFunctionBeginUser;
-  ierr = IOSeekVarFromLoc(filename, "PETScOptions", 0, PETSC_NULL, &found);                  CHKERRQ(ierr);
+  ierr = IOSeekVarFromLoc(filename, "Options", 0, PETSC_NULL, &found);                  CHKERRQ(ierr);
   if (!found) PetscFunctionReturn(0);
-  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read PETScOptions: ");        CHKERRQ(ierr);
-  ierr = IOLoadVarArrayFromLoc(filename, "PETScOptions", 0, PETSC_NULL, &len, &buffer_vals); CHKERRQ(ierr);
+  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read Options: ");        CHKERRQ(ierr);
+  ierr = IOLoadVarArrayFromLoc(filename, "Options", 0, PETSC_NULL, &len, &buffer_vals); CHKERRQ(ierr);
   ierr = PetscOptionsGetAll(PETSC_NULL, &copts);                                             CHKERRQ(ierr);
   ierr = PetscOptionsClear(PETSC_NULL);                                                      CHKERRQ(ierr);
   for (PetscInt i = 0; i < len; i++){

@@ -23,8 +23,13 @@
       [fieldND: array]
       ...
 
-  [PETScOptions:]
-    [- ...]
+  [Options:]
+    - ...
+
+  [MonitorOptions:]
+    Monitor_Name:
+      n_iter: value
+      ...
 
 */
 
