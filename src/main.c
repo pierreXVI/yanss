@@ -23,21 +23,14 @@ int main(int argc, char **argv){
   ierr = MeshLoadFromFile(PETSC_COMM_WORLD, mesh_filename, &mesh); CHKERRQ(ierr);
   ierr = PhysicsCreate(&phys, input_filename, mesh);               CHKERRQ(ierr);
 
-  // TODO
-  PetscReal dt, minRadius=1;
-  // ierr = DMPlexTSGetGeometryFVM(mesh, PETSC_NULL, PETSC_NULL, &minRadius); CHKERRQ(ierr);
-  ierr = DMPlexGetMinRadius(mesh, &minRadius); CHKERRQ(ierr);
-  PetscPrintf(PETSC_COMM_WORLD, "minRadius = %e\n", minRadius);
-  dt   = (0.1) * minRadius / (PetscMax(phys->init[1], phys->init[2]) + PetscSqrtReal(phys->gamma * phys->init[3] / phys->init[0]));
-  // dt   = (0.1) * minRadius / (PetscMax(PetscMax(phys->init[1], phys->init[2]), phys->init[3]) + PetscSqrtReal(phys->gamma * phys->init[4] / phys->init[0]));
-  PetscPrintf(PETSC_COMM_WORLD, "Dt = %g\n", dt);
+  PetscReal cfl = 0.1;
 
   TS  ts;
   Vec x0;
-  ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, dt); CHKERRQ(ierr);
-  ierr = MeshCreateGlobalVector(mesh, &x0);                                 CHKERRQ(ierr);
-  ierr = MeshApplyFunction(mesh, 0, InitialCondition, phys, x0);            CHKERRQ(ierr);
-  ierr = TSSolve(ts, x0);                                                   CHKERRQ(ierr);
+  ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
+  ierr = MeshCreateGlobalVector(mesh, &x0);                                  CHKERRQ(ierr);
+  ierr = MeshApplyFunction(mesh, 0, InitialCondition, phys, x0);             CHKERRQ(ierr);
+  ierr = TSSolve(ts, x0);                                                    CHKERRQ(ierr);
 
   PetscReal         ftime;
   PetscInt          nsteps;

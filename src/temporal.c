@@ -14,13 +14,12 @@ struct MonitorFunctionList {
 static PetscErrorCode PetscFreeWrapper(void **mctx) {return PetscFree(*mctx);}
 
 
-PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Physics phys, PetscReal dt){
+PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Physics phys, PetscReal cfl){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
   ierr = TSCreate(comm, ts);                                   CHKERRQ(ierr);
   ierr = TSSetDM(*ts, dm);                                     CHKERRQ(ierr);
-  ierr = TSSetTimeStep(*ts, dt);                               CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER); CHKERRQ(ierr);
   for (PetscInt i = 0; MonitorList[i].name; i++) {
     PetscBool set;
@@ -33,6 +32,16 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Ph
       ierr = TSMonitorSet(*ts, MonitorList[i].func, ctx, PetscFreeWrapper); CHKERRQ(ierr);
     }
   }
+
+  PetscReal dt, minRadius, norm = 0;
+  ierr = DMPlexTSGetGeometryFVM(dm, PETSC_NULL, PETSC_NULL, &minRadius); CHKERRQ(ierr);
+  for (PetscInt i = 0; i < phys->dim; i++) {
+    norm += PetscSqr(phys->init[1 + i]);
+  }
+  dt = cfl * minRadius / (PetscSqrtReal(phys->gamma * phys->init[phys->dim + 1] / phys->init[0]) + PetscSqrtReal(norm));
+  PetscPrintf(PETSC_COMM_WORLD, "Dt = %g\n", dt);
+  ierr = TSSetTimeStep(*ts, dt); CHKERRQ(ierr);
+
   ierr = TSSetFromOptions(*ts); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
