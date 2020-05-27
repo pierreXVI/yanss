@@ -5,10 +5,10 @@
 struct MonitorFunctionList {
   const char     *name;
   PetscErrorCode (*func)(TS, PetscInt, PetscReal, Vec, void*);
-} MonitorList[] = {{"Ascii_Res",    IOMonitorAscii_Res},
+} MonitorList[] = {{"Debug",        IOMonitorDEBUG},
+                   {"Ascii_Res",    IOMonitorAscii_Res},
                    {"Ascii_MinMax", IOMonitorAscii_MinMax},
                    {"Draw",         IOMonitorDraw},
-                   {"Debug",        IOMonitorDEBUG},
                    {PETSC_NULL,     PETSC_NULL}};
 
 static PetscErrorCode PetscFreeWrapper(void **mctx) {return PetscFree(*mctx);}
