@@ -23,17 +23,13 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEP_DIR) $(OBJ_DIR)
 
 
 .PHONY: test
-test: $(BIN_DIR)/yanss data/box.msh
+test: $(BIN_DIR)/yanss
 	$(BIN_DIR)/yanss
-data/%.msh: data/%.geo
-	gmsh -2 -bin $<
 
 
-.PHONY: clean clean_dep clean_msh clean_all
-clean_all: clean clean_dep clean_msh
+.PHONY: clean clean_dep clean_all
+clean_all: clean clean_dep
 clean:
 	rm -f $(OBJ_DIR)/*.o $(BIN_DIR)/yanss
 clean_dep:
 	rm -f $(DEP_DIR)/*.d
-clean_msh:
-	rm -f data/*.msh
