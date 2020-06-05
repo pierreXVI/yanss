@@ -137,6 +137,10 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
       ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
                                 (void (*)(void)) BCWall, 1, indices + i, (*phys)->bc_ctx + i);      CHKERRQ(ierr);
       break;
+    case BC_FARFIELD:
+      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
+                                (void (*)(void)) BCFarField, 1, indices + i, (*phys)->bc_ctx + i);  CHKERRQ(ierr);
+      break;
     }
   }
   ierr = ISRestoreIndices(is, &indices);                                  CHKERRQ(ierr);

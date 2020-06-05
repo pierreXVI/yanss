@@ -297,8 +297,10 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
   } else if (!strcmp(buffer_type, "BC_WALL")) {
     bc->type = BC_WALL;
     bc->val = PETSC_NULL;
-  }
-  else {
+  } else if (!strcmp(buffer_type, "BC_FARFIELD")) {
+    bc->type = BC_FARFIELD;
+    bc->val = PETSC_NULL;
+  } else {
     SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", buffer_type);
   }
   ierr = PetscFree(buffer_type);                                   CHKERRQ(ierr);

@@ -14,38 +14,43 @@ InitialConditions:
 BoundaryConditions:
   10:
     name: wall
-    type: BC_WALL
+    # type: BC_WALL
+    type: BC_FARFIELD
   20:
     name: outflow
-    type: BC_OUTFLOW_P
-    p: 1.0e+05
+    # type: BC_OUTFLOW_P
+    # p: 1.0e+05
+    type: BC_FARFIELD
   30:
     name: inflow
-    type: BC_DIRICHLET
-    rho: 1
-    u:
-      - 1
-      - 0
-      - 0
-    p: 1.0e+05
+    # type: BC_DIRICHLET
+    # rho: 1
+    # u:
+    #   - 1
+    #   - 0
+    #   - 0
+    # p: 1.0e+05
+    type: BC_FARFIELD
 
 
 MonitorOptions:
-  Ascii_Res:
-      n_iter: 0
+  # Ascii_Res:
+  #     n_iter: 500
   Ascii_MinMax:
-      n_iter: 50
-  Draw:
-      n_iter: 0
-  Debug:
       n_iter: 1
+  Draw:
+      n_iter: 1
+  Debug:
+      n_iter: 0
 
 
 Options:
   - -mesh data/box.msh
   - -options_left no
-  - -draw_pause -1
-  - -vec_view_bounds 9.9,1.1,-0.01,1.01,-0.01,0.01,2E5,5E5
+  # - -draw_pause -1
+  # - -vec_view_bounds 9.9,1.1,-0.01,1.01,-0.01,0.01,2E5,5E5
+  # - -vec_view_bounds 9.9,1.1
   # - -ts_max_time 0.0001
   # - -ts_max_time 0
-  - -ts_max_steps 1000
+  - -ts_max_steps 50000
+  # - -dm_view draw

@@ -88,29 +88,12 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
 
-  // PetscBool flg;
-  // PetscInt  nmax = 2;
-  // PetscReal vbound[nmax];
-  // ierr = PetscOptionsGetRealArray(PETSC_NULL, PETSC_NULL, "-vec_view_bounds", vbound, &nmax, &flg); CHKERRQ(ierr);
-  // if (!flg){
-  //   char buffer[32];
-  //   ierr = VecMin(u, PETSC_NULL, &vbound[0]);                                    CHKERRQ(ierr);
-  //   ierr = VecMax(u, PETSC_NULL, &vbound[1]);                                    CHKERRQ(ierr);
-  //   if (vbound[1] <= vbound[0]) vbound[1] = vbound[0] + 1.0;
-  //   ierr = PetscSNPrintf(buffer, sizeof(buffer), "%f,%f", vbound[0], vbound[1]); CHKERRQ(ierr);
-  //   ierr = PetscOptionsSetValue(PETSC_NULL, "-vec_view_bounds", buffer);         CHKERRQ(ierr);
-  // }
-
   DM       dm;
   PetscInt numGhostCells;
   ierr = VecGetDM(u, &dm);                           CHKERRQ(ierr);
   ierr = DMPlexHideGhostCells(dm, &numGhostCells);   CHKERRQ(ierr);
   ierr = VecView(u, PETSC_VIEWER_DRAW_WORLD);        CHKERRQ(ierr);
   ierr = DMPlexRestoreGhostCells(dm, numGhostCells); CHKERRQ(ierr);
-
-  // if (!flg){
-  //   ierr = PetscOptionsClearValue(PETSC_NULL, "-vec_view_bounds");               CHKERRQ(ierr);
-  // }
 
   PetscFunctionReturn(0);
 }
@@ -122,7 +105,7 @@ PetscErrorCode IOMonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void
 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
-  
+
   PetscReal dt;
   ierr = TSGetTimeStep(ts, &dt); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  dt = %e\n", steps, time, dt); CHKERRQ(ierr);
