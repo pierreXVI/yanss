@@ -4,11 +4,58 @@ import argparse
 import os
 import subprocess
 
-SHELL = '/bin/bash'
-SRC_DIR = 'src'
-DEP_DIR = 'build/dep'
-OBJ_DIR = 'build/obj'
-BIN_DIR = 'build/bin'
+MAKEFILE = """
+SHELL = /bin/bash
+
+SRC_DIR = src
+DEP_DIR = build/dep
+OBJ_DIR = build/obj
+BIN_DIR = build/bin
+
+CC = {0}
+COMP_OPTS = {1}
+LINK_OPTS = {2}
+
+.PHONY: all
+all: $(BIN_DIR)/yanss
+
+$(DEP_DIR) $(OBJ_DIR) $(BIN_DIR):
+	mkdir -p $@
+
+# === List of source files
+SRC = $(wildcard $(SRC_DIR)/*.c)
+
+
+$(BIN_DIR)/yanss: $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o) | $(BIN_DIR)
+	@# printf "Linking %-14s " yanss
+	$(CC) -o $@ $^ $(LINK_OPTS)
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEP_DIR) $(OBJ_DIR)
+	@# printf "Compiling %-12s " $*
+	$(CC) -c $(COMP_OPTS) -Iinclude -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d $< -o $@
+
+
+-include $(SRC:$(SRC_DIR)/%.c=$(DEP_DIR)/%.d)
+
+
+.PHONY: test
+test: $(BIN_DIR)/yanss
+	$(BIN_DIR)/yanss
+
+
+.PHONY: clean clean_dep clean_all
+clean_all: clean clean_dep distclean
+clean:
+	rm -f $(OBJ_DIR)/*.o $(BIN_DIR)/yanss
+clean_dep:
+	rm -f $(DEP_DIR)/*.d
+distclean: clean
+	rm -f makefile
+
+make.inc:
+	@echo "Run ./configure"
+	exit
+"""
 
 
 def test_comp(cc, comp_opts):
@@ -76,17 +123,9 @@ if __name__ == "__main__":
     test_import(CC, COMP_OPTS, 'petscsys')
     test_import(CC, COMP_OPTS, 'yaml')
 
-    with open('make.inc', 'w') as make_inc:
-        make_inc.write("SHELL = {0}\n".format(SHELL))
-        make_inc.write('\n')
-        make_inc.write("SRC_DIR = {0}\n".format(SRC_DIR))
-        make_inc.write("DEP_DIR = {0}\n".format(DEP_DIR))
-        make_inc.write("OBJ_DIR = {0}\n".format(OBJ_DIR))
-        make_inc.write("BIN_DIR = {0}\n".format(BIN_DIR))
-        make_inc.write('\n')
-        make_inc.write("CC = {0}\n".format(CC))
-        make_inc.write("COMP_OPTS = {0}\n".format(COMP_OPTS))
-        make_inc.write("LINK_OPTS = {0}\n".format(LINK_OPTS))
+    with open('makefile', 'w') as makefile:
+        makefile.write(MAKEFILE.format(CC, COMP_OPTS, LINK_OPTS))
+
 
     print("Configuration done with options:")
     print("\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
