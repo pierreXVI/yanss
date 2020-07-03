@@ -61,7 +61,7 @@ PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
 }
 
 
-#include "private_vecview.h"
+#include "private_impl.h"
 PetscErrorCode MeshCreateGlobalVector(DM dm, Vec *x){
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
