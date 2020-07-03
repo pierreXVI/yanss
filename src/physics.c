@@ -15,7 +15,21 @@ static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscScalar *u, void *ctx){
   Physics phys = (Physics) ctx;
   PetscFunctionBeginUser;
-  PrimitiveToConservative(phys, phys->init, u);
+  // PrimitiveToConservative(phys, phys->init, u);
+
+  PetscReal A = 5 / (2 * PETSC_PI);
+  PetscReal dx = x[0] - 0.5, dy = x[1] - 0.5;
+  PetscReal r2 = PetscSqr(dx) + PetscSqr(dy);
+  PetscReal e = PetscExpReal((1 - r2) / 2);
+
+  u[1] = phys->init[1] - A * e * dy;
+  u[2] = phys->init[2] + A * e * dx;
+
+  u[0] = phys->init[0];
+  u[3] = phys->init[3];
+
+  PrimitiveToConservative(phys, u, u);
+
   PetscFunctionReturn(0);
 }
 

@@ -9,6 +9,7 @@ struct MonitorFunctionList {
                    {"Ascii_Res",    IOMonitorAscii_Res},
                    {"Ascii_MinMax", IOMonitorAscii_MinMax},
                    {"Draw",         IOMonitorDraw},
+                   {"Draw_NormU",   IOMonitorDrawNormU},
                    {PETSC_NULL,     PETSC_NULL}};
 
 static PetscErrorCode PetscFreeWrapper(void **mctx) {return PetscFree(*mctx);}

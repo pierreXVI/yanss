@@ -37,6 +37,10 @@ PetscErrorCode IOMonitorAscii_Res(TS, PetscInt, PetscReal, Vec, void*);
 */
 PetscErrorCode IOMonitorDraw(TS, PetscInt, PetscReal, Vec, void*);
 
+/*
+  Draw norm of the velocity
+*/
+PetscErrorCode IOMonitorDrawNormU(TS, PetscInt, PetscReal, Vec, void*);
 
 PetscErrorCode IOMonitorDEBUG(TS, PetscInt, PetscReal, Vec, void*);
 
