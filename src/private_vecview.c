@@ -111,7 +111,7 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer)
       ierr = VecGetSubVector(v, is, &subv); CHKERRQ(ierr);
       ierr = VecMin(subv, PETSC_NULL, &vbound[0]); CHKERRQ(ierr);
       ierr = VecMax(subv, PETSC_NULL, &vbound[1]); CHKERRQ(ierr);
-      ierr = VecDestroy(&subv); CHKERRQ(ierr);
+      ierr = VecRestoreSubVector(v, is, &subv); CHKERRQ(ierr);
       ierr = ISDestroy(&is); CHKERRQ(ierr);
       if (vbound[1] <= vbound[0]) vbound[1] = vbound[0] + 1.0;
     }
