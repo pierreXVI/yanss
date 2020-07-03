@@ -56,12 +56,6 @@ struct _Physics {
 };
 
 /*
-  Hide and restore the ghost cells from a `DMPlex`
-*/
-PetscErrorCode DMPlexHideGhostCells(DM, PetscInt*);
-PetscErrorCode DMPlexRestoreGhostCells(DM, PetscInt);
-
-/*
   Wrapping of `strdup`
 */
 PetscErrorCode MyStrdup(const char*, const char**);

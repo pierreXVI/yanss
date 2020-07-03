@@ -1,4 +1,37 @@
-#include "private_vecview.h"
+#include "private_impl.h"
+
+
+#include <petsc/private/dmlabelimpl.h>
+#include <petsc/private/isimpl.h>
+
+PetscErrorCode DMPlexHideGhostCells(DM dm, PetscInt *n){
+  PetscErrorCode ierr;
+  DMLabel        label;
+  PetscInt       dim, pHyb, pEnd;
+
+  PetscFunctionBeginUser;
+  ierr = DMGetDimension(dm, &dim);                    CHKERRQ(ierr);
+  ierr = DMPlexGetDepthStratum(dm, dim, PETSC_NULL, &pEnd); CHKERRQ(ierr);
+  ierr = DMPlexGetGhostCellStratum(dm, &pHyb, PETSC_NULL);  CHKERRQ(ierr);
+  ierr = DMPlexGetDepthLabel(dm, &label);             CHKERRQ(ierr);
+  label->points[dim]->max -= (pEnd - pHyb);
+  if (n) *n = (pEnd - pHyb);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode DMPlexRestoreGhostCells(DM dm, PetscInt n){
+  PetscErrorCode ierr;
+  DMLabel        label;
+  PetscInt       dim;
+
+  PetscFunctionBeginUser;
+  ierr = DMGetDimension(dm, &dim);        CHKERRQ(ierr);
+  ierr = DMPlexGetDepthLabel(dm, &label); CHKERRQ(ierr);
+  label->points[dim]->max += n;
+  PetscFunctionReturn(0);
+}
+
+
 #include <petsc/private/vecimpl.h>
 
 PETSC_EXTERN PetscErrorCode VecView_Plex(Vec, PetscViewer);
@@ -188,13 +221,16 @@ PetscErrorCode MyVecView_Plex(Vec v, PetscViewer viewer)
   if (isdraw) {
     Vec        locv;
     const char *name;
+    PetscInt   numGhostCells;
 
     ierr = DMGetLocalVector(dm, &locv); CHKERRQ(ierr);
     ierr = PetscObjectGetName((PetscObject) v, &name); CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) locv, name); CHKERRQ(ierr);
     ierr = DMGlobalToLocalBegin(dm, v, INSERT_VALUES, locv); CHKERRQ(ierr);
     ierr = DMGlobalToLocalEnd(dm, v, INSERT_VALUES, locv); CHKERRQ(ierr);
+    ierr = DMPlexHideGhostCells(dm, &numGhostCells); CHKERRQ(ierr);
     ierr = MyVecView_Plex_Local_Draw(locv, viewer); CHKERRQ(ierr);
+    ierr = DMPlexRestoreGhostCells(dm, numGhostCells); CHKERRQ(ierr);
     ierr = DMRestoreLocalVector(dm, &locv); CHKERRQ(ierr);
   } else {
     ierr = VecView_Plex(v, viewer); CHKERRQ(ierr);
