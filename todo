@@ -1,0 +1,8 @@
+Read input file from command line
+
+Read CFL from input file
+
+The time step is fixed at initialisation, according to the CFL condition at t = 0.
+If the state variation are small the CFL number stays the same.
+If one wants to compute larger variations, the time step may need to be computed at each step from the CFL number.
+Of course the iteration coast more.
