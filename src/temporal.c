@@ -40,7 +40,6 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Ph
     norm += PetscSqr(phys->init[1 + i]);
   }
   dt = cfl * minRadius / (PetscSqrtReal(phys->gamma * phys->init[phys->dim + 1] / phys->init[0]) + PetscSqrtReal(norm));
-  PetscPrintf(PETSC_COMM_WORLD, "Dt = %g\n", dt);
   ierr = TSSetTimeStep(*ts, dt); CHKERRQ(ierr);
 
   ierr = TSSetFromOptions(*ts); CHKERRQ(ierr);

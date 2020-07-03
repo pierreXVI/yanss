@@ -25,7 +25,7 @@ PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec 
     ierr = VecGetSubVector(u, is, &subv);                                                  CHKERRQ(ierr);
     ierr = VecMin(subv, PETSC_NULL, &min);                                                 CHKERRQ(ierr);
     ierr = VecMax(subv, PETSC_NULL, &max);                                                 CHKERRQ(ierr);
-    ierr = VecDestroy(&subv);                                                              CHKERRQ(ierr);
+    ierr = VecRestoreSubVector(u, is, &subv);                                              CHKERRQ(ierr);
     ierr = ISDestroy(&is);                                                                 CHKERRQ(ierr);
     ierr = PetscFVGetComponentName(fvm, comp, &compName);                                  CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD, "%s : [% 10.4g, % 10.4g], ", compName, min, max); CHKERRQ(ierr);

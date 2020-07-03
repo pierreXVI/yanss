@@ -30,10 +30,10 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, DM *mesh){
   *mesh = foo_dm;
   ierr = PetscObjectSetName((PetscObject) *mesh, "Mesh");                   CHKERRQ(ierr);
 
-  PetscFV  fvm;
-  ierr = PetscFVCreate(comm, &fvm);                                                 CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fvm, "FV Model");                         CHKERRQ(ierr);
-  ierr = DMAddField(*mesh, PETSC_NULL, (PetscObject) fvm);                          CHKERRQ(ierr);
+  PetscFV fvm;
+  ierr = PetscFVCreate(comm, &fvm);                         CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) fvm, "FV Model"); CHKERRQ(ierr);
+  ierr = DMAddField(*mesh, PETSC_NULL, (PetscObject) fvm);  CHKERRQ(ierr);
 
   ierr = DMTSSetBoundaryLocal(*mesh, DMPlexTSComputeBoundary, PETSC_NULL);          CHKERRQ(ierr);
   ierr = DMTSSetRHSFunctionLocal(*mesh, DMPlexTSComputeRHSFunctionFVM, PETSC_NULL); CHKERRQ(ierr);
