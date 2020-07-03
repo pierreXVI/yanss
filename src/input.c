@@ -53,9 +53,9 @@ static PetscErrorCode yaml_parser_my_initialize(yaml_parser_t *parser, const cha
   PetscFunctionBeginUser;
   FILE *input = fopen(filename, "rb");
   if (!input) {
-    SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "%sFailed to open %s\e[0;39m", PARSER_ERROR_HIGHLIGHT, filename);
+    SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_FILE_OPEN, "%sFailed to open %s\e[0;39m", PARSER_ERROR_HIGHLIGHT, filename);
   }
-  if (!yaml_parser_initialize(parser)) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER, "%sCannot initialize parser\e[0;39m", PARSER_ERROR_HIGHLIGHT);
+  if (!yaml_parser_initialize(parser)) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER, "%sCannot initialize parser\e[0;39m", PARSER_ERROR_HIGHLIGHT);
   yaml_parser_set_input_file(parser, input);
   PetscErrorCode ierr = PetscPushErrorHandler(yaml_parser_error_handler, parser); CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -100,7 +100,7 @@ static PetscErrorCode IOMoveToScalar(yaml_parser_t *parser, const char *filename
     default: break;
     }
     if (level < 0){
-      SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "%s not found in %s", scalarname, filename);
+      SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "%s not found in %s", scalarname, filename);
     }
   }
 }
@@ -147,7 +147,7 @@ PetscErrorCode IOLoadVarFromLoc(const char *filename, const char *varname, Petsc
 
   yaml_event_t event;
   ierr = yaml_parser_my_parse(&parser, &event);                CHKERRQ(ierr);
-  if (event.type != YAML_SCALAR_EVENT) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot read %s in %s", varname, filename);
+  if (event.type != YAML_SCALAR_EVENT) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read %s in %s", varname, filename);
   ierr = MyStrdup((const char*) event.data.scalar.value, var); CHKERRQ(ierr);
   yaml_event_delete(&event);
 
@@ -218,12 +218,12 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
         ierr = PetscFree(root); CHKERRQ(ierr);
       }
       ierr = yaml_parser_my_delete(&parser); CHKERRQ(ierr);
-      SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s", varname, filename);
+      SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s", varname, filename);
     }
   }
 
   if (*len > 0 && i < *len) {
-    SETERRQ4(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s: not enough values (expected %d, got %d)", varname, filename, *len, i);
+    SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s: not enough values (expected %d, got %d)", varname, filename, *len, i);
   } else if (*len == 0) {
     *len = i;
   }
@@ -301,7 +301,7 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
     bc->type = BC_FARFIELD;
     bc->val = PETSC_NULL;
   } else {
-    SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", buffer_type);
+    SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", buffer_type);
   }
   ierr = PetscFree(buffer_type);                                   CHKERRQ(ierr);
 

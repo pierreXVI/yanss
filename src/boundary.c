@@ -60,7 +60,7 @@ PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscReal n[3]
     break;
 
   default:
-    SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Wall boundary condition not implemented for this model (%d)\n", bc_ctx->phys->type);
+    SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Wall boundary condition not implemented for this model (%d)\n", bc_ctx->phys->type);
     break;
   }
   PetscFunctionReturn(0);
