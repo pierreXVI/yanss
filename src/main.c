@@ -4,13 +4,15 @@
 #include "input.h"
 
 static const char help[] = "Finite Volume solver\n";
-static const char input_filename[] = "/home/pierre/c/yanss/data/input.yaml";
-
 
 int main(int argc, char **argv){
   PetscErrorCode ierr;
 
   ierr = PetscInitialize(&argc, &argv, PETSC_NULL, help); if (ierr) return ierr;
+
+  if (argc < 2) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "No input file was given: please use \"%s optionfile\"", argv[0]);
+  char *input_filename = argv[1];
+
   ierr = IOLoadPetscOptions(input_filename); CHKERRQ(ierr);
 
   PetscBool set;
