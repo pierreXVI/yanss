@@ -6,7 +6,7 @@
 */
 #define PARSER_ERROR_HIGHLIGHT "\e[1;33m"
 
-static char ERR_HEADER[256];
+static char ERR_HEADER[256] = "";
 
 
 /*
@@ -51,13 +51,13 @@ static PetscErrorCode yaml_parser_error_handler(MPI_Comm comm, int line, const c
 */
 static PetscErrorCode yaml_parser_my_initialize(yaml_parser_t *parser, const char *filename) {
   PetscFunctionBeginUser;
-  PetscErrorCode ierr = PetscPushErrorHandler(yaml_parser_error_handler, parser); CHKERRQ(ierr);
   FILE *input = fopen(filename, "rb");
   if (!input) {
-    SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "Failed to open %s", filename);
+    SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_FILE_OPEN, "%sFailed to open %s\e[0;39m", PARSER_ERROR_HIGHLIGHT, filename);
   }
-  if (!yaml_parser_initialize(parser)) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_USER, "Cannot initialize parser");
+  if (!yaml_parser_initialize(parser)) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER, "%sCannot initialize parser\e[0;39m", PARSER_ERROR_HIGHLIGHT);
   yaml_parser_set_input_file(parser, input);
+  PetscErrorCode ierr = PetscPushErrorHandler(yaml_parser_error_handler, parser); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
