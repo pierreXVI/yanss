@@ -99,7 +99,7 @@ if __name__ == "__main__":
         if soft_dir:
             soft_dir = os.path.abspath(os.path.expanduser(soft_dir))
             COMP_OPTS.append('-I ' + os.path.join(soft_dir, 'include'))
-            LINK_OPTS.append('-L ' + os.path.join(soft_dir, 'lib'))
+            LINK_OPTS.append('-Wl,-rpath,{0} -L{0}'.format(os.path.join(soft_dir, 'lib')))
     COMP_OPTS = ' '.join(COMP_OPTS)
     LINK_OPTS = ' '.join(LINK_OPTS)
 
@@ -125,7 +125,7 @@ if __name__ == "__main__":
           err_head="Cannot link -lyaml with the current options:",
           err_msg="\tCC = {0}\n\tLINK_OPTS = {1}\n".format(CC, LINK_OPTS))
 
-    LINK_OPTS = ' '.join((LINK_OPTS, ' -lpetsc -lyaml -lm'))
+    LINK_OPTS = ' '.join((LINK_OPTS, '-lpetsc', '-lyaml', '-lm'))
 
     with open('makefile', 'w') as makefile:
         makefile.write(MAKEFILE.format(CC, COMP_OPTS, LINK_OPTS))
