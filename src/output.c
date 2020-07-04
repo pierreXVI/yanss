@@ -3,14 +3,19 @@
 #include "private_impl.h"
 
 #include "spatial.h"
-PetscErrorCode DrawVecOnDM(Vec v, DM dm){
-  PetscErrorCode     ierr;
-  Vec v_dm;
+PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
+  PetscErrorCode    ierr;
+  Vec               v_dm;
   const PetscScalar *v_data;
-  PetscScalar *v_dm_data;
-  PetscInt n1, n2, Nc;
+  PetscScalar       *v_dm_data;
+  PetscInt          n1, n2, Nc;
+  PetscBool         flg;
+  char              val[64];
 
   PetscFunctionBeginUser;
+  ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-draw_comp", val, sizeof(val), &flg); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(PETSC_NULL, "-draw_comp", "0");                                 CHKERRQ(ierr);
+
   ierr = MeshCreateGlobalVector(dm, &v_dm); CHKERRQ(ierr);
   ierr = VecGetLocalSize(v, &n1);           CHKERRQ(ierr);
   ierr = VecGetLocalSize(v_dm, &n2);        CHKERRQ(ierr);
@@ -20,27 +25,14 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm){
   for (PetscInt i = 0; i < n1; i++) {v_dm_data[Nc * i] = v_data[i];}
   ierr = VecRestoreArray(v_dm, &v_dm_data); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(v, &v_data);   CHKERRQ(ierr);
+  ierr = VecView(v_dm, viewer);             CHKERRQ(ierr);
+  ierr = VecDestroy(&v_dm);                 CHKERRQ(ierr);
 
-  PetscBool flg;
-  PetscInt displaycomp[Nc];
-  char buffer[64];
-  ierr = PetscOptionsGetIntArray(PETSC_NULL, PETSC_NULL, "-draw_comp", displaycomp, &Nc, &flg); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(PETSC_NULL, "-draw_comp", "0"); CHKERRQ(ierr);
   if (flg) {
-    PetscPrintf(PETSC_COMM_WORLD, "Should rewrite option, %d\n", Nc);
-    // ierr = PetscOptionsSetValue(PETSC_NULL, "-draw_comp", "1"); CHKERRQ(ierr);
-
+    ierr = PetscOptionsSetValue(PETSC_NULL, "-draw_comp", val); CHKERRQ(ierr);
+  } else {
+    ierr = PetscOptionsClearValue(PETSC_NULL, "-draw_comp");    CHKERRQ(ierr);
   }
-
-  PetscViewer viewer;
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
-  ierr = PetscViewerSetType(viewer, PETSCVIEWERDRAW); CHKERRQ(ierr);
-
-  ierr = VecView(v_dm, viewer); CHKERRQ(ierr);
-
-  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-
-  ierr = VecDestroy(&v_dm); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -157,7 +149,7 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
   // ierr = VecAXPY(u_x, 1, u_y);                                                      CHKERRQ(ierr);
   // ierr = VecSqrtAbs(u_x);                                                           CHKERRQ(ierr);
 
-  ierr = DrawVecOnDM(u_x, dm); CHKERRQ(ierr);
+  ierr = DrawVecOnDM(u_x, dm, ctx->viewer); CHKERRQ(ierr);
 
 
   // ierr = VecView(ud, PETSC_VIEWER_DRAW_WORLD);      CHKERRQ(ierr);
