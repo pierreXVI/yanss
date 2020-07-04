@@ -9,6 +9,82 @@
 static char ERR_HEADER[256] = "";
 
 
+
+#define INDENT "  "
+#define STRVAL(x) ((x) ? (char*)(x) : "")
+
+void indent(int level)
+{
+    int i;
+    for (i = 0; i < level; i++) {
+        printf("%s", INDENT);
+    }
+}
+
+static int level = 0;
+void print_event(yaml_event_t *event)
+{
+
+    switch (event->type) {
+    case YAML_NO_EVENT:
+        indent(level);
+        printf("no-event\n");
+        break;
+    case YAML_STREAM_START_EVENT:
+        indent(level++);
+        printf("stream-start-event\n");
+        break;
+    case YAML_STREAM_END_EVENT:
+        indent(--level);
+        printf("stream-end-event\n");
+        break;
+    case YAML_DOCUMENT_START_EVENT:
+        indent(level++);
+        printf("document-start-event\n");
+        break;
+    case YAML_DOCUMENT_END_EVENT:
+        indent(--level);
+        printf("document-end-event\n");
+        break;
+    case YAML_ALIAS_EVENT:
+        indent(level);
+        printf("alias-event={anchor=\"%s\"}\n",
+                event->data.alias.anchor);
+        break;
+    case YAML_SCALAR_EVENT:
+        indent(level);
+        printf("scalar-event={anchor=\"%s\", value=\"%s\", length=%d}\n",
+                STRVAL(event->data.scalar.anchor),
+                STRVAL(event->data.scalar.value),
+                (int)event->data.scalar.length);
+        break;
+    case YAML_SEQUENCE_START_EVENT:
+        indent(level++);
+        printf("sequence-start-event\n");
+        break;
+    case YAML_SEQUENCE_END_EVENT:
+        indent(--level);
+        printf("sequence-end-event\n");
+        break;
+    case YAML_MAPPING_START_EVENT:
+        indent(level++);
+        printf("mapping-start-event\n");
+        break;
+    case YAML_MAPPING_END_EVENT:
+        indent(--level);
+        printf("mapping-end-event\n");
+        break;
+    }
+    if (level < 0) {
+        fprintf(stderr, "indentation underflow!\n");
+        level = 0;
+    }
+}
+
+
+
+
+
 /*
 Delete the given parser and close the input file
 */
@@ -58,6 +134,7 @@ static PetscErrorCode yaml_parser_my_initialize(yaml_parser_t *parser, const cha
   if (!yaml_parser_initialize(parser)) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER, "%sCannot initialize parser\e[0;39m", PARSER_ERROR_HIGHLIGHT);
   yaml_parser_set_input_file(parser, input);
   PetscErrorCode ierr = PetscPushErrorHandler(yaml_parser_error_handler, parser); CHKERRQ(ierr);
+  level = 0;
   PetscFunctionReturn(0);
 }
 
@@ -67,6 +144,7 @@ static PetscErrorCode yaml_parser_my_initialize(yaml_parser_t *parser, const cha
 static PetscErrorCode yaml_parser_my_parse(yaml_parser_t *parser, yaml_event_t *event) {
   PetscFunctionBeginUser;
   if (!yaml_parser_parse(parser, event)) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_FILE_UNEXPECTED, "Failed to parse: %s", parser->problem);
+  // print_event(event);
   PetscFunctionReturn(0);
 }
 
@@ -176,6 +254,7 @@ PetscErrorCode IOLoadVarFromLoc(const char *filename, const char *varname, Petsc
 PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, PetscInt *len, const char ***var){
   PetscErrorCode ierr;
   yaml_parser_t  parser;
+  yaml_event_t   event;
 
   PetscFunctionBeginUser;
   ierr = yaml_parser_my_initialize(&parser, filename); CHKERRQ(ierr);
@@ -185,13 +264,17 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
     depth--;
     loc++;
   }
-  ierr = IOMoveToScalar(&parser, filename, varname, PETSC_NULL, PETSC_FALSE);  CHKERRQ(ierr);
+  ierr = IOMoveToScalar(&parser, filename, varname, &event, PETSC_FALSE);  CHKERRQ(ierr);
 
   struct yaml_event_list {yaml_event_t event; struct yaml_event_list *next;} *root = PETSC_NULL, *current, *node;
   PetscInt done = -1, i = 0;
   while (PETSC_TRUE) {
     ierr = PetscNew(&node);                             CHKERRQ(ierr);
-    ierr = yaml_parser_my_parse(&parser, &node->event); CHKERRQ(ierr);
+    if (done == -1) {
+      node->event = event;
+    } else {
+      ierr = yaml_parser_my_parse(&parser, &node->event); CHKERRQ(ierr);
+    }
     node->next = PETSC_NULL;
 
     switch (node->event.type) {
