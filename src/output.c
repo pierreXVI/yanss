@@ -125,7 +125,7 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
-  ierr = VecView(u, PETSC_VIEWER_DRAW_WORLD);        CHKERRQ(ierr);
+  ierr = VecView(u, ctx->viewer); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

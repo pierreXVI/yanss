@@ -5,7 +5,8 @@
 
 
 struct Monitor_ctx {
-  PetscInt n_iter; // Monitor evry `n_iter` iteration
+  PetscInt    n_iter; // Monitor evry `n_iter` iteration
+  PetscViewer viewer; // PetscViewer used by the monitor
 };
 
 

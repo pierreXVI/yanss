@@ -53,7 +53,7 @@ PetscErrorCode IOLoadVarFromLoc(const char*, const char*, PetscInt, const char**
   The location of the key is specified in the array `loc`, of size `depth` :
     loc[0] > loc[1] > ... > loc[depth - 1] > varname : [array of length `len`]
   If the pointer `PetscInt *len` is set to a > 0 size, read the asked size, and if it is set to 0, it is set to the read array size
-  The output value must be freed with `PetscFree`
+  The output values must be freed with `PetscFree`
 */
 PetscErrorCode IOLoadVarArrayFromLoc(const char*, const char*, PetscInt, const char**, PetscInt*, const char***);
 

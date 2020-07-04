@@ -43,12 +43,12 @@ test: $(BIN_DIR)/yanss
 
 
 .PHONY: clean clean_dep clean_all
-clean_all: clean clean_dep distclean
+clean_all: clean clean_dep
 clean:
 \trm -f $(OBJ_DIR)/*.o $(BIN_DIR)/yanss
 clean_dep:
 \trm -f $(DEP_DIR)/*.d
-distclean: clean
+distclean: clean_all
 \trm -f makefile
 
 make.inc:
