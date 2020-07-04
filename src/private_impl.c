@@ -131,7 +131,7 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer)
     comp = displaycomp[i];
     const char *compName;
     ierr = PetscFVGetComponentName(fvm, comp, &compName); CHKERRQ(ierr);
-    ierr = PetscViewerDrawGetDraw(viewer, displaycomp[i], &draw); CHKERRQ(ierr);
+    ierr = PetscViewerDrawGetDraw(viewer, i, &draw); CHKERRQ(ierr);
     ierr = PetscSNPrintf(title, sizeof(title), "%s:%s Step: %D Time: %.4g", name, compName, step, time); CHKERRQ(ierr);
     ierr = PetscDrawSetTitle(draw, title); CHKERRQ(ierr);
     if (flg) {

@@ -31,6 +31,7 @@ int main(int argc, char **argv){
   Vec x0;
   ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
   ierr = MeshCreateGlobalVector(mesh, &x0);                                  CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) x0, "Solution");                  CHKERRQ(ierr);
   ierr = MeshApplyFunction(mesh, 0, InitialCondition, phys, x0);             CHKERRQ(ierr);
   ierr = TSSolve(ts, x0);                                                    CHKERRQ(ierr);
 
