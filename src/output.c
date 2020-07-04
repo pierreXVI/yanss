@@ -92,7 +92,7 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
   PetscInt numGhostCells;
   ierr = VecGetDM(u, &dm);                           CHKERRQ(ierr);
   ierr = DMPlexHideGhostCells(dm, &numGhostCells);   CHKERRQ(ierr);
-  ierr = VecView(u, PETSC_VIEWER_DRAW_WORLD);        CHKERRQ(ierr);
+  ierr = VecView(u, ctx->viewer);                    CHKERRQ(ierr);
   ierr = DMPlexRestoreGhostCells(dm, numGhostCells); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);

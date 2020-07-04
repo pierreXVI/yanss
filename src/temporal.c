@@ -3,15 +3,20 @@
 #include "output.h"
 
 struct MonitorFunctionList {
-  const char     *name;
-  PetscErrorCode (*func)(TS, PetscInt, PetscReal, Vec, void*);
-} MonitorList[] = {{"Debug",        IOMonitorDEBUG},
-                   {"Ascii_Res",    IOMonitorAscii_Res},
-                   {"Ascii_MinMax", IOMonitorAscii_MinMax},
-                   {"Draw",         IOMonitorDraw},
-                   {PETSC_NULL,     PETSC_NULL}};
+  const char      *name;
+  PetscErrorCode  (*func)(TS, PetscInt, PetscReal, Vec, void*);
+  PetscViewerType type;
+} MonitorList[] = {{"Debug",        IOMonitorDEBUG,        PETSC_NULL},
+                   {"Ascii_Res",    IOMonitorAscii_Res,    PETSC_NULL},
+                   {"Ascii_MinMax", IOMonitorAscii_MinMax, PETSC_NULL },
+                   {"Draw",         IOMonitorDraw,         PETSCVIEWERDRAW },
+                   {PETSC_NULL,     PETSC_NULL,            PETSC_NULL}};
 
-static PetscErrorCode PetscFreeWrapper(void **mctx) {return PetscFree(*mctx);}
+static PetscErrorCode PetscFreeWrapper(void **mctx) {
+  struct Monitor_ctx *ctx = (struct Monitor_ctx*) *mctx;
+  PetscViewerDestroy(&ctx->viewer);
+  return PetscFree(*mctx);
+}
 
 
 PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Physics phys, PetscReal cfl){
@@ -29,6 +34,10 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Ph
       struct Monitor_ctx *ctx;
       ierr = PetscNew(&ctx); CHKERRQ(ierr);
       ctx->n_iter = n_iter;
+      if (MonitorList[i].type) {
+        ierr = PetscViewerCreate(comm, &ctx->viewer); CHKERRQ(ierr);
+        ierr = PetscViewerSetType(ctx->viewer, MonitorList[i].type); CHKERRQ(ierr);
+      }
       ierr = TSMonitorSet(*ts, MonitorList[i].func, ctx, PetscFreeWrapper); CHKERRQ(ierr);
     }
   }
