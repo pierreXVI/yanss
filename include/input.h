@@ -3,6 +3,7 @@
 
 #include "utils.h"
 
+
 /*
   Functions for input file parsing
   The input is a yaml file, and follows the structure :
@@ -34,6 +35,7 @@
   YAML anchors are allowed throughout the file.
 
 */
+
 
 /*
   Look for the key `varname` in the file named `filename`
@@ -76,7 +78,6 @@ PetscErrorCode IOLoadInitialCondition(const char*, PetscInt, PetscReal**);
   Load the list of string options and register them into the database
 */
 PetscErrorCode IOLoadPetscOptions(const char*);
-
 
 /*
   Load the parameters for each available monitor
