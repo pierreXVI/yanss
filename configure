@@ -37,11 +37,6 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEP_DIR) $(OBJ_DIR)
 -include $(SRC:$(SRC_DIR)/%.c=$(DEP_DIR)/%.d)
 
 
-.PHONY: test
-test: $(BIN_DIR)/yanss
-\t$(BIN_DIR)/yanss
-
-
 .PHONY: clean clean_dep clean_all
 clean_all: clean clean_dep
 clean:
