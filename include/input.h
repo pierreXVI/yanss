@@ -31,6 +31,8 @@
       n_iter: value
       ...
 
+  YAML anchors are allowed throughout the file.
+
 */
 
 /*
