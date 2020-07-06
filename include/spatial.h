@@ -3,6 +3,7 @@
 
 #include "utils.h"
 
+
 /*
   A mesh is a `DMPlex` instance, with FV adjacency and a single `PetscFV` field
 */
@@ -12,6 +13,7 @@
   Destroy the mesh
 */
 PetscErrorCode MeshDestroy(DM*);
+
 
 /*
   Setup the mesh.
@@ -33,6 +35,5 @@ PetscErrorCode MeshApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscRe
   Create a global vector, and set the user's Viewer
 */
 PetscErrorCode MeshCreateGlobalVector(DM, Vec*);
-
 
 #endif

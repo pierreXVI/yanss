@@ -4,7 +4,7 @@
 #include "utils.h"
 
 
-struct Monitor_ctx {
+struct MonitorCtx {
   PetscInt    n_iter; // Monitor evry `n_iter` iteration
   PetscViewer viewer; // PetscViewer used by the monitor
 };

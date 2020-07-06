@@ -1,9 +1,11 @@
 #include "physics.h"
 
+
 // Number of iterations of the fixed point pressure solver for the Riemann problem
 #define N_ITER_RIEMANN 10
 // Epsilon of the pressure solver for the Riemann problem
 #define EPS_RIEMANN 1E-14
+
 
 void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
                                const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
@@ -13,29 +15,29 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
   PetscFunctionBeginUser;
 
   PetscReal area = 0, nn[dim]; // n = area * nn, nn normal unitary vector to the surface
-  for (PetscInt i = 0; i < dim; i++){area += PetscSqr(n[i]);}
+  for (PetscInt i = 0; i < dim; i++) area += PetscSqr(n[i]);
   area = PetscSqrtReal(area);
-  for (PetscInt i = 0; i < dim; i++){nn[i] = n[i] / area;}
+  for (PetscInt i = 0; i < dim; i++) nn[i] = n[i] / area;
 
-  PetscScalar wL[Nf], wR[Nf];
+  PetscReal wL[Nf], wR[Nf];
   ConservativeToPrimitive(phys, uL, wL);
   ConservativeToPrimitive(phys, uR, wR);
 
-  PetscReal rl = wL[0], rr = wR[0]; // left and right densities
-  PetscReal ul = 0, ur = 0; // left and right normal speeds
+  PetscReal rl = wL[0], rr = wR[0];                    // densities
+  PetscReal ul = 0, ur = 0;                            // normal speeds
   for (PetscInt i = 0; i < dim; i++){
     ul += wL[1 + i] * nn[i];
     ur += wR[1 + i] * nn[i];
   }
-  PetscReal utl[dim], utr[dim]; // left and right tangent speeds
+  PetscReal utl[dim], utr[dim];                        // tangent speeds
   for (PetscInt i = 0; i < dim; i++){
     utl[i] = wL[1 + i] - ul * nn[i];
     utr[i] = wR[1 + i] - ur * nn[i];
   }
-  PetscReal pl = wL[dim + 1], pr = wR[dim + 1]; // left and right pressures
+  PetscReal pl = wL[dim + 1], pr = wR[dim + 1];        // pressures
 
-  PetscReal cl = PetscSqrtReal(phys->gamma * pl / rl); // left speed of sound
-  PetscReal cr = PetscSqrtReal(phys->gamma * pr / rr); // right speed of sound
+  PetscReal cl = PetscSqrtReal(phys->gamma * pl / rl); // speeds of sound
+  PetscReal cr = PetscSqrtReal(phys->gamma * pr / rr);
 
   PetscReal alpha = (phys->gamma + 1) / (2 * phys->gamma);
   PetscReal beta  = (phys->gamma - 1) / (2 * phys->gamma);
@@ -70,7 +72,6 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
     }
 
     pstar = (mr * pl + ml * pr + ml * mr * (ul - ur)) / (ml + mr);
-
     if (pstar < 0) {SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");}
   }
 
@@ -119,10 +120,10 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
   }
 
   PetscReal un = uout * area, unorm2 = 0;
-  for (PetscInt i = 0; i < dim; i++) {unorm2 += PetscSqr(uout * nn[i] + utout[i]);}
+  for (PetscInt i = 0; i < dim; i++) unorm2 += PetscSqr(uout * nn[i] + utout[i]);
 
   flux[0] = rout * un;
-  for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = rout * (uout * nn[i] + utout[i]) * un + pout * n[i];}
+  for (PetscInt i = 0; i < dim; i++) flux[1 + i] = rout * (uout * nn[i] + utout[i]) * un + pout * n[i];
   flux[dim + 1] = (pout * phys->gamma / (phys->gamma - 1) + 0.5 * rout * unorm2) * un;
 
   PetscFunctionReturnVoid();
@@ -252,16 +253,20 @@ void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nf,
 }
 */
 
-void RiemannSolver_Euler_Lax(PetscInt dim, PetscInt Nf,
-                             const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
-                             PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
+void RiemannSolver_Euler_LaxFriedrichs(PetscInt dim, PetscInt Nf,
+                                       const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
+                                       PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
+  SETERRABORT(PETSC_COMM_WORLD, PETSC_ERR_SUP, "LaxFriedrichs Riemann solver not implemented yet");
 
-  PetscScalar wL[Nf], wR[Nf];
+  PetscReal wL[Nf], wR[Nf];
   ConservativeToPrimitive(phys, uL, wL);
   ConservativeToPrimitive(phys, uR, wR);
+
+  PetscReal coeff;
+  // PetscReal coeff = c / (2 * phys->cfl);
 
   PetscReal dotl = 0, dotr = 0;
   for (PetscInt i = 0; i < dim; i++) {
@@ -269,16 +274,9 @@ void RiemannSolver_Euler_Lax(PetscInt dim, PetscInt Nf,
     dotr += wR[1 + i] * n[i];
   }
 
-  for (PetscInt i = 0; i < Nf; i++) {flux[i] = 0;}
-
-  flux[0] = 0.5 * (uL[0] * dotl + uR[0] * dotr);
-  for (PetscInt i = 0; i < dim; i++) {flux[1 + i] = 0.5 * (uL[1 + i] * dotl + uR[1 + i] * dotr + (wL[dim + 1] + wR[dim + 1]) * n[i]);}
-  flux[dim + 1] = 0.5 * ((uL[dim + 1] + wL[dim + 1]) * dotl + (uR[dim + 1] + wR[dim + 1]) * dotr);
-
-  PetscReal coeff = 0.5*PetscSqrtReal(phys->gamma * phys->init[dim + 1] / phys->init[0]) / (2 * 0.9); // c / (2 * CFL)
-  flux[0] -= coeff * (uR[0] - uL[0]);
-  for (PetscInt i = 0; i < dim; i++) {flux[1 + i] -= coeff * (uR[1 + i] - uL[1 + i]);}
-  flux[dim + 1] -= coeff * (uR[dim + 1] - uL[dim + 1]);
+  flux[0] = (uL[0] * dotl + uR[0] * dotr) / 2 - coeff * (uR[0] - uL[0]);
+  for (PetscInt i = 0; i < dim; i++) flux[1 + i] = (uL[1 + i] * dotl + uR[1 + i] * dotr + (wL[dim + 1] + wR[dim + 1]) * n[i]) / 2 - coeff * (uR[1 + i] - uL[1 + i]);
+  flux[dim + 1] = ((uL[dim + 1] + wL[dim + 1]) * dotl + (uR[dim + 1] + wR[dim + 1]) * dotr) / 2 - coeff * (uR[dim + 1] - uL[dim + 1]);
 
   PetscFunctionReturnVoid();
 }

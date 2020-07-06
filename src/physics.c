@@ -1,15 +1,13 @@
 #include "physics.h"
 #include "input.h"
 
-/*____________________________________________________________________________________________________________________*/
 
+/*____________________________________________________________________________________________________________________*/
 static const enum ProblemType problem_type = TYPE_EULER;
 static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {"rho * U", DOF_DIM},
                                                  {"rho * E", DOF_1},
                                                  {PETSC_NULL, 0}};
-
-/*____________________________________________________________________________________________________________________*/
 
 
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscScalar *u, void *ctx){
@@ -32,28 +30,32 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
 
   PetscFunctionReturn(0);
 }
+/*____________________________________________________________________________________________________________________*/
+
 
 
 void PrimitiveToConservative(Physics phys, const PetscReal in[], PetscReal out[]){
   PetscFunctionBeginUser;
   PetscReal norm2 = 0;
-  for (PetscInt i = 0; i < phys->dim; i++){norm2 += PetscSqr(in[1 + i]);}
+  for (PetscInt i = 0; i < phys->dim; i++) norm2 += PetscSqr(in[1 + i]);
 
   out[0] = in[0];
-  for (PetscInt i = 0; i < phys->dim; i++){out[1 + i] = in[1 + i] * out[0];}
+  for (PetscInt i = 0; i < phys->dim; i++) out[1 + i] = in[1 + i] * out[0];
   out[phys->dim + 1] = in[phys->dim + 1] / (phys->gamma - 1) + 0.5 * norm2 * out[0];
   PetscFunctionReturnVoid();
 }
+
 void ConservativeToPrimitive(Physics phys, const PetscReal in[], PetscReal out[]){
   PetscFunctionBeginUser;
   PetscReal norm2 = 0;
-  for (PetscInt i = 0; i < phys->dim; i++){norm2 += PetscSqr(in[1 + i]);}
+  for (PetscInt i = 0; i < phys->dim; i++)norm2 += PetscSqr(in[1 + i]);
 
   out[0] = in[0];
-  for (PetscInt i = 0; i < phys->dim; i++){out[1 + i] = in[1 + i] / out[0];}
+  for (PetscInt i = 0; i < phys->dim; i++)out[1 + i] = in[1 + i] / out[0];
   out[phys->dim + 1] = (phys->gamma - 1) * (in[phys->dim + 1] - 0.5 * norm2 / out[0]);
   PetscFunctionReturnVoid();
 }
+
 
 
 PetscErrorCode PhysicsDestroy(Physics *phys){
@@ -81,7 +83,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   const char *buffer, *loc = "Physics";
   ierr = IOLoadVarFromLoc(filename, "gamma", 1, &loc, &buffer); CHKERRQ(ierr);
   (*phys)->gamma = atof(buffer);
-  PetscFree(buffer);
+  ierr = PetscFree(buffer);                                     CHKERRQ(ierr);
 
   (*phys)->type = problem_type;
   struct FieldDescription *fields = fields_euler;

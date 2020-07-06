@@ -10,6 +10,11 @@
 PetscErrorCode DMPlexHideGhostCells(DM, PetscInt*);
 PetscErrorCode DMPlexRestoreGhostCells(DM, PetscInt);
 
+
+/*
+  Same as VecView_Plex, but when viewer is of type PETSCVIEWERDRAW,
+  assumes the field classid is PETSCFV_CLASSID and uses MyVecView_Plex_Local_Draw
+*/
 PetscErrorCode MyVecView_Plex(Vec, PetscViewer);
 
 

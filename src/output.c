@@ -10,7 +10,7 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
   PetscInt          n1, n2, Nc;
   PetscBool         flg;
   char              val[64];
-  const char *name;
+  const char        *name;
 
   PetscFunctionBeginUser;
   ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-draw_comp", val, sizeof(val), &flg); CHKERRQ(ierr);
@@ -26,7 +26,7 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
   ierr = VecRestoreArray(v_dm, &v_dm_data); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(v, &v_data);   CHKERRQ(ierr);
 
-  ierr = PetscObjectGetName((PetscObject) v, &name); CHKERRQ(ierr);
+  ierr = PetscObjectGetName((PetscObject) v, &name);   CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) v_dm, name); CHKERRQ(ierr);
 
   ierr = VecView(v_dm, viewer);             CHKERRQ(ierr);
@@ -42,8 +42,8 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
 
 
 PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
-  PetscErrorCode     ierr;
-  struct Monitor_ctx *ctx = (struct Monitor_ctx*) mctx;
+  PetscErrorCode    ierr;
+  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
@@ -76,8 +76,8 @@ PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec 
 }
 
 PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
-  PetscErrorCode     ierr;
-  struct Monitor_ctx *ctx = (struct Monitor_ctx*) mctx;
+  PetscErrorCode    ierr;
+  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
@@ -108,14 +108,14 @@ PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, 
     ierr = PetscFVGetComponentName(fvm, comp, &compName);                                  CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD, "%s : % 10.4g, ", compName, norm);                CHKERRQ(ierr);
   }
-  ierr = VecDestroy(&flux);
+  ierr = VecDestroy(&flux);                          CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "\033[2D\n"); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
-  PetscErrorCode     ierr;
-  struct Monitor_ctx *ctx = (struct Monitor_ctx*) mctx;
+  PetscErrorCode    ierr;
+  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
@@ -124,8 +124,8 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
 }
 
 PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
-  PetscErrorCode     ierr;
-  struct Monitor_ctx *ctx = (struct Monitor_ctx*) mctx;
+  PetscErrorCode    ierr;
+  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
@@ -142,49 +142,39 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
 
   IS  is[dim];
   Vec v[dim], v_0[dim], one;
-
-  ierr = ISCreateStride(PetscObjectComm((PetscObject) u), size / Nc, 1, Nc, &is[0]); CHKERRQ(ierr);
-  ierr = VecGetSubVector(u, is[0], &v_0[0]);                                             CHKERRQ(ierr);
-  ierr = VecDuplicate(v_0[0], &v[0]); CHKERRQ(ierr);
-  ierr = VecDuplicate(v_0[0], &one); CHKERRQ(ierr);
-  ierr = VecCopy(v_0[0], v[0]); CHKERRQ(ierr);
-  ierr = VecSet(one, 1); CHKERRQ(ierr);
-  ierr = VecAXPY(v[0], -1, one); CHKERRQ(ierr);
-  ierr = VecPointwiseMult(v[0], v[0], v[0]);                                             CHKERRQ(ierr);
-  for (PetscInt i = 1; i < dim; i++) {
+  for (PetscInt i = 0; i < dim; i++) {
     ierr = ISCreateStride(PetscObjectComm((PetscObject) u), size / Nc, 1 + i, Nc, &is[i]); CHKERRQ(ierr);
     ierr = VecGetSubVector(u, is[i], &v_0[i]);                                             CHKERRQ(ierr);
-    ierr = VecDuplicate(v_0[i], &v[i]); CHKERRQ(ierr);
-    ierr = VecCopy(v_0[i], v[i]); CHKERRQ(ierr);
+    ierr = VecDuplicate(v_0[i], &v[i]);                                                    CHKERRQ(ierr);
+    ierr = VecCopy(v_0[i], v[i]);                                                          CHKERRQ(ierr);
     ierr = VecPointwiseMult(v[i], v[i], v[i]);                                             CHKERRQ(ierr);
   }
   for (PetscInt i = 1; i < dim; i++) {
-    ierr = VecAXPY(v[0], 1, v[i]);                                                         CHKERRQ(ierr);
+    ierr = VecAXPY(v[0], 1, v[i]);                        CHKERRQ(ierr);
   }
-  ierr = VecSqrtAbs(v[0]);                                                                 CHKERRQ(ierr);
+  ierr = VecSqrtAbs(v[0]);                                CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) v[0], "||u||"); CHKERRQ(ierr);
-  ierr = DrawVecOnDM(v[0], dm, ctx->viewer); CHKERRQ(ierr);
+  ierr = DrawVecOnDM(v[0], dm, ctx->viewer);              CHKERRQ(ierr);
 
   for (PetscInt i = 1; i < dim; i++) {
     ierr = VecRestoreSubVector(u, is[i], &v_0[i]); CHKERRQ(ierr);
-    ierr = VecDestroy(&v[i]); CHKERRQ(ierr);
-    ierr = ISDestroy(&is[i]); CHKERRQ(ierr);
+    ierr = VecDestroy(&v[i]);                      CHKERRQ(ierr);
+    ierr = ISDestroy(&is[i]);                      CHKERRQ(ierr);
   }
-
 
   PetscFunctionReturn(0);
 }
 
 
 PetscErrorCode IOMonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
-  PetscErrorCode     ierr;
-  struct Monitor_ctx *ctx = (struct Monitor_ctx*) mctx;
+  PetscErrorCode    ierr;
+  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
 
   PetscReal dt;
-  ierr = TSGetTimeStep(ts, &dt); CHKERRQ(ierr);
+  ierr = TSGetTimeStep(ts, &dt);                                                       CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  dt = %e\n", steps, time, dt); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);

@@ -10,3 +10,10 @@ If one wants to compute larger variations, the time step may need to be computed
 Of course the iteration coast more.
 
 Add ref values in input file, and plot relatively / remove ref velocity before plot + norm computation ...
+
+
+Code cleanup :
+  indentation
+  Scalar <-> Real
+  MPIComm
+  #define RiemannSolver to declare them : RiemannSolver name;

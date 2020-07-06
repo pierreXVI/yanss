@@ -12,7 +12,6 @@ int main(int argc, char **argv){
 
   if (argc < 2) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "No input file was given: please use \"%s optionfile\"", argv[0]);
   char *input_filename = argv[1];
-
   ierr = IOLoadPetscOptions(input_filename); CHKERRQ(ierr);
 
   PetscBool set;
@@ -25,13 +24,13 @@ int main(int argc, char **argv){
   ierr = MeshLoadFromFile(PETSC_COMM_WORLD, mesh_filename, &mesh); CHKERRQ(ierr);
   ierr = PhysicsCreate(&phys, input_filename, mesh);               CHKERRQ(ierr);
 
-  PetscReal cfl = 0.5;
+  PetscReal cfl = 0.5; // TODO
 
   TS  ts;
   Vec x0;
   ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
   ierr = MeshCreateGlobalVector(mesh, &x0);                                  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) x0, "Solution");                  CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) x0, "Solution");                   CHKERRQ(ierr);
   ierr = MeshApplyFunction(mesh, 0, InitialCondition, phys, x0);             CHKERRQ(ierr);
   ierr = TSSolve(ts, x0);                                                    CHKERRQ(ierr);
 

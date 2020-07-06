@@ -5,6 +5,7 @@
 #include <petscds.h>
 #include <petscts.h>
 
+
 /*
   The boudrary condition types. For each type correspond a value array:
     BC_DIRICHLET: the conservative field values
@@ -23,10 +24,19 @@ enum ProblemType {TYPE_EULER, TYPE_NS};
 
 
 typedef struct _Physics *Physics;
+struct _Physics {
+  enum ProblemType     type;    // Problem type
 
-struct FieldDescription {
-  const char *name;
-  PetscInt   dof;
+  PetscInt             dof;     // Total number of dof
+  PetscInt             dim;     // Spatial dimention
+
+  PetscReal            gamma;   // Heat capacity ratio
+
+  struct BCDescription *bc;     // Boundary conditions
+  struct BCCtx         *bc_ctx; // Boundary condition contexts
+  PetscInt             nbc;     // Number of boundary conditions
+
+  PetscReal            *init;   // Initial conditions, in primitive variables
 };
 
 struct BCDescription {
@@ -35,28 +45,20 @@ struct BCDescription {
   PetscReal   *val;  // Additional numerical values
 };
 
-struct BC_ctx {
+struct BCCtx {
   Physics  phys; // Physical model
   PetscInt i;    // Boundary number
 };
 
-struct _Physics {
-  enum ProblemType        type;    // Problem type
-
-  PetscInt                dof;     // Total number of dof
-  PetscInt                dim;     // Spatial dimention
-
-  PetscReal               gamma;   // Heat capacity ratio
-
-  struct BCDescription    *bc;     // Boundary conditions
-  struct BC_ctx           *bc_ctx; // Boundary condition contexts
-  PetscInt                nbc;     // Number of boundary conditions
-
-  PetscReal               *init;   // Initial conditions, in primitive variables
+struct FieldDescription {
+  const char *name;
+  PetscInt   dof;
 };
+
 
 /*
   Wrapping of `strdup`
+  The output must be freed with `PetscFree`
 */
 PetscErrorCode MyStrdup(const char*, const char**);
 

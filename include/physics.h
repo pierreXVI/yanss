@@ -46,8 +46,8 @@ void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
     ctx          - Context, to be casted to (Physics)
   ```
 */
-void RiemannSolver_Euler_Exact(PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
-void RiemannSolver_Euler_Lax  (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
+void RiemannSolver_Euler_Exact         (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
+void RiemannSolver_Euler_LaxFriedrichs (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
 
 /*
   Pointwise boundary condition functions, with the following calling sequence:

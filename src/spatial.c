@@ -1,6 +1,7 @@
 #include "spatial.h"
 #include "private_impl.h"
 
+
 PetscErrorCode MeshDestroy(DM *mesh){
   PetscErrorCode ierr;
   PetscFV        fvm;
@@ -56,13 +57,16 @@ PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
                                  PetscErrorCode (*func)(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*),
                                  void *ctx, Vec x){
   PetscErrorCode ierr;
+  
   PetscFunctionBeginUser;
   ierr = DMProjectFunction(dm, time, &func, &ctx, INSERT_ALL_VALUES, x); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
+
 PetscErrorCode MeshCreateGlobalVector(DM dm, Vec *x){
   PetscErrorCode ierr;
+
   PetscFunctionBeginUser;
   ierr = DMCreateGlobalVector(dm, x);                                      CHKERRQ(ierr);
   ierr = VecSetOperation(*x, VECOP_VIEW, (void (*)(void)) MyVecView_Plex); CHKERRQ(ierr);
