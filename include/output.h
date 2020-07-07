@@ -7,6 +7,7 @@
 struct MonitorCtx {
   PetscInt    n_iter; // Monitor evry `n_iter` iteration
   PetscViewer viewer; // PetscViewer used by the monitor
+  Physics     phys;   // Physical model
 };
 
 

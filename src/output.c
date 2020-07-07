@@ -125,12 +125,26 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
 
 
 PetscErrorCode normU(PetscInt Nc, const PetscScalar *x, PetscScalar *y, void *ctx){
-  PetscInt *dim = (PetscInt*) ctx;
+  Physics   phys = (Physics) ctx;
+  PetscReal w[phys->dof];
 
   PetscFunctionBeginUser;
   *y = 0;
-  for (PetscInt i = 0; i < *dim; i++) *y += PetscSqr(x[1 + i]);
+  ConservativeToPrimitive(phys, x, w);
+  for (PetscInt i = 0; i < phys->dim; i++) *y += PetscSqr(w[1 + i]);
   *y = PetscSqrtReal(*y);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode mach(PetscInt Nc, const PetscScalar *x, PetscScalar *y, void *ctx){
+  Physics   phys = (Physics) ctx;
+  PetscReal w[phys->dof], normU = 0;
+
+  PetscFunctionBeginUser;
+  ConservativeToPrimitive(phys, x, w);
+  for (PetscInt i = 0; i < phys->dim; i++) normU += PetscSqr(w[1 + i]);
+  normU = PetscSqrtReal(normU);
+  *y = normU / PetscSqrtReal(1.4 * w[phys->dim + 1] / w[0]);
   PetscFunctionReturn(0);
 }
 
@@ -144,11 +158,11 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
 
-  ierr = VecGetDM(u, &dm);                           CHKERRQ(ierr);
-  ierr = DMGetDimension(dm, &dim);                   CHKERRQ(ierr);
-  ierr = VecApplyFunctionFields(u, &y, normU, &dim); CHKERRQ(ierr);
-  ierr = DrawVecOnDM(y, dm, ctx->viewer);            CHKERRQ(ierr);
-  ierr = VecDestroy(&y);                             CHKERRQ(ierr);
+  ierr = VecGetDM(u, &dm);                               CHKERRQ(ierr);
+  ierr = DMGetDimension(dm, &dim);                       CHKERRQ(ierr);
+  ierr = VecApplyFunctionFields(u, &y, mach, ctx->phys); CHKERRQ(ierr);
+  ierr = DrawVecOnDM(y, dm, ctx->viewer);                CHKERRQ(ierr);
+  ierr = VecDestroy(&y);                                 CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

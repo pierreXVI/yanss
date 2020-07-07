@@ -44,6 +44,7 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Ph
       struct MonitorCtx *ctx;
       ierr = PetscNew(&ctx); CHKERRQ(ierr);
       ctx->n_iter = n_iter;
+      ctx->phys = phys;
       if (MonitorList[i].type) {
         ierr = PetscViewerCreate(comm, &ctx->viewer);                          CHKERRQ(ierr);
         ierr = PetscViewerSetType(ctx->viewer, MonitorList[i].type);           CHKERRQ(ierr);
