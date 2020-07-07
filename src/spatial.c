@@ -57,7 +57,7 @@ PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
                                  PetscErrorCode (*func)(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*),
                                  void *ctx, Vec x){
   PetscErrorCode ierr;
-  
+
   PetscFunctionBeginUser;
   ierr = DMProjectFunction(dm, time, &func, &ctx, INSERT_ALL_VALUES, x); CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -70,5 +70,50 @@ PetscErrorCode MeshCreateGlobalVector(DM dm, Vec *x){
   PetscFunctionBeginUser;
   ierr = DMCreateGlobalVector(dm, x);                                      CHKERRQ(ierr);
   ierr = VecSetOperation(*x, VECOP_VIEW, (void (*)(void)) MyVecView_Plex); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode VecGetFieldVectors(Vec x, PetscInt *Nc_p, Vec **fields){
+  PetscErrorCode ierr;
+  PetscInt       dim, Nc, size;
+  PetscFV        fvm;
+  DM             dm;
+
+  PetscFunctionBeginUser;
+  ierr = VecGetDM(x, &dm);                                   CHKERRQ(ierr);
+  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
+  ierr = PetscMalloc1(Nc, fields);                           CHKERRQ(ierr);
+  ierr = VecGetLocalSize(x, &size);                          CHKERRQ(ierr);
+
+  IS  is[Nc];
+  Vec v[Nc];
+  for (PetscInt i = 0; i < Nc; i++) {
+    ierr = ISCreateStride(PetscObjectComm((PetscObject) x), size / Nc, i, Nc, &is[i]); CHKERRQ(ierr);
+    ierr = VecGetSubVector(x, is[i], &v[i]);                                           CHKERRQ(ierr);
+    ierr = VecDuplicate(v[i], &(*fields)[i]);                                          CHKERRQ(ierr);
+    ierr = VecCopy(v[i], (*fields)[i]);                                                CHKERRQ(ierr);
+    ierr = VecRestoreSubVector(x, is[i], &v[i]);                                       CHKERRQ(ierr);
+    ierr = ISDestroy(&is[i]);                                                          CHKERRQ(ierr);
+  }
+  if (Nc_p) *Nc_p = Nc;
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode VecDestroyFieldVectors(Vec x, Vec **fields){
+  PetscErrorCode ierr;
+  PetscInt       dim, Nc, size;
+  PetscFV        fvm;
+  DM             dm;
+
+  PetscFunctionBeginUser;
+  ierr = VecGetDM(x, &dm);                                   CHKERRQ(ierr);
+  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
+  for (PetscInt i = 1; i < dim; i++) {
+    ierr = VecDestroy(fields[i]);                            CHKERRQ(ierr);
+  }
+  ierr = PetscFree(*fields);                                 CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

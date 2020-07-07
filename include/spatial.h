@@ -14,7 +14,6 @@
 */
 PetscErrorCode MeshDestroy(DM*);
 
-
 /*
   Setup the mesh.
   The output must be freed with `MeshDestroy`.
@@ -35,5 +34,16 @@ PetscErrorCode MeshApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscRe
   Create a global vector, and set the user's Viewer
 */
 PetscErrorCode MeshCreateGlobalVector(DM, Vec*);
+
+
+/*
+  Get the components vectors of x
+  If Nc_p is not PETSC_NULL, returns the number of fields
+*/
+PetscErrorCode VecGetFieldVectors(Vec, PetscInt*, Vec**);
+
+
+PetscErrorCode VecDestroyFieldVectors(Vec, Vec**);
+
 
 #endif

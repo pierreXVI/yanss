@@ -131,36 +131,23 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
 
   DM       dm;
-  PetscFV  fvm;
-  PetscInt Nc, dim, size;
+  Vec      *fields, *v;
+  PetscInt dim;
+  ierr = VecGetDM(u, &dm);                           CHKERRQ(ierr);
+  ierr = DMGetDimension(dm, &dim);                   CHKERRQ(ierr);
+  ierr = VecGetFieldVectors(u, PETSC_NULL, &fields); CHKERRQ(ierr);
+  // v = fields + 1;
 
-  ierr = VecGetDM(u, &dm);                                   CHKERRQ(ierr);
-  ierr = DMGetDimension(dm, &dim);                           CHKERRQ(ierr);
-  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
-  ierr = VecGetLocalSize(u, &size);                          CHKERRQ(ierr);
-
-  IS  is[dim];
-  Vec v[dim], v_0[dim], one;
-  for (PetscInt i = 0; i < dim; i++) {
-    ierr = ISCreateStride(PetscObjectComm((PetscObject) u), size / Nc, 1 + i, Nc, &is[i]); CHKERRQ(ierr);
-    ierr = VecGetSubVector(u, is[i], &v_0[i]);                                             CHKERRQ(ierr);
-    ierr = VecDuplicate(v_0[i], &v[i]);                                                    CHKERRQ(ierr);
-    ierr = VecCopy(v_0[i], v[i]);                                                          CHKERRQ(ierr);
-    ierr = VecPointwiseMult(v[i], v[i], v[i]);                                             CHKERRQ(ierr);
-  }
-  for (PetscInt i = 1; i < dim; i++) {
-    ierr = VecAXPY(v[0], 1, v[i]);                        CHKERRQ(ierr);
-  }
-  ierr = VecSqrtAbs(v[0]);                                CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) v[0], "||u||"); CHKERRQ(ierr);
-  ierr = DrawVecOnDM(v[0], dm, ctx->viewer);              CHKERRQ(ierr);
-
-  for (PetscInt i = 1; i < dim; i++) {
-    ierr = VecRestoreSubVector(u, is[i], &v_0[i]); CHKERRQ(ierr);
-    ierr = VecDestroy(&v[i]);                      CHKERRQ(ierr);
-    ierr = ISDestroy(&is[i]);                      CHKERRQ(ierr);
-  }
+  // for (PetscInt i = 0; i < dim; i++) {
+  //   ierr = VecPointwiseMult(fields[1 + i], fields[1 + i], fields[1 + i]); CHKERRQ(ierr);
+  // }
+  // for (PetscInt i = 1; i < dim; i++) {
+  //   ierr = VecAXPY(fields[1], 1, fields[1 + i]);                        CHKERRQ(ierr);
+  // }
+  // ierr = VecSqrtAbs(fields[1]); CHKERRQ(ierr);
+  // ierr = PetscObjectSetName((PetscObject) fields[1], "||u||"); CHKERRQ(ierr);
+  // ierr = DrawVecOnDM(fields[1], dm, ctx->viewer);              CHKERRQ(ierr);
+  ierr = VecDestroyFieldVectors(u, &fields); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
