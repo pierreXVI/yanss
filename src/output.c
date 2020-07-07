@@ -135,7 +135,6 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
   PetscInt dim;
   ierr = VecGetDM(u, &dm);                           CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &dim);                   CHKERRQ(ierr);
-  ierr = VecGetFieldVectors(u, PETSC_NULL, &fields); CHKERRQ(ierr);
   // v = fields + 1;
 
   // for (PetscInt i = 0; i < dim; i++) {
@@ -147,7 +146,8 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
   // ierr = VecSqrtAbs(fields[1]); CHKERRQ(ierr);
   // ierr = PetscObjectSetName((PetscObject) fields[1], "||u||"); CHKERRQ(ierr);
   // ierr = DrawVecOnDM(fields[1], dm, ctx->viewer);              CHKERRQ(ierr);
-  ierr = VecDestroyFieldVectors(u, &fields); CHKERRQ(ierr);
+  ierr = VecGetComponentVectors(u, PETSC_NULL, &fields); CHKERRQ(ierr);
+  ierr = VecDestroyComponentVectors(u, &fields); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

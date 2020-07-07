@@ -37,13 +37,16 @@ PetscErrorCode MeshCreateGlobalVector(DM, Vec*);
 
 
 /*
-  Get the components vectors of x
-  If Nc_p is not PETSC_NULL, returns the number of fields
+  Get the component vectors of x
+  If Nc is not PETSC_NULL, returns the number of fields
 */
-PetscErrorCode VecGetFieldVectors(Vec, PetscInt*, Vec**);
+PetscErrorCode VecGetComponentVectors(Vec, PetscInt*, Vec**);
 
+/*
+  Destroys the component vectors
+*/
+PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
 
-PetscErrorCode VecDestroyFieldVectors(Vec, Vec**);
 
 
 #endif
