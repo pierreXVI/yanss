@@ -123,32 +123,46 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
   PetscFunctionReturn(0);
 }
 
+
+PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx){
+  Physics   phys = (Physics) ctx;
+  PetscReal w[phys->dof];
+
+  PetscFunctionBeginUser;
+  *y = 0;
+  ConservativeToPrimitive(phys, x, w);
+  for (PetscInt i = 0; i < phys->dim; i++) *y += PetscSqr(w[1 + i]);
+  *y = PetscSqrtReal(*y);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode mach(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx){
+  Physics   phys = (Physics) ctx;
+  PetscReal w[phys->dof], normU = 0;
+
+  PetscFunctionBeginUser;
+  ConservativeToPrimitive(phys, x, w);
+  for (PetscInt i = 0; i < phys->dim; i++) normU += PetscSqr(w[1 + i]);
+  normU = PetscSqrtReal(normU);
+  *y = normU / PetscSqrtReal(1.4 * w[phys->dim + 1] / w[0]);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
   PetscErrorCode    ierr;
   struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
+  PetscInt          dim;
+  DM                dm;
+  Vec               y;
 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
 
-  DM       dm;
-  Vec      *fields; //, *v;
-  PetscInt dim;
-  ierr = VecGetDM(u, &dm);                           CHKERRQ(ierr);
-  ierr = DMGetDimension(dm, &dim);                   CHKERRQ(ierr);
-  ierr = VecGetFieldVectors(u, PETSC_NULL, &fields); CHKERRQ(ierr);
-  // v = fields + 1;
-
-  // for (PetscInt i = 0; i < dim; i++) {
-  //   ierr = VecPointwiseMult(fields[1 + i], fields[1 + i], fields[1 + i]); CHKERRQ(ierr);
-  // }
-  // for (PetscInt i = 1; i < dim; i++) {
-  //   ierr = VecAXPY(fields[1], 1, fields[1 + i]);                        CHKERRQ(ierr);
-  // }
-  // ierr = VecSqrtAbs(fields[1]); CHKERRQ(ierr);
-  // ierr = PetscObjectSetName((PetscObject) fields[1], "||u||"); CHKERRQ(ierr);
-  // ierr = DrawVecOnDM(fields[1], dm, ctx->viewer);              CHKERRQ(ierr);
-  ierr = VecDestroyFieldVectors(u, &fields); CHKERRQ(ierr);
-
+  ierr = VecGetDM(u, &dm);                               CHKERRQ(ierr);
+  ierr = DMGetDimension(dm, &dim);                       CHKERRQ(ierr);
+  ierr = VecApplyFunctionFields(u, &y, mach, ctx->phys); CHKERRQ(ierr);
+  ierr = DrawVecOnDM(y, dm, ctx->viewer);                CHKERRQ(ierr);
+  ierr = VecDestroy(&y);                                 CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

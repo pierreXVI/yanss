@@ -17,3 +17,4 @@ Code cleanup :
   Scalar <-> Real
   MPIComm
   #define RiemannSolver to declare them : RiemannSolver name;
+  disambiguation Nc <-> Nf
