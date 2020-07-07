@@ -10,7 +10,7 @@ static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
                                                  {PETSC_NULL, 0}};
 
 
-PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscScalar *u, void *ctx){
+PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscReal *u, void *ctx){
   Physics phys = (Physics) ctx;
   PetscFunctionBeginUser;
 

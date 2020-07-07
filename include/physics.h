@@ -17,7 +17,7 @@ PetscErrorCode PhysicsCreate(Physics*, const char*, DM);
 /*
   Apply the initial condition
 */
-PetscErrorCode InitialCondition(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*);
+PetscErrorCode InitialCondition(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscReal*, void*);
 
 
 /*
@@ -46,8 +46,8 @@ void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
     ctx          - Context, to be casted to (Physics)
   ```
 */
-void RiemannSolver_Euler_Exact         (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
-void RiemannSolver_Euler_LaxFriedrichs (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscScalar*, const PetscScalar*, PetscInt, const PetscScalar*, PetscScalar*, void*);
+void RiemannSolver_Euler_Exact         (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscReal*, const PetscReal*, PetscInt, const PetscScalar*, PetscReal*, void*);
+void RiemannSolver_Euler_LaxFriedrichs (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscReal*, const PetscReal*, PetscInt, const PetscScalar*, PetscReal*, void*);
 
 /*
   Pointwise boundary condition functions, with the following calling sequence:
@@ -62,9 +62,9 @@ void RiemannSolver_Euler_LaxFriedrichs (PetscInt, PetscInt, const PetscReal*, co
     ctx  - Context, to be casted to (struct BC_ctx*)
   ```
 */
-PetscErrorCode BCDirichlet(PetscReal, const PetscReal[3], const PetscReal[3], const PetscScalar*, PetscScalar*, void*);
-PetscErrorCode BCOutflow_P(PetscReal, const PetscReal[3], const PetscReal[3], const PetscScalar*, PetscScalar*, void*);
-PetscErrorCode BCWall     (PetscReal, const PetscReal[3], const PetscReal[3], const PetscScalar*, PetscScalar*, void*);
-PetscErrorCode BCFarField (PetscReal, const PetscReal[3], const PetscReal[3], const PetscScalar*, PetscScalar*, void*);
+PetscErrorCode BCDirichlet(PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCOutflow_P(PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCWall     (PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCFarField (PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
 
 #endif

@@ -8,8 +8,8 @@
 
 
 void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
-                               const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
-                               PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
+                               const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                               PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
@@ -254,8 +254,8 @@ void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nf,
 */
 
 void RiemannSolver_Euler_LaxFriedrichs(PetscInt dim, PetscInt Nf,
-                                       const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
-                                       PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
+                                       const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                                       PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;

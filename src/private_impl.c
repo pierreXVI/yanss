@@ -66,11 +66,11 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer)
   DM                 cdm;
   PetscSection       coordSection;
   Vec                coordinates;
-  const PetscScalar *coords, *array;
+  const PetscScalar  *coords, *array;
   PetscReal          bound[4] = {PETSC_MAX_REAL, PETSC_MAX_REAL, PETSC_MIN_REAL, PETSC_MIN_REAL}, vbound[2], time;
   PetscBool          isnull, flg;
   PetscInt           dim, Nf, Nc, comp, vStart, vEnd, cStart, cEnd, c, N, level, step;
-  const char        *name;
+  const char         *name;
   char               title[PETSC_MAX_PATH_LEN];
 
   PetscFunctionBegin;

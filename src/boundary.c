@@ -1,7 +1,7 @@
 #include "physics.h"
 
 
-PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscScalar *xI, PetscScalar *xG, void *ctx){
+PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
@@ -9,7 +9,7 @@ PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[3], const PetscReal
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscScalar *xI, PetscScalar *xG, void *ctx){
+PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
@@ -17,12 +17,12 @@ PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[3], const PetscReal
   for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) area += PetscSqr(n[i]);
   area = PetscSqrtReal(area);
 
-  PetscScalar wI[bc_ctx->phys->dof];
+  PetscReal wI[bc_ctx->phys->dof];
   ConservativeToPrimitive(bc_ctx->phys, xI, wI);
   PetscReal ci = PetscSqrtReal(bc_ctx->phys->gamma * wI[bc_ctx->phys->dim + 1] / wI[0]);
   PetscReal alpha = bc_ctx->phys->bc[bc_ctx->i].val[0] / wI[bc_ctx->phys->dim + 1] - 1; // p / pi - 1
 
-  PetscScalar wG[bc_ctx->phys->dof];
+  PetscReal wG[bc_ctx->phys->dof];
   wG[0] = (1 + alpha / bc_ctx->phys->gamma) * wI[0];
   for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) wG[1 + i] = wG[0] * (wI[1 + i] - (alpha / bc_ctx->phys->gamma) * ci * n[i] / area); // u <- u - (alpha/gamma)*c n
   wG[bc_ctx->phys->dim + 1] = bc_ctx->phys->bc[bc_ctx->i].val[0];
@@ -31,7 +31,7 @@ PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[3], const PetscReal
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscScalar *xI, PetscScalar *xG, void *ctx){
+PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
@@ -62,7 +62,7 @@ PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscReal n[3]
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode BCFarField(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscScalar *xI, PetscScalar *xG, void *ctx){
+PetscErrorCode BCFarField(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
