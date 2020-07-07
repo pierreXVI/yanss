@@ -131,7 +131,7 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
 
   DM       dm;
-  Vec      *fields, *v;
+  Vec      *fields; //, *v;
   PetscInt dim;
   ierr = VecGetDM(u, &dm);                           CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &dim);                   CHKERRQ(ierr);

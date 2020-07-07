@@ -76,7 +76,7 @@ PetscErrorCode MeshCreateGlobalVector(DM dm, Vec *x){
 
 PetscErrorCode VecGetFieldVectors(Vec x, PetscInt *Nc_p, Vec **fields){
   PetscErrorCode ierr;
-  PetscInt       dim, Nc, size;
+  PetscInt       Nc, size;
   PetscFV        fvm;
   DM             dm;
 
@@ -103,7 +103,7 @@ PetscErrorCode VecGetFieldVectors(Vec x, PetscInt *Nc_p, Vec **fields){
 
 PetscErrorCode VecDestroyFieldVectors(Vec x, Vec **fields){
   PetscErrorCode ierr;
-  PetscInt       dim, Nc, size;
+  PetscInt       Nc;
   PetscFV        fvm;
   DM             dm;
 
@@ -111,8 +111,8 @@ PetscErrorCode VecDestroyFieldVectors(Vec x, Vec **fields){
   ierr = VecGetDM(x, &dm);                                   CHKERRQ(ierr);
   ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
   ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
-  for (PetscInt i = 1; i < dim; i++) {
-    ierr = VecDestroy(fields[i]);                            CHKERRQ(ierr);
+  for (PetscInt i = 0; i < Nc; i++) {
+    ierr = VecDestroy(&(*fields)[i]);                        CHKERRQ(ierr);
   }
   ierr = PetscFree(*fields);                                 CHKERRQ(ierr);
   PetscFunctionReturn(0);

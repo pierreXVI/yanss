@@ -115,15 +115,15 @@ static PetscErrorCode IOParserMoveToScalar(IOParser *parser, const char *filenam
 
     if (flg) {
       if (event_p) {
-        ierr = IOParserParse(*parser, event_p);                     CHKERRQ(ierr);
+        ierr = IOParserParse(*parser, event_p);                                   CHKERRQ(ierr);
         if (event_p->type == YAML_ALIAS_EVENT) {
           if (isAnchor) {
-            ierr = PetscFree(scalarname);                           CHKERRQ(ierr);
+            ierr = PetscFree(scalarname);                                         CHKERRQ(ierr);
           }
-          ierr = MyStrdup(event_p->data.alias.anchor, &scalarname); CHKERRQ(ierr);
+          ierr = MyStrdup((const char*) event_p->data.alias.anchor, &scalarname); CHKERRQ(ierr);
           yaml_event_delete(event_p);
-          ierr = IOParserDestroy(parser);                           CHKERRQ(ierr);
-          ierr = IOParserCreate(parser, filename);                  CHKERRQ(ierr);
+          ierr = IOParserDestroy(parser);                                         CHKERRQ(ierr);
+          ierr = IOParserCreate(parser, filename);                                CHKERRQ(ierr);
           isAnchor = PETSC_TRUE;
           continue;
         }

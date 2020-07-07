@@ -265,7 +265,7 @@ void RiemannSolver_Euler_LaxFriedrichs(PetscInt dim, PetscInt Nf,
   ConservativeToPrimitive(phys, uL, wL);
   ConservativeToPrimitive(phys, uR, wR);
 
-  PetscReal coeff;
+  PetscReal coeff = 0;
   // PetscReal coeff = c / (2 * phys->cfl);
 
   PetscReal dotl = 0, dotr = 0;
