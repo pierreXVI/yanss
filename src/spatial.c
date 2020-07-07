@@ -76,7 +76,7 @@ PetscErrorCode MeshCreateGlobalVector(DM dm, Vec *x){
 
 PetscErrorCode VecGetFieldVectors(Vec x, PetscInt *Nc_p, Vec **fields){
   PetscErrorCode ierr;
-  PetscInt       Nc, size;
+  PetscInt       Nc, start, end;
   PetscFV        fvm;
   DM             dm;
 
@@ -85,17 +85,17 @@ PetscErrorCode VecGetFieldVectors(Vec x, PetscInt *Nc_p, Vec **fields){
   ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
   ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
   ierr = PetscMalloc1(Nc, fields);                           CHKERRQ(ierr);
-  ierr = VecGetLocalSize(x, &size);                          CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(x, &start, &end);              CHKERRQ(ierr);
 
-  IS  is[Nc];
-  Vec v[Nc];
+  IS  is;
+  Vec v;
   for (PetscInt i = 0; i < Nc; i++) {
-    ierr = ISCreateStride(PetscObjectComm((PetscObject) x), size / Nc, i, Nc, &is[i]); CHKERRQ(ierr);
-    ierr = VecGetSubVector(x, is[i], &v[i]);                                           CHKERRQ(ierr);
-    ierr = VecDuplicate(v[i], &(*fields)[i]);                                          CHKERRQ(ierr);
-    ierr = VecCopy(v[i], (*fields)[i]);                                                CHKERRQ(ierr);
-    ierr = VecRestoreSubVector(x, is[i], &v[i]);                                       CHKERRQ(ierr);
-    ierr = ISDestroy(&is[i]);                                                          CHKERRQ(ierr);
+    ierr = ISCreateStride(PetscObjectComm((PetscObject) x), (end - start) / Nc, start + i, Nc, &is); CHKERRQ(ierr);
+    ierr = VecGetSubVector(x, is, &v);                                                               CHKERRQ(ierr);
+    ierr = VecDuplicate(v, &(*fields)[i]);                                                           CHKERRQ(ierr);
+    ierr = VecCopy(v, (*fields)[i]);                                                                 CHKERRQ(ierr);
+    ierr = VecRestoreSubVector(x, is, &v);                                                           CHKERRQ(ierr);
+    ierr = ISDestroy(&is);                                                                           CHKERRQ(ierr);
   }
   if (Nc_p) *Nc_p = Nc;
   PetscFunctionReturn(0);
