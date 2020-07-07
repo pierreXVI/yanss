@@ -123,32 +123,32 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
   PetscFunctionReturn(0);
 }
 
+
+PetscErrorCode normU(PetscInt Nc, const PetscScalar *x, PetscScalar *y, void *ctx){
+  PetscInt *dim = (PetscInt*) ctx;
+
+  PetscFunctionBeginUser;
+  *y = 0;
+  for (PetscInt i = 0; i < *dim; i++) *y += PetscSqr(x[1 + i]);
+  *y = PetscSqrtReal(*y);
+  PetscFunctionReturn(0);
+}
+
 PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
   PetscErrorCode    ierr;
   struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
+  PetscInt          dim;
+  DM                dm;
+  Vec               y;
 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
 
-  DM       dm;
-  Vec      *fields; //, *v;
-  PetscInt dim;
   ierr = VecGetDM(u, &dm);                           CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &dim);                   CHKERRQ(ierr);
-  // v = fields + 1;
-
-  // for (PetscInt i = 0; i < dim; i++) {
-  //   ierr = VecPointwiseMult(fields[1 + i], fields[1 + i], fields[1 + i]); CHKERRQ(ierr);
-  // }
-  // for (PetscInt i = 1; i < dim; i++) {
-  //   ierr = VecAXPY(fields[1], 1, fields[1 + i]);                        CHKERRQ(ierr);
-  // }
-  // ierr = VecSqrtAbs(fields[1]); CHKERRQ(ierr);
-  // ierr = PetscObjectSetName((PetscObject) fields[1], "||u||"); CHKERRQ(ierr);
-  // ierr = DrawVecOnDM(fields[1], dm, ctx->viewer);              CHKERRQ(ierr);
-  ierr = VecGetComponentVectors(u, PETSC_NULL, &fields); CHKERRQ(ierr);
-  ierr = VecDestroyComponentVectors(u, &fields); CHKERRQ(ierr);
-
+  ierr = VecApplyFunctionFields(u, &y, normU, &dim); CHKERRQ(ierr);
+  ierr = DrawVecOnDM(y, dm, ctx->viewer);            CHKERRQ(ierr);
+  ierr = VecDestroy(&y);                             CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

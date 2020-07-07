@@ -48,5 +48,19 @@ PetscErrorCode VecGetComponentVectors(Vec, PetscInt*, Vec**);
 PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
 
 
+/*
+  Apply a pointwise function to a Vec
+  The Vec is linked to a Mesh, so that the number of field components
+  The pointwise function calling sequence is
+  ```
+  func(PetscInt Nc, const PetscScalar x[], PetscScalar *y, void *ctx)
+    Nc           - Number of field components
+    x            - Field value
+    y            - Output scalar value
+    ctx          - Optional context
+  ```
+*/
+PetscErrorCode VecApplyFunctionFields(Vec, Vec*, PetscErrorCode(PetscInt, const PetscScalar*, PetscScalar*, void*), void*);
+
 
 #endif
