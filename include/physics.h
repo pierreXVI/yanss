@@ -29,6 +29,14 @@ void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
 
 
 /*
+  Compute physical value from components
+  ctx is to be casted to (Physics)
+*/
+PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
+PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
+
+
+/*
   Pointwise Riemann solver functions, with the following calling sequence:
 
   ```

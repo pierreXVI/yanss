@@ -15,7 +15,7 @@ int main(int argc, char **argv){
   ierr = IOLoadPetscOptions(input_filename); CHKERRQ(ierr);
 
   PetscBool set;
-  char      mesh_filename[256];
+  char mesh_filename[256];
   ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-mesh", mesh_filename, sizeof(mesh_filename), &set); CHKERRQ(ierr);
   if (!set) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "No mesh file was given: please use the option \"-mesh filename\"");
 

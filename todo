@@ -1,7 +1,5 @@
 Check MPI partitionning
 
-Read input file from command line
-
 Read CFL from input file
 
 The time step is fixed at initialisation, according to the CFL condition at t = 0.
@@ -18,3 +16,5 @@ Code cleanup :
   MPIComm
   #define RiemannSolver to declare them : RiemannSolver name;
   disambiguation Nc <-> Nf
+
+Periodic mesh
