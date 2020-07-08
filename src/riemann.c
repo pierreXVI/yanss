@@ -7,7 +7,7 @@
 #define EPS_RIEMANN 1E-14
 
 
-void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
+void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nc,
                                const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
                                PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
@@ -19,7 +19,7 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
   area = PetscSqrtReal(area);
   for (PetscInt i = 0; i < dim; i++) nn[i] = n[i] / area;
 
-  PetscReal wL[Nf], wR[Nf];
+  PetscReal wL[Nc], wR[Nc];
   ConservativeToPrimitive(phys, uL, wL);
   ConservativeToPrimitive(phys, uR, wR);
 
@@ -130,7 +130,7 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nf,
 }
 
 /*
-void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nf,
+void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nc,
                                 const PetscReal x[], const PetscReal n[], const PetscScalar uL[], const PetscScalar uR[],
                                 PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx){
   Physics phys = (Physics) ctx;
@@ -160,8 +160,8 @@ void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nf,
   PetscReal cr = PetscSqrtReal(phys->gamma * pr / rr); // right speed of sound
 
   PetscReal alpha = PetscSqrtReal(rr / rl);
-  PetscReal uROE[Nf];
-  for (PetscInt i = 0; i < Nf; i++) {uRoe[i] = (uL[i] + alpha * uR[i]) / (1 + alpha);}
+  PetscReal uROE[Nc];
+  for (PetscInt i = 0; i < Nc; i++) {uRoe[i] = (uL[i] + alpha * uR[i]) / (1 + alpha);}
 
 
    // right hand side
@@ -253,7 +253,7 @@ void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nf,
 }
 */
 
-void RiemannSolver_Euler_LaxFriedrichs(PetscInt dim, PetscInt Nf,
+void RiemannSolver_Euler_LaxFriedrichs(PetscInt dim, PetscInt Nc,
                                        const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
                                        PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
@@ -261,7 +261,7 @@ void RiemannSolver_Euler_LaxFriedrichs(PetscInt dim, PetscInt Nf,
   PetscFunctionBeginUser;
   SETERRABORT(PETSC_COMM_WORLD, PETSC_ERR_SUP, "LaxFriedrichs Riemann solver not implemented yet");
 
-  PetscReal wL[Nf], wR[Nf];
+  PetscReal wL[Nc], wR[Nc];
   ConservativeToPrimitive(phys, uL, wL);
   ConservativeToPrimitive(phys, uR, wR);
 
