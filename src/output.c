@@ -41,12 +41,12 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
 }
 
 
-PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
-  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
+  struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
 
   PetscFunctionBeginUser;
-  if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
+  if (steps % mctx->n_iter != 0) PetscFunctionReturn(0);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  ", steps, time); CHKERRQ(ierr);
 
@@ -75,12 +75,12 @@ PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
-  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
+  struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
 
   PetscFunctionBeginUser;
-  if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
+  if (steps % mctx->n_iter != 0) PetscFunctionReturn(0);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  ", steps, time); CHKERRQ(ierr);
 
@@ -113,42 +113,42 @@ PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
-  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
+  struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
 
   PetscFunctionBeginUser;
-  if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
-  ierr = VecView(u, ctx->viewer); CHKERRQ(ierr);
+  if (steps % mctx->n_iter != 0) PetscFunctionReturn(0);
+  ierr = VecView(u, mctx->viewer); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 #include "physics.h"
-PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
-  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
+  struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
   PetscInt          dim;
   DM                dm;
   Vec               y;
 
   PetscFunctionBeginUser;
-  if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
+  if (steps % mctx->n_iter != 0) PetscFunctionReturn(0);
 
-  ierr = VecGetDM(u, &dm);                               CHKERRQ(ierr);
-  ierr = DMGetDimension(dm, &dim);                       CHKERRQ(ierr);
-  ierr = VecApplyFunctionFields(u, &y, mach, ctx->phys); CHKERRQ(ierr);
-  ierr = DrawVecOnDM(y, dm, ctx->viewer);                CHKERRQ(ierr);
-  ierr = VecDestroy(&y);                                 CHKERRQ(ierr);
+  ierr = VecGetDM(u, &dm);                                CHKERRQ(ierr);
+  ierr = DMGetDimension(dm, &dim);                        CHKERRQ(ierr);
+  ierr = VecApplyFunctionFields(u, &y, mach, mctx->phys); CHKERRQ(ierr);
+  ierr = DrawVecOnDM(y, dm, mctx->viewer);                CHKERRQ(ierr);
+  ierr = VecDestroy(&y);                                  CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode IOMonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx){
+PetscErrorCode IOMonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
-  struct MonitorCtx *ctx = (struct MonitorCtx*) mctx;
+  struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
 
   PetscFunctionBeginUser;
-  if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
+  if (steps % mctx->n_iter != 0) PetscFunctionReturn(0);
 
   PetscReal dt;
   ierr = TSGetTimeStep(ts, &dt);                                                       CHKERRQ(ierr);

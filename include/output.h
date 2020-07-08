@@ -15,12 +15,12 @@ struct MonitorCtx {
   TS monitors, with the calling sequence:
 
   ```
-  PetscErrorCode monitor(TS ts, PetscInt steps, PetscReal time, Vec u, void *mctx)
+  PetscErrorCode monitor(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx)
     ts    - TS context
     steps - Iteration number
     time  - Current time
     u     - Current iterate
-    mctx  - Monitoring context, to be casted to (struct Monitor_ctx*)
+    ctx   - Monitoring context, to be casted to (struct Monitor_ctx*)
   ```
 */
 
