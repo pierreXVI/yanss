@@ -25,7 +25,7 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
   PetscReal e = PetscExpReal(-r2 / 2);
 
   PetscReal T0 = Tinf - PetscSqr(Uinf * beta * e) * (phys->gamma - 1) / (2 * phys->gamma * Rgas);
-  PetscReal rhoinf = Rgas * Tinf / Pinf;
+  PetscReal rhoinf = Pinf / (Rgas * Tinf);
   PetscReal rho0 = rhoinf * PetscPowReal(T0 / Tinf, 1 / (phys->gamma - 1));
 
   u[0] = rho0;
@@ -66,25 +66,23 @@ void ConservativeToPrimitive(Physics phys, const PetscReal in[], PetscReal out[]
 
 PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx){
   Physics   phys = (Physics) ctx;
-  PetscReal w[phys->dof];
 
   PetscFunctionBeginUser;
   *y = 0;
-  ConservativeToPrimitive(phys, x, w);
-  for (PetscInt i = 0; i < phys->dim; i++) *y += PetscSqr(w[1 + i]);
+  for (PetscInt i = 0; i < phys->dim; i++) *y += PetscSqr(x[1 + i] / x[0]);
   *y = PetscSqrtReal(*y);
   PetscFunctionReturn(0);
 }
 
 PetscErrorCode mach(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx){
   Physics   phys = (Physics) ctx;
-  PetscReal w[phys->dof], normU = 0;
+  PetscReal w[phys->dof];
 
   PetscFunctionBeginUser;
+  *y = 0;
   ConservativeToPrimitive(phys, x, w);
-  for (PetscInt i = 0; i < phys->dim; i++) normU += PetscSqr(w[1 + i]);
-  normU = PetscSqrtReal(normU);
-  *y = normU / PetscSqrtReal(1.4 * w[phys->dim + 1] / w[0]);
+  for (PetscInt i = 0; i < phys->dim; i++) *y += PetscSqr(w[1 + i]);
+  *y = PetscSqrtReal(*y * w[0] / (phys->gamma * w[phys->dim + 1]));
   PetscFunctionReturn(0);
 }
 
