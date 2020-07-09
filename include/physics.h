@@ -54,6 +54,7 @@ PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx)
     ctx          - Context, to be casted to (Physics)
   ```
 */
+void RiemannSolver_AdvectionX          (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscReal*, const PetscReal*, PetscInt, const PetscScalar*, PetscReal*, void*);
 void RiemannSolver_Euler_Exact         (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscReal*, const PetscReal*, PetscInt, const PetscScalar*, PetscReal*, void*);
 void RiemannSolver_Euler_LaxFriedrichs (PetscInt, PetscInt, const PetscReal*, const PetscReal*, const PetscReal*, const PetscReal*, PetscInt, const PetscScalar*, PetscReal*, void*);
 

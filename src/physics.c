@@ -156,7 +156,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   const PetscInt *indices;
   ierr = DMCreateDS(dm);                                                  CHKERRQ(ierr);
   ierr = DMGetDS(dm, &system);                                            CHKERRQ(ierr);
-  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Euler_Exact);   CHKERRQ(ierr);
+  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_AdvectionX);    CHKERRQ(ierr);
   ierr = PetscDSSetContext(system, 0, (*phys));                           CHKERRQ(ierr);
   ierr = DMGetLabel(dm, "Face Sets", &label);                             CHKERRQ(ierr);
   ierr = DMLabelGetNumValues(label, &(*phys)->nbc);                       CHKERRQ(ierr);

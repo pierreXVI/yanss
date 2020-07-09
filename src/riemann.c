@@ -1,5 +1,18 @@
 #include "physics.h"
 
+#define ADVECTION_SPEED 1
+void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
+                              const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                              PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+  PetscFunctionBeginUser;
+
+  const PetscReal un = ADVECTION_SPEED * n[0];
+  const PetscReal *u0 = (un < 0) ? uR : uL;
+  for (PetscInt i = 0; i < Nc; i++) flux[i] = u0[i] * un;
+
+  PetscFunctionReturnVoid();
+}
+
 
 // Number of iterations of the fixed point pressure solver for the Riemann problem
 #define N_ITER_RIEMANN 10
