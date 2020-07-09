@@ -14,7 +14,7 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
   Physics phys = (Physics) ctx;
   PetscFunctionBeginUser;
 
-  PetscReal M = 0.5, beta = 0.2, R = 0.005;
+  PetscReal M = 0.5, beta = 0.2, R = 0.01;
   PetscReal Xc = 0.05, Yc = 0.05;
   PetscReal Pinf = 1.0e+05, Tinf = 300, Rgas = 287.15;
 

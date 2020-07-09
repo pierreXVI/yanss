@@ -25,9 +25,8 @@ BoundaryConditions:
   30:
     name: inflow
     type: BC_DIRICHLET
-    rho: *rho0
-    # u: [1, 0, 0]
-    u: *u0
+    rho: 1.160833
+    u: [173.639713, 0, 0]
     p: *p0
 
 
@@ -37,20 +36,21 @@ MonitorOptions:
   # Ascii_MinMax:
   #     n_iter: 0
   Draw:
-      n_iter: 0
+      n_iter: 1
   Draw_NormU:
-    n_iter: 1
+    n_iter: 0
   Debug:
       n_iter: 0
 
 
 Options:
   - -mesh data/box.msh
-  # - -options_left no
+  - -options_left no
   - -draw_pause -1
   # - -vec_view_bounds 0.999,1.001,0,1.2,-0.6,0.6,2.499E5,2.501E5
-  # - -vec_view_bounds 9.9,1.1
+  - -vec_view_bounds 1.155233,1.160833,177.215181,225.202224,-22.919135,24.380877,262938.028290,271270.484817
+  - -draw_comp 0
   # - -ts_max_time 0.0001
-  - -ts_max_time 0
-  # - -ts_max_steps 10000
+  # - -ts_max_time 0
+  - -ts_max_steps 100
   # - -dm_view draw

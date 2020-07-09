@@ -1,14 +1,14 @@
 #include "physics.h"
 
-#define ADVECTION_SPEED 1
 void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
                               const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
                               PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
   PetscFunctionBeginUser;
 
-  const PetscReal un = ADVECTION_SPEED * n[0];
+  const PetscReal un = 1 * n[0];
   const PetscReal *u0 = (un < 0) ? uR : uL;
-  for (PetscInt i = 0; i < Nc; i++) flux[i] = u0[i] * un;
+  for (PetscInt i = 0; i < Nc; i++) flux[i] = 0;
+  flux[0] = u0[0] * un;
 
   PetscFunctionReturnVoid();
 }

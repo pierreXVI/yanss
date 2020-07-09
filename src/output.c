@@ -60,7 +60,7 @@ PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec 
   for (PetscInt comp = 0; comp < Nc; comp++) {
     IS         is;
     Vec        subv;
-    PetscReal   min, max;
+    PetscReal  min, max;
     const char *compName;
     ierr = ISCreateStride(PetscObjectComm((PetscObject) u), size / Nc, comp, Nc, &is);     CHKERRQ(ierr);
     ierr = VecGetSubVector(u, is, &subv);                                                  CHKERRQ(ierr);
