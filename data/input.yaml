@@ -1,6 +1,6 @@
 Ref:
-  &rho0 rho: 1
-  &u0   u: [1, 0, 0]
+  &rho0 rho: 1.160833
+  &u0   u: [173.639713, 0, 0]
   &p0   p: 1.0e+05
 
 
@@ -23,12 +23,8 @@ BoundaryConditions:
     type: BC_OUTFLOW_P
     p: *p0
   30:
-    name: inflow
-    type: BC_DIRICHLET
-    rho: 1.160833
-    u: [173.639713, 0, 0]
-    p: *p0
-
+    name: perio_left
+    type: BC_PERIO
 
 MonitorOptions:
   # Ascii_Res:

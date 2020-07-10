@@ -168,22 +168,26 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
     (*phys)->bc_ctx[i].phys = *phys;
     (*phys)->bc_ctx[i].i = i;
-    ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc + i);                           CHKERRQ(ierr);
+    ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc + i); CHKERRQ(ierr);
+
+    void (*bcFunc)(void);
     switch ((*phys)->bc[i].type) {
     case BC_DIRICHLET:
-      PrimitiveToConservative(*phys, (*phys)->bc[i].val, (*phys)->bc[i].val);                       CHKERRQ(ierr);
-      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
-                                (void (*)(void)) BCDirichlet, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
+      PrimitiveToConservative(*phys, (*phys)->bc[i].val, (*phys)->bc[i].val);
+      bcFunc = (void (*)(void)) BCDirichlet;
       break;
     case BC_OUTFLOW_P:
-      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
-                                (void (*)(void)) BCOutflow_P, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
+      bcFunc = (void (*)(void)) BCOutflow_P;
       break;
     case BC_WALL:
-      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
-                                (void (*)(void)) BCWall, 1, indices + i, (*phys)->bc_ctx + i);      CHKERRQ(ierr);
+      bcFunc = (void (*)(void)) BCWall;
+      break;
+    case BC_PERIO:
+      bcFunc = (void (*)(void)) BCPerio;
       break;
     }
+    ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0,
+                              PETSC_NULL, bcFunc, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
   }
   ierr = ISRestoreIndices(is, &indices);                                 CHKERRQ(ierr);
   ierr = ISDestroy(&is);                                                 CHKERRQ(ierr);
