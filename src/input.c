@@ -96,6 +96,7 @@ static PetscErrorCode IOParserMoveToScalar(IOParser *parser, const char *filenam
   PetscErrorCode ierr;
   PetscInt       level = -1;
   PetscBool      flg, isAnchor = PETSC_FALSE;
+  char           *anchorname;
 
   PetscFunctionBeginUser;
 
@@ -106,7 +107,7 @@ static PetscErrorCode IOParserMoveToScalar(IOParser *parser, const char *filenam
     yaml_event_type_t event_type = event.type;
 
     if (isAnchor) {
-      flg = event_type == YAML_SCALAR_EVENT && event.data.scalar.anchor && !strcmp(scalarname, (const char*) event.data.scalar.anchor);
+      flg = event_type == YAML_SCALAR_EVENT && event.data.scalar.anchor && !strcmp(anchorname, (const char*) event.data.scalar.anchor);
     } else {
       flg = event_type == YAML_SCALAR_EVENT && level == 0 && !strcmp(scalarname, (const char*) event.data.scalar.value);
     }
@@ -115,21 +116,21 @@ static PetscErrorCode IOParserMoveToScalar(IOParser *parser, const char *filenam
 
     if (flg) {
       if (event_p) {
-        ierr = IOParserParse(*parser, event_p);                                   CHKERRQ(ierr);
+        ierr = IOParserParse(*parser, event_p);                                          CHKERRQ(ierr);
         if (event_p->type == YAML_ALIAS_EVENT) {
           if (isAnchor) {
-            ierr = PetscFree(scalarname);                                         CHKERRQ(ierr);
+            ierr = PetscFree(anchorname);                                                CHKERRQ(ierr);
           }
-          ierr = MyStrdup((const char*) event_p->data.alias.anchor, &scalarname); CHKERRQ(ierr);
+          ierr = PetscStrallocpy((const char*) event_p->data.alias.anchor, &anchorname); CHKERRQ(ierr);
           yaml_event_delete(event_p);
-          ierr = IOParserDestroy(parser);                                         CHKERRQ(ierr);
-          ierr = IOParserCreate(parser, filename);                                CHKERRQ(ierr);
+          ierr = IOParserDestroy(parser);                                                CHKERRQ(ierr);
+          ierr = IOParserCreate(parser, filename);                                       CHKERRQ(ierr);
           isAnchor = PETSC_TRUE;
           continue;
         }
       }
       if (isAnchor) {
-        ierr = PetscFree(scalarname); CHKERRQ(ierr);
+        ierr = PetscFree(anchorname); CHKERRQ(ierr);
       }
       PetscFunctionReturn(0);
     }
@@ -186,9 +187,9 @@ PetscErrorCode IOLoadVarFromLoc(const char *filename, const char *varname, Petsc
     depth--;
     loc++;
   }
-  ierr = IOParserMoveToScalar(&parser, filename, varname, &event); CHKERRQ(ierr);
+  ierr = IOParserMoveToScalar(&parser, filename, varname, &event);             CHKERRQ(ierr);
   if (event.type != YAML_SCALAR_EVENT) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read %s in %s", varname, filename);
-  ierr = MyStrdup((const char*) event.data.scalar.value, var);     CHKERRQ(ierr);
+  ierr = PetscStrallocpy((const char*) event.data.scalar.value, (char**) var); CHKERRQ(ierr);
   yaml_event_delete(&event);
 
   ierr = IOParserDestroy(&parser); CHKERRQ(ierr);
@@ -276,7 +277,7 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
 
   node = root;
   for (PetscInt i = 0; i < *len; i++){
-    ierr = MyStrdup((const char*) node->event.data.scalar.value, (*var) + i); CHKERRQ(ierr);
+    ierr = PetscStrallocpy((const char*) node->event.data.scalar.value, (char**) (*var) + i); CHKERRQ(ierr);
     node = node->next;
   }
 
