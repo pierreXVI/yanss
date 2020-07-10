@@ -55,11 +55,4 @@ struct FieldDescription {
   PetscInt   dof;
 };
 
-
-/*
-  Wrapping of `strdup`
-  The output must be freed with `PetscFree`
-*/
-PetscErrorCode MyStrdup(const char*, const char**);
-
 #endif
