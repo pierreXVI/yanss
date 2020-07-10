@@ -45,6 +45,7 @@ struct BCDescription {
 };
 
 struct BCCtx {
+  DM       dm;   // Mesh
   Physics  phys; // Physical model
   PetscInt i;    // Boundary number
 };

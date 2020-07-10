@@ -166,6 +166,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   ierr = ISGetIndices(is, &indices);                                     CHKERRQ(ierr);
   ierr = DMGetDS(dm, &prob);                                             CHKERRQ(ierr);
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
+    (*phys)->bc_ctx[i].dm = dm;
     (*phys)->bc_ctx[i].phys = *phys;
     (*phys)->bc_ctx[i].i = i;
     ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc + i); CHKERRQ(ierr);
