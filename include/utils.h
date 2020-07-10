@@ -11,9 +11,8 @@
     BC_DIRICHLET: the conservative field values
     BC_OUTFLOW_P: the pressure value
     BC_WALL:      no value
-    BC_FARFIELD:  TODO
 */
-enum BCType {BC_DIRICHLET, BC_OUTFLOW_P, BC_WALL, BC_FARFIELD};
+enum BCType {BC_DIRICHLET, BC_OUTFLOW_P, BC_WALL};
 
 
 enum ProblemType {TYPE_EULER, TYPE_NS};
