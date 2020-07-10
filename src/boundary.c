@@ -63,9 +63,11 @@ PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscReal n[3]
 }
 
 PetscErrorCode BCPerio(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscReal *xI, PetscReal *xG, void *ctx){
-  struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
+  struct BCCtx   *bc_ctx = (struct BCCtx*) ctx;
+  PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
+  ierr = DMView(bc_ctx->dm, PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
   for (PetscInt i = 0; i < bc_ctx->phys->dof; i++) xG[i] = 0;
   PetscFunctionReturn(0);
 }
