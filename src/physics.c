@@ -1,5 +1,6 @@
 #include "physics.h"
 #include "input.h"
+#include "spatial.h"
 
 
 /*____________________________________________________________________________________________________________________*/
@@ -92,6 +93,7 @@ PetscErrorCode PhysicsDestroy(Physics *phys){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
+  ierr = VecDestroy(&(*phys)->x);          CHKERRQ(ierr);
   for (PetscInt i = 0; i < (*phys)->nbc; i++){
     ierr = PetscFree((*phys)->bc[i].name); CHKERRQ(ierr);
     ierr = PetscFree((*phys)->bc[i].val);  CHKERRQ(ierr);
@@ -166,7 +168,6 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   ierr = ISGetIndices(is, &indices);                                     CHKERRQ(ierr);
   ierr = DMGetDS(dm, &prob);                                             CHKERRQ(ierr);
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
-    (*phys)->bc_ctx[i].dm = dm;
     (*phys)->bc_ctx[i].phys = *phys;
     (*phys)->bc_ctx[i].i = i;
     ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc + i); CHKERRQ(ierr);
@@ -195,6 +196,10 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   ierr = PetscDSSetFromOptions(prob);                                    CHKERRQ(ierr);
 
   ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
+
+  ierr = MeshCreateGlobalVector(dm, &(*phys)->x);                       CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) (*phys)->x, "Solution");      CHKERRQ(ierr);
+  ierr = MeshApplyFunction(dm, 0, InitialCondition, *phys, (*phys)->x); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

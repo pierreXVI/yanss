@@ -36,6 +36,8 @@ struct _Physics {
   PetscInt             nbc;     // Number of boundary conditions
 
   PetscReal            *init;   // Initial conditions, in primitive variables
+
+  Vec                  x;       // Physical state
 };
 
 struct BCDescription {
@@ -45,7 +47,6 @@ struct BCDescription {
 };
 
 struct BCCtx {
-  DM       dm;   // Mesh
   Physics  phys; // Physical model
   PetscInt i;    // Boundary number
 };

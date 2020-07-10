@@ -27,12 +27,8 @@ int main(int argc, char **argv){
   PetscReal cfl = 0.5; // TODO
 
   TS  ts;
-  Vec x0;
   ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
-  ierr = MeshCreateGlobalVector(mesh, &x0);                                  CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) x0, "Solution");                   CHKERRQ(ierr);
-  ierr = MeshApplyFunction(mesh, 0, InitialCondition, phys, x0);             CHKERRQ(ierr);
-  ierr = TSSolve(ts, x0);                                                    CHKERRQ(ierr);
+  ierr = TSSolve(ts, phys->x);                                               CHKERRQ(ierr);
 
   PetscReal         ftime;
   PetscInt          nsteps;
@@ -42,7 +38,6 @@ int main(int argc, char **argv){
   ierr = TSGetConvergedReason(ts, &reason); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "%s at time %g after %D steps\n", TSConvergedReasons[reason], (double)ftime, nsteps); CHKERRQ(ierr);
 
-  ierr = VecDestroy(&x0);       CHKERRQ(ierr);
   ierr = TSDestroy(&ts);        CHKERRQ(ierr);
   ierr = PhysicsDestroy(&phys); CHKERRQ(ierr);
   ierr = MeshDestroy(&mesh);    CHKERRQ(ierr);
