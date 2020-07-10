@@ -150,21 +150,21 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   }
   ierr = PetscFVSetFromOptions(fvm);                                             CHKERRQ(ierr);
 
-  PetscDS system;
+  PetscDS prob;
   DMLabel label;
   IS is;
   const PetscInt *indices;
-  ierr = DMCreateDS(dm);                                                  CHKERRQ(ierr);
-  ierr = DMGetDS(dm, &system);                                            CHKERRQ(ierr);
-  ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_AdvectionX);    CHKERRQ(ierr);
-  ierr = PetscDSSetContext(system, 0, (*phys));                           CHKERRQ(ierr);
-  ierr = DMGetLabel(dm, "Face Sets", &label);                             CHKERRQ(ierr);
-  ierr = DMLabelGetNumValues(label, &(*phys)->nbc);                       CHKERRQ(ierr);
-  ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc);                        CHKERRQ(ierr);
-  ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc_ctx);                    CHKERRQ(ierr);
-  ierr = DMLabelGetValueIS(label, &is);                                   CHKERRQ(ierr);
-  ierr = ISGetIndices(is, &indices);                                      CHKERRQ(ierr);
-  ierr = DMGetDS(dm, &system);                                            CHKERRQ(ierr);
+  ierr = DMCreateDS(dm);                                                 CHKERRQ(ierr);
+  ierr = DMGetDS(dm, &prob);                                             CHKERRQ(ierr);
+  ierr = PetscDSSetRiemannSolver(prob, 0, RiemannSolver_AdvectionX);     CHKERRQ(ierr);
+  ierr = PetscDSSetContext(prob, 0, (*phys));                            CHKERRQ(ierr);
+  ierr = DMGetLabel(dm, "Face Sets", &label);                            CHKERRQ(ierr);
+  ierr = DMLabelGetNumValues(label, &(*phys)->nbc);                      CHKERRQ(ierr);
+  ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc);                       CHKERRQ(ierr);
+  ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc_ctx);                   CHKERRQ(ierr);
+  ierr = DMLabelGetValueIS(label, &is);                                  CHKERRQ(ierr);
+  ierr = ISGetIndices(is, &indices);                                     CHKERRQ(ierr);
+  ierr = DMGetDS(dm, &prob);                                             CHKERRQ(ierr);
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
     (*phys)->bc_ctx[i].phys = *phys;
     (*phys)->bc_ctx[i].i = i;
@@ -172,28 +172,28 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
     switch ((*phys)->bc[i].type) {
     case BC_DIRICHLET:
       PrimitiveToConservative(*phys, (*phys)->bc[i].val, (*phys)->bc[i].val);                       CHKERRQ(ierr);
-      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
+      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
                                 (void (*)(void)) BCDirichlet, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
       break;
     case BC_OUTFLOW_P:
-      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
+      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
                                 (void (*)(void)) BCOutflow_P, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
       break;
     case BC_WALL:
-      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
+      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
                                 (void (*)(void)) BCWall, 1, indices + i, (*phys)->bc_ctx + i);      CHKERRQ(ierr);
       break;
     case BC_FARFIELD:
-      ierr = PetscDSAddBoundary(system, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
+      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0, PETSC_NULL,
                                 (void (*)(void)) BCFarField, 1, indices + i, (*phys)->bc_ctx + i);  CHKERRQ(ierr);
       break;
     }
   }
-  ierr = ISRestoreIndices(is, &indices);                                  CHKERRQ(ierr);
-  ierr = ISDestroy(&is);                                                  CHKERRQ(ierr);
-  ierr = PetscDSSetFromOptions(system);                                   CHKERRQ(ierr);
+  ierr = ISRestoreIndices(is, &indices);                                 CHKERRQ(ierr);
+  ierr = ISDestroy(&is);                                                 CHKERRQ(ierr);
+  ierr = PetscDSSetFromOptions(prob);                                    CHKERRQ(ierr);
 
-  ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init);  CHKERRQ(ierr);
+  ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
