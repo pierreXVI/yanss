@@ -11,6 +11,7 @@
     BC_DIRICHLET: the conservative field values
     BC_OUTFLOW_P: the pressure value
     BC_WALL:      no value
+    BC_PERIO:     the translation
 */
 enum BCType {BC_DIRICHLET, BC_OUTFLOW_P, BC_WALL, BC_PERIO};
 
