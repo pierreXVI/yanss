@@ -12,7 +12,7 @@
 /*
   Destroy the mesh
 */
-PetscErrorCode MeshDestroy(DM*);
+PetscErrorCode MeshDestroy(Mesh*);
 
 /*
   Setup the mesh.
@@ -21,19 +21,19 @@ PetscErrorCode MeshDestroy(DM*);
    -dm_view_orig - To view the raw mesh from the input file
    -dm_view      - To view the mesh produced by this function
 */
-PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, DM*);
+PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, Mesh*);
 
 
 /*
   Apply a function on a mesh
 */
-PetscErrorCode MeshApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*), void*, Vec);
+PetscErrorCode MeshDMApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*), void*, Vec);
 
 
 /*
   Create a global vector, and set the user's Viewer
 */
-PetscErrorCode MeshCreateGlobalVector(DM, Vec*);
+PetscErrorCode MeshDMCreateGlobalVector(DM, Vec*);
 
 
 /*

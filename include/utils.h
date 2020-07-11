@@ -44,4 +44,9 @@ struct BCCtx {
   PetscReal   *val;  // Additional numerical values
 };
 
+typedef struct {
+  DM   dm;   // DMPLEX object
+  void *ctx; // Additional context
+} *Mesh;
+
 #endif
