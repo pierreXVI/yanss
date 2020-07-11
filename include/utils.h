@@ -47,9 +47,8 @@ struct BCCtx {
 };
 
 typedef struct {
-  DM   dm;   // DMPLEX object
-  void *ctx; // Additional context
-  IS   masterSlave[2];
+  DM   dm;       // DMPLEX object
+  IS   perio[2]; // Periodicity IS, [master, slave]
 } *Mesh;
 
 #endif

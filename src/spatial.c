@@ -10,7 +10,9 @@ PetscErrorCode MeshDestroy(Mesh *mesh){
   ierr = DMGetField((*mesh)->dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
   ierr = PetscFVDestroy(&fvm);                                        CHKERRQ(ierr);
   ierr = DMDestroy(&(*mesh)->dm);                                     CHKERRQ(ierr);
-  ierr = PetscFree(mesh);                                             CHKERRQ(ierr);
+  ierr = ISDestroy(&(*mesh)->perio[0]);                               CHKERRQ(ierr);
+  ierr = ISDestroy(&(*mesh)->perio[1]);                               CHKERRQ(ierr);
+  ierr = PetscFree(*mesh);                                            CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -47,6 +49,9 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, Mesh *mesh)
   if (flag) {ierr = DMPlexHideGhostCells((*mesh)->dm, &numGhostCells);                            CHKERRQ(ierr);}
   ierr = DMViewFromOptions((*mesh)->dm, PETSC_NULL, "-dm_view");                                  CHKERRQ(ierr);
   if (flag) {ierr = DMPlexRestoreGhostCells((*mesh)->dm, numGhostCells);                          CHKERRQ(ierr);}
+
+  ierr = ISCreateGeneral(comm, 0, PETSC_NULL, PETSC_OWN_POINTER, (*mesh)->perio + 0); CHKERRQ(ierr);
+  ierr = ISCreateGeneral(comm, 0, PETSC_NULL, PETSC_OWN_POINTER, (*mesh)->perio + 1); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -181,7 +186,6 @@ PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec F, voi
   for (PetscInt i = 0; i < size; i++) {
     ierr = DMPlexPointLocalRead(dm, master[i], values, &xI); CHKERRQ(ierr);
     ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, values, &xG); CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD, "%d -> %d (%f)\n", master[i], slave[i], xI[0]);
     for (PetscInt j = 0; j < Nc; j++) xG[j] = xI[j];
   }
 
@@ -194,7 +198,7 @@ PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec F, voi
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshSetupPeriodicBoundary(Mesh mesh, PetscInt bc_from, PetscInt bc_to, PetscReal disp[]){
+PetscErrorCode MeshSetupPeriodicBoundary(Mesh mesh, PetscInt bc_from, PetscInt bc_to, PetscReal *disp){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -202,43 +206,35 @@ PetscErrorCode MeshSetupPeriodicBoundary(Mesh mesh, PetscInt bc_from, PetscInt b
   ierr = DMGetDimension(mesh->dm, &dim); CHKERRQ(ierr);
 
   IS             is_from, is_to;
-  PetscInt       n_from, n_to;
+  PetscInt       nface;
   const PetscInt *idx_from, *idx_to;
 
-  PetscPrintf(PETSC_COMM_WORLD, "Boundary %d -> %d\n", bc_from, bc_to);
   ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_from, &is_from); CHKERRQ(ierr);
   ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_to, &is_to);     CHKERRQ(ierr);
-  ierr = ISGetSize(is_from, &n_from);                        CHKERRQ(ierr);
-  ierr = ISGetSize(is_to, &n_to);                            CHKERRQ(ierr);
-  if (n_from != n_to) SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Different number of faces on boundaries %d (%d) and %d (%d)", bc_from, n_from, bc_to, n_to);
-  ierr = ISGetIndices(is_from, &idx_from);                   CHKERRQ(ierr);
-  ierr = ISGetIndices(is_to, &idx_to);                       CHKERRQ(ierr);
-
+  ierr = ISGetSize(is_from, &nface);                               CHKERRQ(ierr);
+  ierr = ISGetIndices(is_from, &idx_from);                         CHKERRQ(ierr);
+  ierr = ISGetIndices(is_to, &idx_to);                             CHKERRQ(ierr);
 
   PetscInt ghoscCStart, ghostCEnd;
   ierr = DMPlexGetGhostCellStratum(mesh->dm, &ghoscCStart, &ghostCEnd); CHKERRQ(ierr);
 
-  PetscInt master[n_from], slave[n_to];
+  PetscInt *master, *slave;
+  ierr = PetscMalloc1(nface, &master); CHKERRQ(ierr);
+  ierr = PetscMalloc1(nface, &slave);  CHKERRQ(ierr);
 
-  for (PetscInt i = 0; i < n_from; i++) {
-    PetscInt match_DEBUG=0;
+  for (PetscInt i = 0; i < nface; i++) {
+    PetscInt match=0;
 
     PetscReal c_from[dim], c_to[dim];
     ierr = DMPlexComputeCellGeometryFVM(mesh->dm, idx_from[i], PETSC_NULL, c_from, PETSC_NULL); CHKERRQ(ierr);
-    for (PetscInt j = 0; j < n_to; j++) {
+    for (PetscInt j = 0; j < nface; j++) {
       ierr = DMPlexComputeCellGeometryFVM(mesh->dm, idx_to[j], PETSC_NULL, c_to, PETSC_NULL); CHKERRQ(ierr);
 
       PetscReal dist=0;
       for (PetscInt k = 0; k < dim; k++) dist += PetscSqr(c_to[k] - c_from[k] - disp[k]);
 
       if (dist < 1E-12) {
-        match_DEBUG++;
-
-        PetscInt nC_from, nC_to;
-        DMPlexGetSupportSize(mesh->dm, idx_from[i], &nC_from);
-        DMPlexGetSupportSize(mesh->dm, idx_to[j], &nC_to);
-        if (nC_from != 2) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Support of size %d != 2", nC_from);
-        if (nC_to != 2) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Support of size %d != 2", nC_to);
+        match++;
 
         PetscInt const *support_from, *support_to;
         DMPlexGetSupport(mesh->dm, idx_from[i], &support_from);
@@ -247,15 +243,26 @@ PetscErrorCode MeshSetupPeriodicBoundary(Mesh mesh, PetscInt bc_from, PetscInt b
         slave[i] = (ghoscCStart <= support_to[0] && support_to[0] < ghostCEnd) ? support_to[0] : support_to[1];
       }
     }
-    if (match_DEBUG != 1) SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot match face %d from boundary %d to single face on boundary %d, matched %d times", idx_from[i], bc_from, bc_to, match_DEBUG);
+    if (match != 1) SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot match face %d from boundary %d to single face on boundary %d, matched %d times", idx_from[i], bc_from, bc_to, match);
   }
-
-
   ierr = ISRestoreIndices(is_from, &idx_from); CHKERRQ(ierr);
   ierr = ISRestoreIndices(is_to, &idx_to); CHKERRQ(ierr);
+  ierr = ISDestroy(&is_to); CHKERRQ(ierr);
+  ierr = ISDestroy(&is_from); CHKERRQ(ierr);
 
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, n_from, master, PETSC_COPY_VALUES, &mesh->masterSlave[0]); CHKERRQ(ierr);
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, n_from, slave, PETSC_COPY_VALUES, &mesh->masterSlave[1]); CHKERRQ(ierr);
+
+  IS is_list[2];
+  is_list[0] = mesh->perio[0];
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD, nface, master, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
+  ierr = ISConcatenate(PETSC_COMM_WORLD, 2, is_list, &(mesh->perio[0])); CHKERRQ(ierr);
+  ISDestroy(&is_list[0]);
+  ISDestroy(&is_list[1]);
+
+  is_list[0] = mesh->perio[1];
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD, nface, slave, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
+  ierr = ISConcatenate(PETSC_COMM_WORLD, 2, is_list, &(mesh->perio[1])); CHKERRQ(ierr);
+  ISDestroy(&is_list[0]);
+  ISDestroy(&is_list[1]);
 
 
   PetscFunctionReturn(0);

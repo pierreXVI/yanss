@@ -20,12 +20,14 @@ BoundaryConditions:
     type: BC_WALL
   20:
     name: outflow
-    type: BC_OUTFLOW_P
-    p: *p0
+    type: BC_PERIO
+    master: 30
+    disp: [0.1, 0]
   30:
     name: inflow
     type: BC_PERIO
     master: 20
+    disp: [-0.1, 0]
 
 MonitorOptions:
   # Ascii_Res:
