@@ -156,16 +156,16 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
 
 PetscErrorCode MeshComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t, void *user){
   PetscErrorCode ierr;
-  IS *is_perio = (IS *) user;
+  IS *masterSlave = (IS *) user;
 
   PetscFunctionBeginUser;
 
   PetscInt size;
   const PetscInt *master, *slave;
   PetscReal *values;
-  ierr = ISGetSize(is_perio[0], &size); CHKERRQ(ierr);
-  ierr = ISGetIndices(is_perio[0], &master); CHKERRQ(ierr);
-  ierr = ISGetIndices(is_perio[1], &slave); CHKERRQ(ierr);
+  ierr = ISGetSize(masterSlave[0], &size); CHKERRQ(ierr);
+  ierr = ISGetIndices(masterSlave[0], &master); CHKERRQ(ierr);
+  ierr = ISGetIndices(masterSlave[1], &slave); CHKERRQ(ierr);
   ierr = VecGetArray(locX, &values); CHKERRQ(ierr);
 
   PetscFV  fvm;
@@ -181,42 +181,76 @@ PetscErrorCode MeshComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t, 
   }
 
   ierr = VecRestoreArray(locX, &values); CHKERRQ(ierr);
-  ierr = ISRestoreIndices(is_perio[1], &slave); CHKERRQ(ierr);
-  ierr = ISRestoreIndices(is_perio[0], &master); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(masterSlave[1], &slave); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(masterSlave[0], &master); CHKERRQ(ierr);
 
   ierr = DMPlexTSComputeBoundary(dm, time, locX, locX_t, user); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshSetupPeriodicBoundary(DM dm, IS foo[2]){
+PetscErrorCode MeshSetupPeriodicBoundary(DM dm, PetscInt bc_from, PetscInt bc_to, PetscReal disp[], IS masterSlave[]){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  IS is_master, is_slave;
-  PetscInt n_master, n_slave;
-  const PetscInt *idx_master, *idx_slave;
+  PetscInt dim;
+  ierr = DMGetDimension(dm, &dim); CHKERRQ(ierr);
 
-  ierr = DMGetStratumIS(dm, "Face Sets", 20, &is_master); CHKERRQ(ierr);
-  ierr = DMGetStratumIS(dm, "Face Sets", 30, &is_slave); CHKERRQ(ierr);
-  ISGetSize(is_master, &n_master);
-  ISGetSize(is_master, &n_slave);
-  if (n_master != n_slave) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Different number of faces on master (%d) ans slave (%d)\n", n_master, n_slave);
-  ISGetIndices(is_master, &idx_master);
-  ISGetIndices(is_slave, &idx_slave);
+  IS             is_from, is_to;
+  PetscInt       n_from, n_to;
+  const PetscInt *idx_from, *idx_to;
 
-  PetscInt *master, *slave;
-  PetscMalloc1(n_master, &master);
-  PetscMalloc1(n_master, &slave);
+  PetscPrintf(PETSC_COMM_WORLD, "Boundary %d -> %d\n", bc_from, bc_to);
+  ierr = DMGetStratumIS(dm, "Face Sets", bc_from, &is_from); CHKERRQ(ierr);
+  ierr = DMGetStratumIS(dm, "Face Sets", bc_to, &is_to);     CHKERRQ(ierr);
+  ierr = ISGetSize(is_from, &n_from);                        CHKERRQ(ierr);
+  ierr = ISGetSize(is_to, &n_to);                            CHKERRQ(ierr);
+  if (n_from != n_to) SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Different number of faces on boundaries %d (%d) and %d (%d)", bc_from, n_from, bc_to, n_to);
+  ierr = ISGetIndices(is_from, &idx_from);                   CHKERRQ(ierr);
+  ierr = ISGetIndices(is_to, &idx_to);                       CHKERRQ(ierr);
 
-  for (PetscInt i = 0; i < n_master; i++) {
 
+  PetscInt ghoscCStart, ghostCEnd;
+  ierr = DMPlexGetGhostCellStratum(dm, &ghoscCStart, &ghostCEnd); CHKERRQ(ierr);
+
+  PetscInt master[n_from], slave[n_to];
+
+  for (PetscInt i = 0; i < n_from; i++) {
+    PetscInt match_DEBUG=0;
+
+    PetscReal c_from[dim], c_to[dim];
+    ierr = DMPlexComputeCellGeometryFVM(dm, idx_from[i], PETSC_NULL, c_from, PETSC_NULL); CHKERRQ(ierr);
+    for (PetscInt j = 0; j < n_to; j++) {
+      ierr = DMPlexComputeCellGeometryFVM(dm, idx_to[j], PETSC_NULL, c_to, PETSC_NULL); CHKERRQ(ierr);
+
+      PetscReal dist=0;
+      for (PetscInt k = 0; k < dim; k++) dist += PetscSqr(c_to[k] - c_from[k] - disp[k]);
+
+      if (dist < 1E-12) {
+        match_DEBUG++;
+
+        PetscInt nC_from, nC_to;
+        DMPlexGetSupportSize(dm, idx_from[i], &nC_from);
+        DMPlexGetSupportSize(dm, idx_to[j], &nC_to);
+        if (nC_from != 2) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Support of size %d != 2", nC_from);
+        if (nC_to != 2) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Support of size %d != 2", nC_to);
+
+        PetscInt const *support_from, *support_to;
+        DMPlexGetSupport(dm, idx_from[i], &support_from);
+        DMPlexGetSupport(dm, idx_to[j], &support_to);
+        master[i] = (ghoscCStart <= support_from[0] && support_from[0] < ghostCEnd) ? support_from[1] : support_from[0];
+        slave[i] = (ghoscCStart <= support_to[0] && support_to[0] < ghostCEnd) ? support_to[0] : support_to[1];
+      }
+    }
+    if (match_DEBUG != 1) SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot match face %d from boundary %d to single face on boundary %d, matched %d times", idx_from[i], bc_from, bc_to, match_DEBUG);
   }
 
 
-  ierr = ISRestoreIndices(is_master, &idx_master); CHKERRQ(ierr);
-  ierr = ISRestoreIndices(is_slave, &idx_slave); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(is_from, &idx_from); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(is_to, &idx_to); CHKERRQ(ierr);
 
-  // ISCreateGeneral(PETSC_COMM_WORLD, n_master, master, &foo[0])
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD, n_from, master, PETSC_COPY_VALUES, &masterSlave[0]); CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD, n_from, slave, PETSC_COPY_VALUES, &masterSlave[1]); CHKERRQ(ierr);
+
 
   PetscFunctionReturn(0);
 }

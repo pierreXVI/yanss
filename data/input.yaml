@@ -23,8 +23,9 @@ BoundaryConditions:
     type: BC_OUTFLOW_P
     p: *p0
   30:
-    name: perio_left
+    name: inflow
     type: BC_PERIO
+    master: 20
 
 MonitorOptions:
   # Ascii_Res:
@@ -48,5 +49,5 @@ Options:
   - -draw_comp 0
   # - -ts_max_time 0.0001
   # - -ts_max_time 0
-  - -ts_max_steps 10
+  - -ts_max_steps 1000
   # - -dm_view draw
