@@ -95,13 +95,12 @@ PetscErrorCode PhysicsDestroy(Physics *phys){
   PetscFunctionBeginUser;
   ierr = VecDestroy(&(*phys)->x);          CHKERRQ(ierr);
   for (PetscInt i = 0; i < (*phys)->nbc; i++){
-    ierr = PetscFree((*phys)->bc[i].name); CHKERRQ(ierr);
-    ierr = PetscFree((*phys)->bc[i].val);  CHKERRQ(ierr);
+    ierr = PetscFree((*phys)->bc_ctx[i].name); CHKERRQ(ierr);
+    ierr = PetscFree((*phys)->bc_ctx[i].val);  CHKERRQ(ierr);
   }
-  ierr = PetscFree((*phys)->bc);           CHKERRQ(ierr);
-  ierr = PetscFree((*phys)->bc_ctx);       CHKERRQ(ierr);
-  ierr = PetscFree((*phys)->init);         CHKERRQ(ierr);
-  ierr = PetscFree(*phys);                 CHKERRQ(ierr);
+  ierr = PetscFree((*phys)->bc_ctx);           CHKERRQ(ierr);
+  ierr = PetscFree((*phys)->init);             CHKERRQ(ierr);
+  ierr = PetscFree(*phys);                     CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -154,7 +153,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
 
   PetscDS prob;
   DMLabel label;
-  IS is;
+  IS      is;
   const PetscInt *indices;
   ierr = DMCreateDS(dm);                                                 CHKERRQ(ierr);
   ierr = DMGetDS(dm, &prob);                                             CHKERRQ(ierr);
@@ -162,20 +161,18 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   ierr = PetscDSSetContext(prob, 0, (*phys));                            CHKERRQ(ierr);
   ierr = DMGetLabel(dm, "Face Sets", &label);                            CHKERRQ(ierr);
   ierr = DMLabelGetNumValues(label, &(*phys)->nbc);                      CHKERRQ(ierr);
-  ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc);                       CHKERRQ(ierr);
   ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc_ctx);                   CHKERRQ(ierr);
   ierr = DMLabelGetValueIS(label, &is);                                  CHKERRQ(ierr);
   ierr = ISGetIndices(is, &indices);                                     CHKERRQ(ierr);
   ierr = DMGetDS(dm, &prob);                                             CHKERRQ(ierr);
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
     (*phys)->bc_ctx[i].phys = *phys;
-    (*phys)->bc_ctx[i].i = i;
-    ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc + i); CHKERRQ(ierr);
+    ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc_ctx + i); CHKERRQ(ierr);
 
     void (*bcFunc)(void);
-    switch ((*phys)->bc[i].type) {
+    switch ((*phys)->bc_ctx[i].type) {
     case BC_DIRICHLET:
-      PrimitiveToConservative(*phys, (*phys)->bc[i].val, (*phys)->bc[i].val);
+      PrimitiveToConservative(*phys, (*phys)->bc_ctx[i].val, (*phys)->bc_ctx[i].val);
       bcFunc = (void (*)(void)) BCDirichlet;
       break;
     case BC_OUTFLOW_P:
@@ -185,15 +182,24 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
       bcFunc = (void (*)(void)) BCWall;
       break;
     case BC_PERIO:
-      bcFunc = (void (*)(void)) BCPerio;
+      bcFunc = PETSC_NULL;
       break;
     }
-    ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc[i].name, "Face Sets", 0, 0,
-                              PETSC_NULL, bcFunc, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
+    if (bcFunc) {
+      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc_ctx[i].name, "Face Sets", 0, 0,
+                                PETSC_NULL, bcFunc, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
+    }
   }
   ierr = ISRestoreIndices(is, &indices);                                 CHKERRQ(ierr);
   ierr = ISDestroy(&is);                                                 CHKERRQ(ierr);
   ierr = PetscDSSetFromOptions(prob);                                    CHKERRQ(ierr);
+
+  IS foo[2];
+  ierr = MeshSetupPeriodicBoundary(dm, foo); CHKERRQ(ierr);
+
+  ierr = DMTSSetBoundaryLocal(dm, MeshComputeBoundary, foo); CHKERRQ(ierr);
+  ierr = DMTSSetRHSFunctionLocal(dm, DMPlexTSComputeRHSFunctionFVM, PETSC_NULL); CHKERRQ(ierr);
+
 
   ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
 

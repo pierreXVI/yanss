@@ -37,9 +37,6 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, DM *mesh){
   ierr = PetscObjectSetName((PetscObject) fvm, "FV Model"); CHKERRQ(ierr);
   ierr = DMAddField(*mesh, PETSC_NULL, (PetscObject) fvm);  CHKERRQ(ierr);
 
-  ierr = DMTSSetBoundaryLocal(*mesh, DMPlexTSComputeBoundary, PETSC_NULL);          CHKERRQ(ierr);
-  ierr = DMTSSetRHSFunctionLocal(*mesh, DMPlexTSComputeRHSFunctionFVM, PETSC_NULL); CHKERRQ(ierr);
-
   char      opt[] = "____";
   PetscBool flag;
   PetscInt  numGhostCells;
@@ -119,9 +116,9 @@ PetscErrorCode VecDestroyComponentVectors(Vec x, Vec **fields){
 }
 
 
-PetscErrorCode VecApplyFunctionFields(Vec x, Vec *y,
-                                      PetscErrorCode (*func)(PetscInt, const PetscScalar*, PetscScalar*, void*),
-                                      void *ctx){
+PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
+                                          PetscErrorCode (*func)(PetscInt, const PetscScalar*, PetscScalar*, void*),
+                                          void *ctx){
   PetscErrorCode ierr;
   PetscInt       Nc, start, end, size;
   PetscFV        fvm;
@@ -151,6 +148,75 @@ PetscErrorCode VecApplyFunctionFields(Vec x, Vec *y,
   ierr = VecSetValues(*y, size, ix, val_y, INSERT_VALUES); CHKERRQ(ierr);
   ierr = VecAssemblyBegin(*y);                             CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*y);                               CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+
+
+PetscErrorCode MeshComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t, void *user){
+  PetscErrorCode ierr;
+  IS *is_perio = (IS *) user;
+
+  PetscFunctionBeginUser;
+
+  PetscInt size;
+  const PetscInt *master, *slave;
+  PetscReal *values;
+  ierr = ISGetSize(is_perio[0], &size); CHKERRQ(ierr);
+  ierr = ISGetIndices(is_perio[0], &master); CHKERRQ(ierr);
+  ierr = ISGetIndices(is_perio[1], &slave); CHKERRQ(ierr);
+  ierr = VecGetArray(locX, &values); CHKERRQ(ierr);
+
+  PetscFV  fvm;
+  PetscInt Nc;
+  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
+
+  PetscReal *xI, *xG;
+  for (PetscInt i = 0; i < size; i++) {
+    ierr = DMPlexPointLocalRead(dm, master[i], values, &xI); CHKERRQ(ierr);
+    ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, values, &xG); CHKERRQ(ierr);
+    for (PetscInt j = 0; j < Nc; j++) xG[j] = xI[j];
+  }
+
+  ierr = VecRestoreArray(locX, &values); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(is_perio[1], &slave); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(is_perio[0], &master); CHKERRQ(ierr);
+
+  ierr = DMPlexTSComputeBoundary(dm, time, locX, locX_t, user); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+PetscErrorCode MeshSetupPeriodicBoundary(DM dm, IS foo[2]){
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  IS is_master, is_slave;
+  PetscInt n_master, n_slave;
+  const PetscInt *idx_master, *idx_slave;
+
+  ierr = DMGetStratumIS(dm, "Face Sets", 20, &is_master); CHKERRQ(ierr);
+  ierr = DMGetStratumIS(dm, "Face Sets", 30, &is_slave); CHKERRQ(ierr);
+  ISGetSize(is_master, &n_master);
+  ISGetSize(is_master, &n_slave);
+  if (n_master != n_slave) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Different number of faces on master (%d) ans slave (%d)\n", n_master, n_slave);
+  ISGetIndices(is_master, &idx_master);
+  ISGetIndices(is_slave, &idx_slave);
+
+  PetscInt *master, *slave;
+  PetscMalloc1(n_master, &master);
+  PetscMalloc1(n_master, &slave);
+
+  for (PetscInt i = 0; i < n_master; i++) {
+
+  }
+
+
+  ierr = ISRestoreIndices(is_master, &idx_master); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(is_slave, &idx_slave); CHKERRQ(ierr);
+
+  // ISCreateGeneral(PETSC_COMM_WORLD, n_master, master, &foo[0])
 
   PetscFunctionReturn(0);
 }

@@ -60,7 +60,12 @@ PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
     ctx          - Optional context
   ```
 */
-PetscErrorCode VecApplyFunctionFields(Vec, Vec*, PetscErrorCode(PetscInt, const PetscScalar*, PetscScalar*, void*), void*);
+PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, const PetscScalar*, PetscScalar*, void*), void*);
+
+
+
+PetscErrorCode MeshComputeBoundary(DM, PetscReal, Vec, Vec, void*);
+PetscErrorCode MeshSetupPeriodicBoundary(DM, IS foo[2]);
 
 
 #endif
