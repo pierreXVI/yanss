@@ -23,8 +23,7 @@ enum ProblemType {TYPE_EULER, TYPE_NS};
 #define DOF_DIM -2
 
 
-typedef struct _Physics *Physics;
-struct _Physics {
+typedef struct {
   enum ProblemType     type;    // Problem type
 
   PetscInt             dof;     // Total number of dof
@@ -38,7 +37,7 @@ struct _Physics {
   PetscReal            *init;   // Initial conditions, in primitive variables
 
   Vec                  x;       // Physical state
-};
+} *Physics;
 
 struct BCCtx {
   Physics     phys;  // Physical model
@@ -47,9 +46,9 @@ struct BCCtx {
   PetscReal   *val;  // Additional numerical values
 };
 
-struct FieldDescription {
-  const char *name;
-  PetscInt   dof;
-};
+typedef struct {
+  DM   dm;   // DMPLEX object
+  void *ctx; // Additional context
+} *Mesh;
 
 #endif

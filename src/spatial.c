@@ -2,55 +2,57 @@
 #include "private_impl.h"
 
 
-PetscErrorCode MeshDestroy(DM *mesh){
+PetscErrorCode MeshDestroy(Mesh *mesh){
   PetscErrorCode ierr;
   PetscFV        fvm;
 
   PetscFunctionBeginUser;
-  ierr = DMGetField(*mesh, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVDestroy(&fvm);                                  CHKERRQ(ierr);
-  ierr = DMDestroy(mesh);                                       CHKERRQ(ierr);
+  ierr = DMGetField((*mesh)->dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = PetscFVDestroy(&fvm);                                        CHKERRQ(ierr);
+  ierr = DMDestroy(&(*mesh)->dm);                                     CHKERRQ(ierr);
+  ierr = PetscFree(mesh);                                             CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, DM *mesh){
+PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, Mesh *mesh){
   PetscErrorCode ierr;
   DM             foo_dm;
 
   PetscFunctionBeginUser;
-  ierr = DMPlexCreateFromFile(comm, filename, PETSC_TRUE, mesh);            CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*mesh, PETSC_NULL, "-dm_view_orig");             CHKERRQ(ierr);
-  ierr = DMSetBasicAdjacency(*mesh, PETSC_TRUE, PETSC_FALSE);               CHKERRQ(ierr);
-  ierr = DMPlexDistribute(*mesh, 1, PETSC_NULL, &foo_dm);                   CHKERRQ(ierr);
+  ierr = PetscNew(mesh);                                                          CHKERRQ(ierr);
+  ierr = DMPlexCreateFromFile(comm, filename, PETSC_TRUE, &(*mesh)->dm);          CHKERRQ(ierr);
+  ierr = DMViewFromOptions((*mesh)->dm, PETSC_NULL, "-dm_view_orig");             CHKERRQ(ierr);
+  ierr = DMSetBasicAdjacency((*mesh)->dm, PETSC_TRUE, PETSC_FALSE);               CHKERRQ(ierr);
+  ierr = DMPlexDistribute((*mesh)->dm, 1, PETSC_NULL, &foo_dm);                   CHKERRQ(ierr);
   if (foo_dm) {
-    ierr = DMDestroy(mesh);                                                 CHKERRQ(ierr);
-    *mesh = foo_dm;
+    ierr = DMDestroy(&(*mesh)->dm);                                               CHKERRQ(ierr);
+    (*mesh)->dm = foo_dm;
   }
-  ierr = DMSetFromOptions(*mesh);                                           CHKERRQ(ierr);
-  ierr = DMPlexConstructGhostCells(*mesh, PETSC_NULL, PETSC_NULL, &foo_dm); CHKERRQ(ierr);
-  ierr = DMDestroy(mesh);                                                   CHKERRQ(ierr);
-  *mesh = foo_dm;
-  ierr = PetscObjectSetName((PetscObject) *mesh, "Mesh");                   CHKERRQ(ierr);
+  ierr = DMSetFromOptions((*mesh)->dm);                                           CHKERRQ(ierr);
+  ierr = DMPlexConstructGhostCells((*mesh)->dm, PETSC_NULL, PETSC_NULL, &foo_dm); CHKERRQ(ierr);
+  ierr = DMDestroy(&(*mesh)->dm);                                                 CHKERRQ(ierr);
+  (*mesh)->dm = foo_dm;
+  ierr = PetscObjectSetName((PetscObject) (*mesh)->dm, "Mesh");                   CHKERRQ(ierr);
 
   PetscFV fvm;
-  ierr = PetscFVCreate(comm, &fvm);                         CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fvm, "FV Model"); CHKERRQ(ierr);
-  ierr = DMAddField(*mesh, PETSC_NULL, (PetscObject) fvm);  CHKERRQ(ierr);
+  ierr = PetscFVCreate(comm, &fvm);                              CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) fvm, "FV Model");      CHKERRQ(ierr);
+  ierr = DMAddField((*mesh)->dm, PETSC_NULL, (PetscObject) fvm); CHKERRQ(ierr);
 
   char      opt[] = "____";
   PetscBool flag;
   PetscInt  numGhostCells;
   ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-dm_view", opt, sizeof(opt), PETSC_NULL); CHKERRQ(ierr);
   ierr = PetscStrcmp(opt, "draw", &flag);                                                         CHKERRQ(ierr);
-  if (flag) {ierr = DMPlexHideGhostCells(*mesh, &numGhostCells);                                  CHKERRQ(ierr);}
-  ierr = DMViewFromOptions(*mesh, PETSC_NULL, "-dm_view");                                        CHKERRQ(ierr);
-  if (flag) {ierr = DMPlexRestoreGhostCells(*mesh, numGhostCells);                                CHKERRQ(ierr);}
+  if (flag) {ierr = DMPlexHideGhostCells((*mesh)->dm, &numGhostCells);                            CHKERRQ(ierr);}
+  ierr = DMViewFromOptions((*mesh)->dm, PETSC_NULL, "-dm_view");                                  CHKERRQ(ierr);
+  if (flag) {ierr = DMPlexRestoreGhostCells((*mesh)->dm, numGhostCells);                          CHKERRQ(ierr);}
 
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
+PetscErrorCode MeshDMApplyFunction(DM dm, PetscReal time,
                                  PetscErrorCode (*func)(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*),
                                  void *ctx, Vec x){
   PetscErrorCode ierr;
@@ -61,7 +63,7 @@ PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
 }
 
 
-PetscErrorCode MeshCreateGlobalVector(DM dm, Vec *x){
+PetscErrorCode MeshDMCreateGlobalVector(DM dm, Vec *x){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;

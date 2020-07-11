@@ -16,21 +16,21 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
   ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-draw_comp", val, sizeof(val), &flg); CHKERRQ(ierr);
   ierr = PetscOptionsSetValue(PETSC_NULL, "-draw_comp", "0");                                 CHKERRQ(ierr);
 
-  ierr = MeshCreateGlobalVector(dm, &v_dm); CHKERRQ(ierr);
-  ierr = VecGetLocalSize(v, &n1);           CHKERRQ(ierr);
-  ierr = VecGetLocalSize(v_dm, &n2);        CHKERRQ(ierr);
+  ierr = MeshDMCreateGlobalVector(dm, &v_dm); CHKERRQ(ierr);
+  ierr = VecGetLocalSize(v, &n1);             CHKERRQ(ierr);
+  ierr = VecGetLocalSize(v_dm, &n2);          CHKERRQ(ierr);
   Nc = n2 / n1;
-  ierr = VecGetArrayRead(v, &v_data);       CHKERRQ(ierr);
-  ierr = VecGetArray(v_dm, &v_dm_data);     CHKERRQ(ierr);
+  ierr = VecGetArrayRead(v, &v_data);         CHKERRQ(ierr);
+  ierr = VecGetArray(v_dm, &v_dm_data);       CHKERRQ(ierr);
   for (PetscInt i = 0; i < n1; i++) {v_dm_data[Nc * i] = v_data[i];}
-  ierr = VecRestoreArray(v_dm, &v_dm_data); CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(v, &v_data);   CHKERRQ(ierr);
+  ierr = VecRestoreArray(v_dm, &v_dm_data);   CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(v, &v_data);     CHKERRQ(ierr);
 
   ierr = PetscObjectGetName((PetscObject) v, &name);   CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) v_dm, name); CHKERRQ(ierr);
 
-  ierr = VecView(v_dm, viewer);             CHKERRQ(ierr);
-  ierr = VecDestroy(&v_dm);                 CHKERRQ(ierr);
+  ierr = VecView(v_dm, viewer);               CHKERRQ(ierr);
+  ierr = VecDestroy(&v_dm);                   CHKERRQ(ierr);
 
   if (flg) {
     ierr = PetscOptionsSetValue(PETSC_NULL, "-draw_comp", val); CHKERRQ(ierr);
