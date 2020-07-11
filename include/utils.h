@@ -49,6 +49,7 @@ struct BCCtx {
 typedef struct {
   DM   dm;   // DMPLEX object
   void *ctx; // Additional context
+  IS   masterSlave[2];
 } *Mesh;
 
 #endif

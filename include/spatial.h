@@ -65,7 +65,7 @@ PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, co
 
 
 PetscErrorCode MeshDMComputeBoundary(DM, PetscReal, Vec, Vec, void*);
-PetscErrorCode MeshSetupPeriodicBoundary(Mesh, PetscInt, PetscInt, PetscReal[], IS*);
+PetscErrorCode MeshSetupPeriodicBoundary(Mesh, PetscInt, PetscInt, PetscReal[]);
 
 
 #endif

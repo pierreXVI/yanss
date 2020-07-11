@@ -156,7 +156,7 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
 
 
 
-PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t, void *user){
+PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec F, void *user){
   PetscErrorCode ierr;
   IS *masterSlave = (IS *) user;
 
@@ -170,6 +170,8 @@ PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t
   ierr = ISGetIndices(masterSlave[1], &slave); CHKERRQ(ierr);
   ierr = VecGetArray(locX, &values); CHKERRQ(ierr);
 
+
+
   PetscFV  fvm;
   PetscInt Nc;
   ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
@@ -179,6 +181,7 @@ PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t
   for (PetscInt i = 0; i < size; i++) {
     ierr = DMPlexPointLocalRead(dm, master[i], values, &xI); CHKERRQ(ierr);
     ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, values, &xG); CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD, "%d -> %d (%f)\n", master[i], slave[i], xI[0]);
     for (PetscInt j = 0; j < Nc; j++) xG[j] = xI[j];
   }
 
@@ -186,11 +189,12 @@ PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t
   ierr = ISRestoreIndices(masterSlave[1], &slave); CHKERRQ(ierr);
   ierr = ISRestoreIndices(masterSlave[0], &master); CHKERRQ(ierr);
 
-  ierr = DMPlexTSComputeBoundary(dm, time, locX, locX_t, user); CHKERRQ(ierr);
+  DMPlexTSComputeRHSFunctionFVM(dm, time, locX, F, user);
+
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshSetupPeriodicBoundary(Mesh mesh, PetscInt bc_from, PetscInt bc_to, PetscReal disp[], IS masterSlave[]){
+PetscErrorCode MeshSetupPeriodicBoundary(Mesh mesh, PetscInt bc_from, PetscInt bc_to, PetscReal disp[]){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -250,8 +254,8 @@ PetscErrorCode MeshSetupPeriodicBoundary(Mesh mesh, PetscInt bc_from, PetscInt b
   ierr = ISRestoreIndices(is_from, &idx_from); CHKERRQ(ierr);
   ierr = ISRestoreIndices(is_to, &idx_to); CHKERRQ(ierr);
 
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, n_from, master, PETSC_COPY_VALUES, &masterSlave[0]); CHKERRQ(ierr);
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, n_from, slave, PETSC_COPY_VALUES, &masterSlave[1]); CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD, n_from, master, PETSC_COPY_VALUES, &mesh->masterSlave[0]); CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD, n_from, slave, PETSC_COPY_VALUES, &mesh->masterSlave[1]); CHKERRQ(ierr);
 
 
   PetscFunctionReturn(0);

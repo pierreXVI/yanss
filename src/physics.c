@@ -169,9 +169,6 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   ierr = ISGetIndices(is, &indices);                                     CHKERRQ(ierr);
   ierr = DMGetDS(mesh->dm, &prob);                                       CHKERRQ(ierr);
 
-  IS *masterSlave;
-  PetscMalloc1(2, &masterSlave);
-
   PetscInt master[(*phys)->nbc], slave[(*phys)->nbc], i_perio = 0;
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
     (*phys)->bc_ctx[i].phys = *phys;
@@ -197,7 +194,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
       i_perio++;
 
       PetscReal disp[2] = {-0.1, 0};
-      ierr = MeshSetupPeriodicBoundary(mesh, 20, indices[i], disp, masterSlave); CHKERRQ(ierr);
+      ierr = MeshSetupPeriodicBoundary(mesh, 20, indices[i], disp); CHKERRQ(ierr);
       break;
     }
     if (bcFunc) {
@@ -209,8 +206,9 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   ierr = ISDestroy(&is);                                                 CHKERRQ(ierr);
   ierr = PetscDSSetFromOptions(prob);                                    CHKERRQ(ierr);
 
-  ierr = DMTSSetBoundaryLocal(mesh->dm, MeshDMComputeBoundary, masterSlave);             CHKERRQ(ierr);
-  ierr = DMTSSetRHSFunctionLocal(mesh->dm, DMPlexTSComputeRHSFunctionFVM, PETSC_NULL); CHKERRQ(ierr);
+  // ierr = DMTSSetBoundaryLocal(mesh->dm, MeshDMComputeBoundary, mesh->masterSlave);             CHKERRQ(ierr);
+  ISView(mesh->masterSlave[0], PETSC_VIEWER_STDOUT_WORLD);
+  ierr = DMTSSetRHSFunctionLocal(mesh->dm, MeshDMComputeBoundary, mesh->masterSlave); CHKERRQ(ierr);
 
   ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
 
