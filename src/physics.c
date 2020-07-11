@@ -4,10 +4,13 @@
 
 /*____________________________________________________________________________________________________________________*/
 static const enum ProblemType problem_type = TYPE_EULER;
-static struct FieldDescription fields_euler[] = {{"rho", DOF_1},
-                                                 {"rho * U", DOF_DIM},
-                                                 {"rho * E", DOF_1},
-                                                 {PETSC_NULL, 0}};
+static struct FieldDescription {
+  const char *name;
+  PetscInt   dof;
+} fields_euler[] = {{"rho", DOF_1},
+                    {"rho * U", DOF_DIM},
+                    {"rho * E", DOF_1},
+                    {PETSC_NULL, 0}};
 
 
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nf, PetscReal *u, void *ctx){

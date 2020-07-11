@@ -23,8 +23,7 @@ enum ProblemType {TYPE_EULER, TYPE_NS};
 #define DOF_DIM -2
 
 
-typedef struct _Physics *Physics;
-struct _Physics {
+typedef struct {
   enum ProblemType     type;    // Problem type
 
   PetscInt             dof;     // Total number of dof
@@ -36,18 +35,13 @@ struct _Physics {
   PetscInt             nbc;     // Number of boundary conditions
 
   PetscReal            *init;   // Initial conditions, in primitive variables
-};
+} *Physics;
 
 struct BCCtx {
   Physics     phys;  // Physical model
   const char  *name; // Boundary name
   enum BCType type;  // Boundary type
   PetscReal   *val;  // Additional numerical values
-};
-
-struct FieldDescription {
-  const char *name;
-  PetscInt   dof;
 };
 
 #endif
