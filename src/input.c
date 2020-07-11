@@ -294,7 +294,7 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
 
 
 
-PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, struct BCDescription *bc){
+PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, struct BCCtx *bc){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;

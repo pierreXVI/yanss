@@ -66,7 +66,7 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char*, const char*, PetscInt, const c
   Load the boundary condition with the right id from the input file
   The boundary condition `name` and `val` are allocated and must be freed with `PetscFree`
 */
-PetscErrorCode IOLoadBC(const char*, const PetscInt, PetscInt, struct BCDescription*);
+PetscErrorCode IOLoadBC(const char*, const PetscInt, PetscInt, struct BCCtx*);
 
 /*
   Load the initial condition from the input file

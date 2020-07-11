@@ -32,22 +32,17 @@ struct _Physics {
 
   PetscReal            gamma;   // Heat capacity ratio
 
-  struct BCDescription *bc;     // Boundary conditions
   struct BCCtx         *bc_ctx; // Boundary condition contexts
   PetscInt             nbc;     // Number of boundary conditions
 
   PetscReal            *init;   // Initial conditions, in primitive variables
 };
 
-struct BCDescription {
+struct BCCtx {
+  Physics     phys;  // Physical model
   const char  *name; // Boundary name
   enum BCType type;  // Boundary type
   PetscReal   *val;  // Additional numerical values
-};
-
-struct BCCtx {
-  Physics  phys; // Physical model
-  PetscInt i;    // Boundary number
 };
 
 struct FieldDescription {
