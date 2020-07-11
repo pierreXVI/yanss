@@ -60,7 +60,7 @@ PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
     ctx          - Optional context
   ```
 */
-PetscErrorCode VecApplyFunctionFields(Vec, Vec*, PetscErrorCode(PetscInt, const PetscScalar*, PetscScalar*, void*), void*);
+PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, const PetscScalar*, PetscScalar*, void*), void*);
 
 
 #endif

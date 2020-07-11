@@ -158,11 +158,11 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
   PetscFunctionBeginUser;
   if (steps % ctx->n_iter != 0) PetscFunctionReturn(0);
 
-  ierr = VecGetDM(u, &dm);                               CHKERRQ(ierr);
-  ierr = DMGetDimension(dm, &dim);                       CHKERRQ(ierr);
-  ierr = VecApplyFunctionFields(u, &y, mach, ctx->phys); CHKERRQ(ierr);
-  ierr = DrawVecOnDM(y, dm, ctx->viewer);                CHKERRQ(ierr);
-  ierr = VecDestroy(&y);                                 CHKERRQ(ierr);
+  ierr = VecGetDM(u, &dm);                                   CHKERRQ(ierr);
+  ierr = DMGetDimension(dm, &dim);                           CHKERRQ(ierr);
+  ierr = VecApplyFunctionComponents(u, &y, mach, ctx->phys); CHKERRQ(ierr);
+  ierr = DrawVecOnDM(y, dm, ctx->viewer);                    CHKERRQ(ierr);
+  ierr = VecDestroy(&y);                                     CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

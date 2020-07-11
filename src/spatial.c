@@ -119,9 +119,9 @@ PetscErrorCode VecDestroyComponentVectors(Vec x, Vec **fields){
 }
 
 
-PetscErrorCode VecApplyFunctionFields(Vec x, Vec *y,
-                                      PetscErrorCode (*func)(PetscInt, const PetscScalar*, PetscScalar*, void*),
-                                      void *ctx){
+PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
+                                          PetscErrorCode (*func)(PetscInt, const PetscScalar*, PetscScalar*, void*),
+                                          void *ctx){
   PetscErrorCode ierr;
   PetscInt       Nc, start, end, size;
   PetscFV        fvm;
