@@ -12,7 +12,7 @@ PetscErrorCode PhysicsDestroy(Physics*);
   Create the physical model
   The output must be freed with `PhysicsDestroy`
 */
-PetscErrorCode PhysicsCreate(Physics*, const char*, DM);
+PetscErrorCode PhysicsCreate(Physics*, const char*, Mesh);
 
 /*
   Apply the initial condition

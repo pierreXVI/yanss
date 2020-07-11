@@ -22,7 +22,7 @@ int main(int argc, char **argv){
   Mesh    mesh;
   Physics phys;
   ierr = MeshLoadFromFile(PETSC_COMM_WORLD, mesh_filename, &mesh); CHKERRQ(ierr);
-  ierr = PhysicsCreate(&phys, input_filename, mesh->dm);           CHKERRQ(ierr);
+  ierr = PhysicsCreate(&phys, input_filename, mesh);               CHKERRQ(ierr);
 
   PetscReal cfl = 0.5; // TODO
 

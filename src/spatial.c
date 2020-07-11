@@ -156,7 +156,7 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
 
 
 
-PetscErrorCode MeshComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t, void *user){
+PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t, void *user){
   PetscErrorCode ierr;
   IS *masterSlave = (IS *) user;
 
@@ -190,20 +190,20 @@ PetscErrorCode MeshComputeBoundary(DM dm, PetscReal time, Vec locX, Vec locX_t, 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshSetupPeriodicBoundary(DM dm, PetscInt bc_from, PetscInt bc_to, PetscReal disp[], IS masterSlave[]){
+PetscErrorCode MeshSetupPeriodicBoundary(Mesh mesh, PetscInt bc_from, PetscInt bc_to, PetscReal disp[], IS masterSlave[]){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
   PetscInt dim;
-  ierr = DMGetDimension(dm, &dim); CHKERRQ(ierr);
+  ierr = DMGetDimension(mesh->dm, &dim); CHKERRQ(ierr);
 
   IS             is_from, is_to;
   PetscInt       n_from, n_to;
   const PetscInt *idx_from, *idx_to;
 
   PetscPrintf(PETSC_COMM_WORLD, "Boundary %d -> %d\n", bc_from, bc_to);
-  ierr = DMGetStratumIS(dm, "Face Sets", bc_from, &is_from); CHKERRQ(ierr);
-  ierr = DMGetStratumIS(dm, "Face Sets", bc_to, &is_to);     CHKERRQ(ierr);
+  ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_from, &is_from); CHKERRQ(ierr);
+  ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_to, &is_to);     CHKERRQ(ierr);
   ierr = ISGetSize(is_from, &n_from);                        CHKERRQ(ierr);
   ierr = ISGetSize(is_to, &n_to);                            CHKERRQ(ierr);
   if (n_from != n_to) SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Different number of faces on boundaries %d (%d) and %d (%d)", bc_from, n_from, bc_to, n_to);
@@ -212,7 +212,7 @@ PetscErrorCode MeshSetupPeriodicBoundary(DM dm, PetscInt bc_from, PetscInt bc_to
 
 
   PetscInt ghoscCStart, ghostCEnd;
-  ierr = DMPlexGetGhostCellStratum(dm, &ghoscCStart, &ghostCEnd); CHKERRQ(ierr);
+  ierr = DMPlexGetGhostCellStratum(mesh->dm, &ghoscCStart, &ghostCEnd); CHKERRQ(ierr);
 
   PetscInt master[n_from], slave[n_to];
 
@@ -220,9 +220,9 @@ PetscErrorCode MeshSetupPeriodicBoundary(DM dm, PetscInt bc_from, PetscInt bc_to
     PetscInt match_DEBUG=0;
 
     PetscReal c_from[dim], c_to[dim];
-    ierr = DMPlexComputeCellGeometryFVM(dm, idx_from[i], PETSC_NULL, c_from, PETSC_NULL); CHKERRQ(ierr);
+    ierr = DMPlexComputeCellGeometryFVM(mesh->dm, idx_from[i], PETSC_NULL, c_from, PETSC_NULL); CHKERRQ(ierr);
     for (PetscInt j = 0; j < n_to; j++) {
-      ierr = DMPlexComputeCellGeometryFVM(dm, idx_to[j], PETSC_NULL, c_to, PETSC_NULL); CHKERRQ(ierr);
+      ierr = DMPlexComputeCellGeometryFVM(mesh->dm, idx_to[j], PETSC_NULL, c_to, PETSC_NULL); CHKERRQ(ierr);
 
       PetscReal dist=0;
       for (PetscInt k = 0; k < dim; k++) dist += PetscSqr(c_to[k] - c_from[k] - disp[k]);
@@ -231,14 +231,14 @@ PetscErrorCode MeshSetupPeriodicBoundary(DM dm, PetscInt bc_from, PetscInt bc_to
         match_DEBUG++;
 
         PetscInt nC_from, nC_to;
-        DMPlexGetSupportSize(dm, idx_from[i], &nC_from);
-        DMPlexGetSupportSize(dm, idx_to[j], &nC_to);
+        DMPlexGetSupportSize(mesh->dm, idx_from[i], &nC_from);
+        DMPlexGetSupportSize(mesh->dm, idx_to[j], &nC_to);
         if (nC_from != 2) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Support of size %d != 2", nC_from);
         if (nC_to != 2) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Support of size %d != 2", nC_to);
 
         PetscInt const *support_from, *support_to;
-        DMPlexGetSupport(dm, idx_from[i], &support_from);
-        DMPlexGetSupport(dm, idx_to[j], &support_to);
+        DMPlexGetSupport(mesh->dm, idx_from[i], &support_from);
+        DMPlexGetSupport(mesh->dm, idx_to[j], &support_to);
         master[i] = (ghoscCStart <= support_from[0] && support_from[0] < ghostCEnd) ? support_from[1] : support_from[0];
         slave[i] = (ghoscCStart <= support_to[0] && support_to[0] < ghostCEnd) ? support_to[0] : support_to[1];
       }
