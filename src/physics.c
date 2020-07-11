@@ -82,12 +82,12 @@ PetscErrorCode PhysicsDestroy(Physics *phys){
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
+PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = PetscNew(phys);                    CHKERRQ(ierr);
-  ierr = DMGetDimension(dm, &(*phys)->dim); CHKERRQ(ierr);
+  ierr = PetscNew(phys);                          CHKERRQ(ierr);
+  ierr = DMGetDimension(mesh->dm, &(*phys)->dim); CHKERRQ(ierr);
 
   const char *buffer, *loc = "Physics";
   ierr = IOLoadVarFromLoc(filename, "gamma", 1, &loc, &buffer); CHKERRQ(ierr);
@@ -111,7 +111,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   }
 
   PetscFV fvm;
-  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm);                     CHKERRQ(ierr);
+  ierr = DMGetField(mesh->dm, 0, PETSC_NULL, (PetscObject*) &fvm);               CHKERRQ(ierr);
   ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                          CHKERRQ(ierr);
   ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                             CHKERRQ(ierr);
   for (PetscInt i = 0, dof = 0; i < nfields; i++){
@@ -133,16 +133,16 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   DMLabel label;
   IS is;
   const PetscInt *indices;
-  ierr = DMCreateDS(dm);                                                  CHKERRQ(ierr);
-  ierr = DMGetDS(dm, &system);                                            CHKERRQ(ierr);
+  ierr = DMCreateDS(mesh->dm);                                            CHKERRQ(ierr);
+  ierr = DMGetDS(mesh->dm, &system);                                      CHKERRQ(ierr);
   ierr = PetscDSSetRiemannSolver(system, 0, RiemannSolver_Euler_Exact);   CHKERRQ(ierr);
   ierr = PetscDSSetContext(system, 0, (*phys));                           CHKERRQ(ierr);
-  ierr = DMGetLabel(dm, "Face Sets", &label);                             CHKERRQ(ierr);
+  ierr = DMGetLabel(mesh->dm, "Face Sets", &label);                       CHKERRQ(ierr);
   ierr = DMLabelGetNumValues(label, &(*phys)->nbc);                       CHKERRQ(ierr);
   ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc_ctx);                    CHKERRQ(ierr);
   ierr = DMLabelGetValueIS(label, &is);                                   CHKERRQ(ierr);
   ierr = ISGetIndices(is, &indices);                                      CHKERRQ(ierr);
-  ierr = DMGetDS(dm, &system);                                            CHKERRQ(ierr);
+  ierr = DMGetDS(mesh->dm, &system);                                      CHKERRQ(ierr);
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
     (*phys)->bc_ctx[i].phys = *phys;
     ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc_ctx + i);                       CHKERRQ(ierr);

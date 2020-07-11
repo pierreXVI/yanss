@@ -22,17 +22,17 @@ int main(int argc, char **argv){
   Mesh    mesh;
   Physics phys;
   ierr = MeshLoadFromFile(PETSC_COMM_WORLD, mesh_filename, &mesh); CHKERRQ(ierr);
-  ierr = PhysicsCreate(&phys, input_filename, mesh->dm);           CHKERRQ(ierr);
+  ierr = PhysicsCreate(&phys, input_filename, mesh);               CHKERRQ(ierr);
 
   PetscReal cfl = 0.5; // TODO
 
   TS  ts;
   Vec x0;
-  ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh->dm, phys, cfl); CHKERRQ(ierr);
-  ierr = MeshDMCreateGlobalVector(mesh->dm, &x0);                                CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) x0, "Solution");                       CHKERRQ(ierr);
-  ierr = MeshDMApplyFunction(mesh->dm, 0, InitialCondition, phys, x0);           CHKERRQ(ierr);
-  ierr = TSSolve(ts, x0);                                                        CHKERRQ(ierr);
+  ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
+  ierr = MeshDMCreateGlobalVector(mesh->dm, &x0);                            CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) x0, "Solution");                   CHKERRQ(ierr);
+  ierr = MeshDMApplyFunction(mesh->dm, 0, InitialCondition, phys, x0);       CHKERRQ(ierr);
+  ierr = TSSolve(ts, x0);                                                    CHKERRQ(ierr);
 
   PetscReal         ftime;
   PetscInt          nsteps;

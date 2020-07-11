@@ -28,12 +28,12 @@ static PetscErrorCode MonitorCtxDestroy(void **ctx) {
 }
 
 
-PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Physics phys, PetscReal cfl){
+PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, Mesh mesh, Physics phys, PetscReal cfl){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
   ierr = TSCreate(comm, ts);                                   CHKERRQ(ierr);
-  ierr = TSSetDM(*ts, dm);                                     CHKERRQ(ierr);
+  ierr = TSSetDM(*ts, mesh->dm);                               CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER); CHKERRQ(ierr);
 
   for (PetscInt i = 0; MonitorList[i].name; i++) {
@@ -54,7 +54,7 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, DM dm, Ph
   }
 
   PetscReal dt, minRadius, norm2 = 0;
-  ierr = DMPlexTSGetGeometryFVM(dm, PETSC_NULL, PETSC_NULL, &minRadius); CHKERRQ(ierr);
+  ierr = DMPlexTSGetGeometryFVM(mesh->dm, PETSC_NULL, PETSC_NULL, &minRadius); CHKERRQ(ierr);
   for (PetscInt i = 0; i < phys->dim; i++) norm2 += PetscSqr(phys->init[1 + i]);
   dt = cfl * minRadius / (PetscSqrtReal(phys->gamma * phys->init[phys->dim + 1] / phys->init[0]) + PetscSqrtReal(norm2));
   ierr = TSSetTimeStep(*ts, dt); CHKERRQ(ierr);
