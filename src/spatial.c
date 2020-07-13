@@ -6,7 +6,6 @@
 /*
   Fills the IS mesh->perio to represent the mesh periodicity
   disp is the displacement from bc_1 to bc_2
-  Both boundaries are removed from the label "Face Sets" of the mesh->dm
 */
 static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2, PetscReal *disp){
   PetscErrorCode ierr;
@@ -73,16 +72,16 @@ static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2
   IS is_list[2];
 
   is_list[0] = mesh->perio[0];
-  ierr = ISCreateGeneral(PetscObjectComm((PetscObject) mesh->perio[0]), nface, cells_1, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
-  ierr = ISConcatenate(PetscObjectComm((PetscObject) mesh->perio[0]), 2, is_list, &(mesh->perio[0]));                    CHKERRQ(ierr);
-  ierr = ISDestroy(&is_list[0]);                                                                                         CHKERRQ(ierr);
-  ierr = ISDestroy(&is_list[1]);                                                                                         CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PetscObjectComm((PetscObject) mesh->perio[0]), 2 * nface, cells_1, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
+  ierr = ISConcatenate(PetscObjectComm((PetscObject) mesh->perio[0]), 2, is_list, &(mesh->perio[0]));                        CHKERRQ(ierr);
+  ierr = ISDestroy(&is_list[0]);                                                                                             CHKERRQ(ierr);
+  ierr = ISDestroy(&is_list[1]);                                                                                             CHKERRQ(ierr);
 
   is_list[0] = mesh->perio[1];
-  ierr = ISCreateGeneral(PetscObjectComm((PetscObject) mesh->perio[1]), nface, cells_2, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
-  ierr = ISConcatenate(PetscObjectComm((PetscObject) mesh->perio[1]), 2, is_list, &(mesh->perio[1]));                    CHKERRQ(ierr);
-  ierr = ISDestroy(&is_list[0]);                                                                                         CHKERRQ(ierr);
-  ierr = ISDestroy(&is_list[1]);                                                                                         CHKERRQ(ierr);
+  ierr = ISCreateGeneral(PetscObjectComm((PetscObject) mesh->perio[1]), 2 * nface, cells_2, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
+  ierr = ISConcatenate(PetscObjectComm((PetscObject) mesh->perio[1]), 2, is_list, &(mesh->perio[1]));                        CHKERRQ(ierr);
+  ierr = ISDestroy(&is_list[0]);                                                                                             CHKERRQ(ierr);
+  ierr = ISDestroy(&is_list[1]);                                                                                             CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -174,6 +173,7 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
   ierr = ISRestoreIndices(values_is, &values); CHKERRQ(ierr);
   ierr = ISDestroy(&values_is);                CHKERRQ(ierr);
 
+  ierr = DMTSSetRHSFunctionLocal((*mesh)->dm, MeshDMTSComputeRHSFunctionFVM, *mesh); CHKERRQ(ierr);
 
   char      opt[] = "____";
   PetscBool flag;
@@ -309,8 +309,8 @@ PetscErrorCode MeshDMTSComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Ve
   ierr = VecGetArray(locX, &values);                         CHKERRQ(ierr);
 
   for (PetscInt i = 0; i < size; i++) {
-    ierr = DMPlexPointLocalRead(dm, master[i], values, &xI);       CHKERRQ(ierr);
-    ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, values, &xG); CHKERRQ(ierr);
+    ierr = DMPlexPointLocalFieldRead(dm, master[i], 0, values, &xI); CHKERRQ(ierr);
+    ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, values, &xG);   CHKERRQ(ierr);
     for (PetscInt j = 0; j < Nc; j++) xG[j] = xI[j];
   }
 

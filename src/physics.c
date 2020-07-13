@@ -18,7 +18,7 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
   Physics phys = (Physics) ctx;
   PetscFunctionBeginUser;
 
-  PetscReal M = 0.5, beta = 0.2, R = 0.01;
+  PetscReal M = 0.5, beta = 0.2, R = 0.005;
   PetscReal Xc = 0.05, Yc = 0.05;
   PetscReal Pinf = 1.0e+05, Tinf = 300, Rgas = 287.15;
 
@@ -38,6 +38,7 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
   u[3] = Rgas * rho0 * T0;
 
   PrimitiveToConservative(phys, u, u);
+  // PrimitiveToConservative(phys, phys->init, u);
 
   PetscFunctionReturn(0);
 }
@@ -158,16 +159,16 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   DMLabel label;
   IS      is;
   const PetscInt *indices;
-  ierr = DMCreateDS(mesh->dm);                                           CHKERRQ(ierr);
-  ierr = DMGetDS(mesh->dm, &prob);                                       CHKERRQ(ierr);
-  ierr = PetscDSSetRiemannSolver(prob, 0, RiemannSolver_AdvectionX);     CHKERRQ(ierr);
-  ierr = PetscDSSetContext(prob, 0, (*phys));                            CHKERRQ(ierr);
-  ierr = DMGetLabel(mesh->dm, "Face Sets", &label);                      CHKERRQ(ierr);
-  ierr = DMLabelGetNumValues(label, &(*phys)->nbc);                      CHKERRQ(ierr);
-  ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc_ctx);                   CHKERRQ(ierr);
-  ierr = DMLabelGetValueIS(label, &is);                                  CHKERRQ(ierr);
-  ierr = ISGetIndices(is, &indices);                                     CHKERRQ(ierr);
-  ierr = DMGetDS(mesh->dm, &prob);                                       CHKERRQ(ierr);
+  ierr = DMCreateDS(mesh->dm);                                        CHKERRQ(ierr);
+  ierr = DMGetDS(mesh->dm, &prob);                                    CHKERRQ(ierr);
+  ierr = PetscDSSetRiemannSolver(prob, 0, RiemannSolver_Euler_Exact); CHKERRQ(ierr);
+  ierr = PetscDSSetContext(prob, 0, (*phys));                         CHKERRQ(ierr);
+  ierr = DMGetLabel(mesh->dm, "Face Sets", &label);                   CHKERRQ(ierr);
+  ierr = DMLabelGetNumValues(label, &(*phys)->nbc);                   CHKERRQ(ierr);
+  ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc_ctx);                CHKERRQ(ierr);
+  ierr = DMLabelGetValueIS(label, &is);                               CHKERRQ(ierr);
+  ierr = ISGetIndices(is, &indices);                                  CHKERRQ(ierr);
+  ierr = DMGetDS(mesh->dm, &prob);                                    CHKERRQ(ierr);
 
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
     (*phys)->bc_ctx[i].phys = *phys;
@@ -189,16 +190,14 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
     ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc_ctx[i].name, "Face Sets", 0, 0,
                               PETSC_NULL, bcFunc, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
   }
-  ierr = ISRestoreIndices(is, &indices);                                 CHKERRQ(ierr);
-  ierr = ISDestroy(&is);                                                 CHKERRQ(ierr);
-  ierr = PetscDSSetFromOptions(prob);                                    CHKERRQ(ierr);
-
-  ierr = DMTSSetRHSFunctionLocal(mesh->dm, MeshDMTSComputeRHSFunctionFVM, mesh); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(is, &indices); CHKERRQ(ierr);
+  ierr = ISDestroy(&is);                 CHKERRQ(ierr);
+  ierr = PetscDSSetFromOptions(prob);    CHKERRQ(ierr);
 
   ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
 
   ierr = MeshDMCreateGlobalVector(mesh->dm, &(*phys)->x);                       CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) (*phys)->x, "Solution");      CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) (*phys)->x, "Solution");              CHKERRQ(ierr);
   ierr = MeshDMApplyFunction(mesh->dm, 0, InitialCondition, *phys, (*phys)->x); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);

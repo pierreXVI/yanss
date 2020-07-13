@@ -24,7 +24,7 @@ int main(int argc, char **argv){
   ierr = MeshLoadFromFile(PETSC_COMM_WORLD, mesh_filename, input_filename, &mesh); CHKERRQ(ierr);
   ierr = PhysicsCreate(&phys, input_filename, mesh);                               CHKERRQ(ierr);
 
-  PetscReal cfl = 0.5; // TODO
+  PetscReal cfl = 0.9; // TODO
 
   TS  ts;
   ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
