@@ -185,20 +185,15 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
     case BC_WALL:
       bcFunc = (void (*)(void)) BCWall;
       break;
-    case BC_PERIO:
-      bcFunc = PETSC_NULL;
-      break;
     }
-    if (bcFunc) {
-      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc_ctx[i].name, "Face Sets", 0, 0,
-                                PETSC_NULL, bcFunc, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
-    }
+    ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc_ctx[i].name, "Face Sets", 0, 0,
+                              PETSC_NULL, bcFunc, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
   }
   ierr = ISRestoreIndices(is, &indices);                                 CHKERRQ(ierr);
   ierr = ISDestroy(&is);                                                 CHKERRQ(ierr);
   ierr = PetscDSSetFromOptions(prob);                                    CHKERRQ(ierr);
 
-  ierr = DMTSSetRHSFunctionLocal(mesh->dm, MeshDMComputeBoundary, mesh->perio); CHKERRQ(ierr);
+  ierr = DMTSSetRHSFunctionLocal(mesh->dm, MeshDMTSComputeRHSFunctionFVM, mesh); CHKERRQ(ierr);
 
   ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
 

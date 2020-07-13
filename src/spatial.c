@@ -292,39 +292,33 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
 
 
 
-PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec F, void *user){
+PetscErrorCode MeshDMTSComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F, void *ctx){
   PetscErrorCode ierr;
-  IS *masterSlave = (IS *) user;
+  Mesh           mesh = (Mesh) ctx;
+  PetscReal      *values, *xI, *xG;
+  PetscInt       size, Nc;
+  const PetscInt *master, *slave;
+  PetscFV        fvm;
 
   PetscFunctionBeginUser;
-
-  PetscInt size;
-  const PetscInt *master, *slave;
-  PetscReal *values;
-  ierr = ISGetSize(masterSlave[0], &size); CHKERRQ(ierr);
-  ierr = ISGetIndices(masterSlave[0], &master); CHKERRQ(ierr);
-  ierr = ISGetIndices(masterSlave[1], &slave); CHKERRQ(ierr);
-  ierr = VecGetArray(locX, &values); CHKERRQ(ierr);
-
-
-
-  PetscFV  fvm;
-  PetscInt Nc;
   ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
   ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
+  ierr = ISGetSize(mesh->perio[0], &size);                   CHKERRQ(ierr);
+  ierr = ISGetIndices(mesh->perio[0], &master);              CHKERRQ(ierr);
+  ierr = ISGetIndices(mesh->perio[1], &slave);               CHKERRQ(ierr);
+  ierr = VecGetArray(locX, &values);                         CHKERRQ(ierr);
 
-  PetscReal *xI, *xG;
   for (PetscInt i = 0; i < size; i++) {
-    ierr = DMPlexPointLocalRead(dm, master[i], values, &xI); CHKERRQ(ierr);
+    ierr = DMPlexPointLocalRead(dm, master[i], values, &xI);       CHKERRQ(ierr);
     ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, values, &xG); CHKERRQ(ierr);
     for (PetscInt j = 0; j < Nc; j++) xG[j] = xI[j];
   }
 
-  ierr = VecRestoreArray(locX, &values); CHKERRQ(ierr);
-  ierr = ISRestoreIndices(masterSlave[1], &slave); CHKERRQ(ierr);
-  ierr = ISRestoreIndices(masterSlave[0], &master); CHKERRQ(ierr);
+  ierr = VecRestoreArray(locX, &values);            CHKERRQ(ierr);
+  ierr = ISRestoreIndices(mesh->perio[0], &master); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(mesh->perio[1], &slave);  CHKERRQ(ierr);
 
-  DMPlexTSComputeRHSFunctionFVM(dm, time, locX, F, user);
+  ierr = DMPlexTSComputeRHSFunctionFVM(dm, time, locX, F, ctx); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

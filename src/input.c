@@ -343,23 +343,6 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
   } else if (!strcmp(buffer_type, "BC_WALL")) {
     bc->type = BC_WALL;
     bc->val = PETSC_NULL;
-  } else if (!strcmp(buffer_type, "BC_PERIO")) {
-    bc->type = BC_PERIO;
-    ierr = PetscMalloc1(dim + 1, &bc->val); CHKERRQ(ierr);
-
-    const char *buffer_val;
-    const char **buffer_vals;
-
-    ierr = IOLoadVarFromLoc(filename, "master", 2, loc, &buffer_val); CHKERRQ(ierr);
-    bc->val[0] = atof(buffer_val);
-    ierr = PetscFree(buffer_val);                                     CHKERRQ(ierr);
-
-    ierr = IOLoadVarArrayFromLoc(filename, "disp", 2, loc, &dim, &buffer_vals); CHKERRQ(ierr);
-    for (PetscInt i = 0; i < dim; i++) {
-      bc->val[1 + i] = atof(buffer_vals[i]);
-      ierr = PetscFree(buffer_vals[i]);                                         CHKERRQ(ierr);
-    }
-    ierr = PetscFree(buffer_vals);                                              CHKERRQ(ierr);
   } else {
     SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", buffer_type);
   }

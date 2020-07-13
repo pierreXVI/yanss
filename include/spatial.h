@@ -64,8 +64,12 @@ PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, co
 
 
 
-PetscErrorCode MeshDMComputeBoundary(DM, PetscReal, Vec, Vec, void*);
-PetscErrorCode MeshSetupPeriodicBoundary(Mesh, PetscInt, PetscInt, PetscReal[]);
+/*
+  Compute the RHS
+  Fills the periodic boundaries first, using mesh->periodic
+  ctx is to be casted to (Mesh)
+*/
+PetscErrorCode MeshDMTSComputeRHSFunctionFVM(DM, PetscReal, Vec, Vec, void*);
 
 
 #endif
