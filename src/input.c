@@ -301,7 +301,7 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
   ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read BoundaryConditions > %d: ", id); CHKERRQ(ierr);
 
   char id_str[8];
-  ierr = PetscSNPrintf(id_str, sizeof(id_str), "%d", id);
+  ierr = PetscSNPrintf(id_str, sizeof(id_str), "%d", id); CHKERRQ(ierr);
 
   const char* loc[] = {"BoundaryConditions", id_str};
 
@@ -364,6 +364,41 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
     SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", buffer_type);
   }
   ierr = PetscFree(buffer_type); CHKERRQ(ierr);
+
+  ERR_HEADER[0] = '\0';
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode IOLoadPeriodicity(const char *filename, const PetscInt slave, PetscInt dim, PetscInt *master, PetscReal **disp){
+  PetscErrorCode ierr;
+  PetscBool      found;
+  const char     *buffer_master, **buffer_disp;
+
+  PetscFunctionBeginUser;
+  *disp = PETSC_NULL;
+  ierr = IOSeekVarFromLoc(filename, "Periodicity", 0, PETSC_NULL, &found); CHKERRQ(ierr);
+  if (!found) PetscFunctionReturn(0);
+
+  char id_str[8];
+  ierr = PetscSNPrintf(id_str, sizeof(id_str), "%d", slave); CHKERRQ(ierr);
+  const char* loc[] = {"Periodicity", id_str};
+  ierr = IOSeekVarFromLoc(filename, id_str, 1, loc, &found); CHKERRQ(ierr);
+  if (!found) PetscFunctionReturn(0);
+
+  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read Periodicity > %d: ", slave); CHKERRQ(ierr);
+
+  ierr = IOLoadVarFromLoc(filename, "master", 2, loc, &buffer_master); CHKERRQ(ierr);
+  *master = atoi(buffer_master);
+  ierr = PetscFree(buffer_master);                                     CHKERRQ(ierr);
+
+  ierr = PetscMalloc1(dim, disp);                                             CHKERRQ(ierr);
+  ierr = IOLoadVarArrayFromLoc(filename, "disp", 2, loc, &dim, &buffer_disp); CHKERRQ(ierr);
+  for (PetscInt i = 0; i < dim; i++) {
+    (*disp)[i] = atof(buffer_disp[i]);
+    ierr = PetscFree(buffer_disp[i]);                                         CHKERRQ(ierr);
+  }
+  ierr = PetscFree(buffer_disp);                                              CHKERRQ(ierr);
 
   ERR_HEADER[0] = '\0';
   PetscFunctionReturn(0);

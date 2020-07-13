@@ -56,7 +56,7 @@ PetscErrorCode IOLoadVarFromLoc(const char*, const char*, PetscInt, const char**
   Load the array of values associated to the key `varname` in the file named `filename`
   The location of the key is specified in the array `loc`, of size `depth` :
     loc[0] > loc[1] > ... > loc[depth - 1] > varname : [array of length `len`]
-  If the pointer `PetscInt *len` is set to a > 0 size, read the asked size, and if it is set to 0, it is set to the read array size
+  If the pointer `PetscInt *len` is set to a size > 0, read the asked size, and if it is set to 0, its output value is the actual read size
   The output values must be freed with `PetscFree`
 */
 PetscErrorCode IOLoadVarArrayFromLoc(const char*, const char*, PetscInt, const char**, PetscInt*, const char***);
@@ -67,6 +67,12 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char*, const char*, PetscInt, const c
   The boundary condition `name` and `val` are allocated and must be freed with `PetscFree`
 */
 PetscErrorCode IOLoadBC(const char*, const PetscInt, PetscInt, struct BCCtx*);
+
+/*
+  Load the periodicity data assiciated with slave
+  If no periodicity can be found, disp = PETSC_NULL, else it is allocated and must be freed with `PetscFree`
+*/
+PetscErrorCode IOLoadPeriodicity(const char*, const PetscInt, PetscInt, PetscInt*, PetscReal**);
 
 /*
   Load the initial condition from the input file

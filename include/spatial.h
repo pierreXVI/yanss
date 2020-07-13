@@ -21,7 +21,7 @@ PetscErrorCode MeshDestroy(Mesh*);
    -dm_view_orig - To view the raw mesh from the input file
    -dm_view      - To view the mesh produced by this function
 */
-PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, Mesh*);
+PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, const char*, Mesh*);
 
 
 /*

@@ -45,7 +45,7 @@ static PetscErrorCode PetscSectionSelectFieldComponents(PetscSection s, PetscInt
   PetscInt       Nc, ndisplaycomp, *displaycomp, k;
   PetscBool      flg;
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   ierr = PetscSectionGetFieldComponents(s, f, &Nc); CHKERRQ(ierr);
   ierr = PetscMalloc1(Nc, &displaycomp);            CHKERRQ(ierr);
   for (k = 0; k < Nc; k++) displaycomp[k] = k;
@@ -72,7 +72,7 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
   const char         *name;
   char               title[PETSC_MAX_PATH_LEN];
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   ierr = PetscViewerDrawGetDraw(viewer, 0, &draw); CHKERRQ(ierr);
   ierr = PetscDrawIsNull(draw, &isnull);           CHKERRQ(ierr);
   if (isnull) PetscFunctionReturn(0);
@@ -203,7 +203,7 @@ PetscErrorCode MyVecView_Plex(Vec v, PetscViewer viewer){
   PetscBool      isdraw;
   PetscErrorCode ierr;
 
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   ierr = VecGetDM(v, &dm); CHKERRQ(ierr);
   if (!dm) SETERRQ(PetscObjectComm((PetscObject)v), PETSC_ERR_ARG_WRONG, "Vector not generated from a DM");
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw); CHKERRQ(ierr);

@@ -1,5 +1,93 @@
 #include "spatial.h"
+#include "input.h"
 #include "private_impl.h"
+
+
+/*
+  Fills the IS mesh->perio to represent the mesh periodicity
+  disp is the displacement from bc_1 to bc_2
+  Both boundaries are removed from the label "Face Sets" of the mesh->dm
+*/
+static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2, PetscReal *disp){
+  PetscErrorCode ierr;
+  IS             is_1, is_2;
+  const PetscInt *faces_1, *faces_2;
+  PetscInt       dim, ghoscCStart, ghostCEnd, nface;
+
+  PetscFunctionBeginUser;
+
+  ierr = DMGetDimension(mesh->dm, &dim);                                CHKERRQ(ierr);
+  ierr = DMPlexGetGhostCellStratum(mesh->dm, &ghoscCStart, &ghostCEnd); CHKERRQ(ierr);
+  ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_1, &is_1);            CHKERRQ(ierr);
+  ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_2, &is_2);            CHKERRQ(ierr);
+  ierr = ISGetSize(is_1, &nface);                                       CHKERRQ(ierr);
+  ierr = ISGetIndices(is_1, &faces_1);                                  CHKERRQ(ierr);
+  ierr = ISGetIndices(is_2, &faces_2);                                  CHKERRQ(ierr);
+
+  PetscInt *cells_1, *cells_2;
+  ierr = PetscMalloc1(2 * nface, &cells_1); CHKERRQ(ierr);
+  ierr = PetscMalloc1(2 * nface, &cells_2); CHKERRQ(ierr);
+
+  for (PetscInt i = 0; i < nface; i++) {
+    PetscReal c_1[dim], c_2[dim], len;
+    PetscBool found = PETSC_FALSE;
+
+    ierr = DMPlexComputeCellGeometryFVM(mesh->dm, faces_1[i], &len, c_1, PETSC_NULL);   CHKERRQ(ierr);
+    for (PetscInt j = 0; j < nface; j++) {
+      ierr = DMPlexComputeCellGeometryFVM(mesh->dm, faces_2[j], PETSC_NULL, c_2, PETSC_NULL); CHKERRQ(ierr);
+      PetscReal dist = 0;
+      for (PetscInt k = 0; k < dim; k++) dist += PetscSqr(c_2[k] - c_1[k] - disp[k]);
+
+      if (PetscSqrtReal(dist) / len < 1E-1) {
+        found = PETSC_TRUE;
+        PetscInt const *support_1, *support_2;
+        ierr = DMPlexGetSupport(mesh->dm, faces_1[i], &support_1); CHKERRQ(ierr);
+        ierr = DMPlexGetSupport(mesh->dm, faces_2[j], &support_2); CHKERRQ(ierr);
+
+        if (ghoscCStart <= support_1[0] && support_1[0] < ghostCEnd) {
+          cells_1[i] = support_1[1];
+          cells_2[i + nface] = support_1[0];
+        } else {
+          cells_1[i] = support_1[0];
+          cells_2[i + nface] = support_1[1];
+        }
+
+        if (ghoscCStart <= support_2[0] && support_2[0] < ghostCEnd) {
+          cells_1[i + nface] = support_2[1];
+          cells_2[i] = support_2[0];
+        } else {
+          cells_1[i + nface] = support_2[0];
+          cells_2[i] = support_2[1];
+        }
+        break;
+      }
+    }
+
+    if (!found) SETERRQ3(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d", bc_2, faces_1[i], bc_1);
+  }
+  ierr = ISRestoreIndices(is_1, &faces_1); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(is_2, &faces_2); CHKERRQ(ierr);
+  ierr = ISDestroy(&is_1);                 CHKERRQ(ierr);
+  ierr = ISDestroy(&is_2);                 CHKERRQ(ierr);
+
+
+  IS is_list[2];
+
+  is_list[0] = mesh->perio[0];
+  ierr = ISCreateGeneral(PetscObjectComm((PetscObject) mesh->perio[0]), nface, cells_1, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
+  ierr = ISConcatenate(PetscObjectComm((PetscObject) mesh->perio[0]), 2, is_list, &(mesh->perio[0]));                    CHKERRQ(ierr);
+  ierr = ISDestroy(&is_list[0]);                                                                                         CHKERRQ(ierr);
+  ierr = ISDestroy(&is_list[1]);                                                                                         CHKERRQ(ierr);
+
+  is_list[0] = mesh->perio[1];
+  ierr = ISCreateGeneral(PetscObjectComm((PetscObject) mesh->perio[1]), nface, cells_2, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
+  ierr = ISConcatenate(PetscObjectComm((PetscObject) mesh->perio[1]), 2, is_list, &(mesh->perio[1]));                    CHKERRQ(ierr);
+  ierr = ISDestroy(&is_list[0]);                                                                                         CHKERRQ(ierr);
+  ierr = ISDestroy(&is_list[1]);                                                                                         CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
 
 
 PetscErrorCode MeshDestroy(Mesh *mesh){
@@ -16,7 +104,7 @@ PetscErrorCode MeshDestroy(Mesh *mesh){
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, Mesh *mesh){
+PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char *opt_filename, Mesh *mesh){
   PetscErrorCode ierr;
   DM             foo_dm;
 
@@ -41,6 +129,53 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, Mesh *mesh)
   ierr = PetscObjectSetName((PetscObject) fvm, "FV Model");      CHKERRQ(ierr);
   ierr = DMAddField((*mesh)->dm, PETSC_NULL, (PetscObject) fvm); CHKERRQ(ierr);
 
+  ierr = ISCreateGeneral(comm, 0, PETSC_NULL, PETSC_OWN_POINTER, (*mesh)->perio + 0); CHKERRQ(ierr);
+  ierr = ISCreateGeneral(comm, 0, PETSC_NULL, PETSC_OWN_POINTER, (*mesh)->perio + 1); CHKERRQ(ierr);
+
+  PetscInt       dim, num;
+  IS             values_is;
+  const PetscInt *values;
+  ierr = DMGetDimension((*mesh)->dm, &dim);                    CHKERRQ(ierr);
+  ierr = DMGetLabelSize((*mesh)->dm, "Face Sets", &num);       CHKERRQ(ierr);
+  ierr = DMGetLabelIdIS((*mesh)->dm, "Face Sets", &values_is); CHKERRQ(ierr);
+  ierr = ISGetIndices(values_is, &values);                     CHKERRQ(ierr);
+
+  PetscBool remove[num];
+  for (PetscInt i = 0; i < num; i++) remove[i] = PETSC_FALSE;
+  for (PetscInt i = 0; i < num; i++) {
+    PetscInt  master, i_master;
+    PetscReal *disp;
+    ierr = IOLoadPeriodicity(opt_filename, values[i], dim, &master, &disp); CHKERRQ(ierr);
+    if (disp) {
+      ierr = MeshSetPeriodicity(*mesh, master, values[i], disp); CHKERRQ(ierr);
+      ierr = PetscFree(disp);                                    CHKERRQ(ierr);
+
+      ierr = ISLocate(values_is, master, &i_master); CHKERRQ(ierr);
+      if (i_master < 0)     SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot find  master boundary %d for periodic boundary %d", master, values[i]);
+      if (remove[i])        SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot set boundary %d as both master and slave", values[i]);
+      if (remove[i_master]) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot set boundary %d as both master and slave", master);
+      remove[i] = PETSC_TRUE;
+      remove[i_master] = PETSC_TRUE;
+    }
+  }
+
+  DMLabel label_old, label_new;
+  ierr = DMRemoveLabel((*mesh)->dm, "Face Sets", &label_old); CHKERRQ(ierr);
+  ierr = DMCreateLabel((*mesh)->dm, "Face Sets");             CHKERRQ(ierr);
+  ierr = DMGetLabel((*mesh)->dm, "Face Sets", &label_new);    CHKERRQ(ierr);
+  for (PetscInt i = 0; i < num; i++) {
+    if (!remove[i]) {
+      IS points;
+      ierr = DMLabelGetStratumIS(label_old, values[i], &points); CHKERRQ(ierr);
+      ierr = DMLabelSetStratumIS(label_new, values[i], points);  CHKERRQ(ierr);
+      ierr = ISDestroy(&points);                                 CHKERRQ(ierr);
+    }
+  }
+  ierr = DMLabelDestroy(&label_old);           CHKERRQ(ierr);
+  ierr = ISRestoreIndices(values_is, &values); CHKERRQ(ierr);
+  ierr = ISDestroy(&values_is);                CHKERRQ(ierr);
+
+
   char      opt[] = "____";
   PetscBool flag;
   PetscInt  numGhostCells;
@@ -49,9 +184,6 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, Mesh *mesh)
   if (flag) {ierr = DMPlexHideGhostCells((*mesh)->dm, &numGhostCells);                            CHKERRQ(ierr);}
   ierr = DMViewFromOptions((*mesh)->dm, PETSC_NULL, "-dm_view");                                  CHKERRQ(ierr);
   if (flag) {ierr = DMPlexRestoreGhostCells((*mesh)->dm, numGhostCells);                          CHKERRQ(ierr);}
-
-  ierr = ISCreateGeneral(comm, 0, PETSC_NULL, PETSC_OWN_POINTER, (*mesh)->perio + 0); CHKERRQ(ierr);
-  ierr = ISCreateGeneral(comm, 0, PETSC_NULL, PETSC_OWN_POINTER, (*mesh)->perio + 1); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -143,7 +275,7 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
   ierr = VecSetFromOptions(*y);                          CHKERRQ(ierr);
 
   const PetscScalar *val_x;
-  PetscScalar       val_y[size];
+  PetscScalar       val_y[size]; // TODO: use PetscMalloc1
   PetscInt          ix[size];
 
   ierr = VecGetArrayRead(x, &val_x);                 CHKERRQ(ierr);
@@ -194,76 +326,6 @@ PetscErrorCode MeshDMComputeBoundary(DM dm, PetscReal time, Vec locX, Vec F, voi
   ierr = ISRestoreIndices(masterSlave[0], &master); CHKERRQ(ierr);
 
   DMPlexTSComputeRHSFunctionFVM(dm, time, locX, F, user);
-
-  PetscFunctionReturn(0);
-}
-
-PetscErrorCode MeshSetupPeriodicBoundary(Mesh mesh, PetscInt bc_from, PetscInt bc_to, PetscReal *disp){
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  PetscInt dim;
-  ierr = DMGetDimension(mesh->dm, &dim); CHKERRQ(ierr);
-
-  IS             is_from, is_to;
-  PetscInt       nface;
-  const PetscInt *idx_from, *idx_to;
-
-  ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_from, &is_from); CHKERRQ(ierr);
-  ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_to, &is_to);     CHKERRQ(ierr);
-  ierr = ISGetSize(is_from, &nface);                               CHKERRQ(ierr);
-  ierr = ISGetIndices(is_from, &idx_from);                         CHKERRQ(ierr);
-  ierr = ISGetIndices(is_to, &idx_to);                             CHKERRQ(ierr);
-
-  PetscInt ghoscCStart, ghostCEnd;
-  ierr = DMPlexGetGhostCellStratum(mesh->dm, &ghoscCStart, &ghostCEnd); CHKERRQ(ierr);
-
-  PetscInt *master, *slave;
-  ierr = PetscMalloc1(nface, &master); CHKERRQ(ierr);
-  ierr = PetscMalloc1(nface, &slave);  CHKERRQ(ierr);
-
-  for (PetscInt i = 0; i < nface; i++) {
-    PetscInt match=0;
-
-    PetscReal c_from[dim], c_to[dim];
-    ierr = DMPlexComputeCellGeometryFVM(mesh->dm, idx_from[i], PETSC_NULL, c_from, PETSC_NULL); CHKERRQ(ierr);
-    for (PetscInt j = 0; j < nface; j++) {
-      ierr = DMPlexComputeCellGeometryFVM(mesh->dm, idx_to[j], PETSC_NULL, c_to, PETSC_NULL); CHKERRQ(ierr);
-
-      PetscReal dist=0;
-      for (PetscInt k = 0; k < dim; k++) dist += PetscSqr(c_to[k] - c_from[k] - disp[k]);
-
-      if (dist < 1E-12) {
-        match++;
-
-        PetscInt const *support_from, *support_to;
-        DMPlexGetSupport(mesh->dm, idx_from[i], &support_from);
-        DMPlexGetSupport(mesh->dm, idx_to[j], &support_to);
-        master[i] = (ghoscCStart <= support_from[0] && support_from[0] < ghostCEnd) ? support_from[1] : support_from[0];
-        slave[i] = (ghoscCStart <= support_to[0] && support_to[0] < ghostCEnd) ? support_to[0] : support_to[1];
-      }
-    }
-    if (match != 1) SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot match face %d from boundary %d to single face on boundary %d, matched %d times", idx_from[i], bc_from, bc_to, match);
-  }
-  ierr = ISRestoreIndices(is_from, &idx_from); CHKERRQ(ierr);
-  ierr = ISRestoreIndices(is_to, &idx_to); CHKERRQ(ierr);
-  ierr = ISDestroy(&is_to); CHKERRQ(ierr);
-  ierr = ISDestroy(&is_from); CHKERRQ(ierr);
-
-
-  IS is_list[2];
-  is_list[0] = mesh->perio[0];
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, nface, master, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
-  ierr = ISConcatenate(PETSC_COMM_WORLD, 2, is_list, &(mesh->perio[0])); CHKERRQ(ierr);
-  ISDestroy(&is_list[0]);
-  ISDestroy(&is_list[1]);
-
-  is_list[0] = mesh->perio[1];
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, nface, slave, PETSC_OWN_POINTER, &is_list[1]); CHKERRQ(ierr);
-  ierr = ISConcatenate(PETSC_COMM_WORLD, 2, is_list, &(mesh->perio[1])); CHKERRQ(ierr);
-  ISDestroy(&is_list[0]);
-  ISDestroy(&is_list[1]);
-
 
   PetscFunctionReturn(0);
 }
