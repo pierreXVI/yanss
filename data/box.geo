@@ -15,7 +15,8 @@ Line Loop(1) = {1, 2, 3, 4};
 //+
 Plane Surface(1) = {1};
 //+
-Physical Curve(10) = {1, 3};
+Physical Curve(10) = {1};
 Physical Curve(20) = {2};
-Physical Curve(30) = {4};
+Physical Curve(30) = {3};
+Physical Curve(40) = {4};
 Physical Surface("mesh") = {1};

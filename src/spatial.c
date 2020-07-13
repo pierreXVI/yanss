@@ -12,7 +12,7 @@ static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2
   PetscErrorCode ierr;
   IS             is_1, is_2;
   const PetscInt *faces_1, *faces_2;
-  PetscInt       dim, ghoscCStart, ghostCEnd, nface;
+  PetscInt       dim, ghoscCStart, ghostCEnd, nface, *cells_1, *cells_2;
 
   PetscFunctionBeginUser;
 
@@ -23,16 +23,14 @@ static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2
   ierr = ISGetSize(is_1, &nface);                                       CHKERRQ(ierr);
   ierr = ISGetIndices(is_1, &faces_1);                                  CHKERRQ(ierr);
   ierr = ISGetIndices(is_2, &faces_2);                                  CHKERRQ(ierr);
-
-  PetscInt *cells_1, *cells_2;
-  ierr = PetscMalloc1(2 * nface, &cells_1); CHKERRQ(ierr);
-  ierr = PetscMalloc1(2 * nface, &cells_2); CHKERRQ(ierr);
+  ierr = PetscMalloc1(2 * nface, &cells_1);                             CHKERRQ(ierr);
+  ierr = PetscMalloc1(2 * nface, &cells_2);                             CHKERRQ(ierr);
 
   for (PetscInt i = 0; i < nface; i++) {
     PetscReal c_1[dim], c_2[dim], len;
     PetscBool found = PETSC_FALSE;
 
-    ierr = DMPlexComputeCellGeometryFVM(mesh->dm, faces_1[i], &len, c_1, PETSC_NULL);   CHKERRQ(ierr);
+    ierr = DMPlexComputeCellGeometryFVM(mesh->dm, faces_1[i], &len, c_1, PETSC_NULL);         CHKERRQ(ierr);
     for (PetscInt j = 0; j < nface; j++) {
       ierr = DMPlexComputeCellGeometryFVM(mesh->dm, faces_2[j], PETSC_NULL, c_2, PETSC_NULL); CHKERRQ(ierr);
       PetscReal dist = 0;
@@ -40,6 +38,7 @@ static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2
 
       if (PetscSqrtReal(dist) / len < 1E-1) {
         found = PETSC_TRUE;
+
         PetscInt const *support_1, *support_2;
         ierr = DMPlexGetSupport(mesh->dm, faces_1[i], &support_1); CHKERRQ(ierr);
         ierr = DMPlexGetSupport(mesh->dm, faces_2[j], &support_2); CHKERRQ(ierr);
@@ -63,7 +62,7 @@ static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2
       }
     }
 
-    if (!found) SETERRQ3(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d", bc_2, faces_1[i], bc_1);
+    if (!found) SETERRQ3(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d with given displacement", bc_2, faces_1[i], bc_1);
   }
   ierr = ISRestoreIndices(is_1, &faces_1); CHKERRQ(ierr);
   ierr = ISRestoreIndices(is_2, &faces_2); CHKERRQ(ierr);
