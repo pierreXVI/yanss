@@ -105,9 +105,7 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
   DM       fdm = dm;
   char     prefix[PETSC_MAX_PATH_LEN];
   PetscInt i, ndisplaycomp, *displaycomp;
-  PetscFV  fvm;
 
-  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm);                      CHKERRQ(ierr);
   ierr = PetscSectionGetFieldComponents(s, 0, &Nc);                               CHKERRQ(ierr);
   ierr = PetscSectionSelectFieldComponents(s, 0, &ndisplaycomp, &displaycomp);    CHKERRQ(ierr);
   if (v->hdr.prefix) {ierr = PetscStrncpy(prefix, v->hdr.prefix, sizeof(prefix)); CHKERRQ(ierr);}
@@ -122,11 +120,11 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
 
   for (i = 0; i < ndisplaycomp; ++i) {
     comp = displaycomp[i];
-    const char *compName;
-    ierr = PetscFVGetComponentName(fvm, comp, &compName);                                                CHKERRQ(ierr);
-    ierr = PetscViewerDrawGetDraw(viewer, i, &draw);                                                     CHKERRQ(ierr);
-    ierr = PetscSNPrintf(title, sizeof(title), "%s:%s Step: %D Time: %.4g", name, compName, step, time); CHKERRQ(ierr);
-    ierr = PetscDrawSetTitle(draw, title);                                                               CHKERRQ(ierr);
+    const char *cname;
+    ierr = PetscSectionGetComponentName(s, 0, comp, &cname); CHKERRQ(ierr);
+    ierr = PetscViewerDrawGetDraw(viewer, i, &draw);                                                  CHKERRQ(ierr);
+    ierr = PetscSNPrintf(title, sizeof(title), "%s:%s Step: %D Time: %.4g", name, cname, step, time); CHKERRQ(ierr);
+    ierr = PetscDrawSetTitle(draw, title);                                                            CHKERRQ(ierr);
     if (flg) {
       vbound[0] = vbound_tot[2*i];
       vbound[1] = vbound_tot[2*i + 1];

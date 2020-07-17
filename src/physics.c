@@ -136,19 +136,23 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
     (*phys)->dof += fields[nfields].dof;
   }
 
-  PetscFV fvm;
+  PetscSection s;
+  PetscFV      fvm;
   ierr = DMGetField(mesh->dm, 0, PETSC_NULL, (PetscObject*) &fvm);               CHKERRQ(ierr);
   ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                          CHKERRQ(ierr);
   ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                             CHKERRQ(ierr);
+  ierr = DMGetLocalSection(mesh->dm, &s);                                        CHKERRQ(ierr);
   for (PetscInt i = 0, dof = 0; i < nfields; i++){
     if (fields[i].dof == 1) {
       ierr = PetscFVSetComponentName(fvm, dof, fields[i].name);                  CHKERRQ(ierr);
+      ierr = PetscSectionSetComponentName(s, 0, dof, fields[i].name);            CHKERRQ(ierr);
     }
     else {
       for (PetscInt j = 0; j < fields[i].dof; j++){
         char buffer[32];
         ierr = PetscSNPrintf(buffer, sizeof(buffer),"%s_%d", fields[i].name, j); CHKERRQ(ierr);
         ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                    CHKERRQ(ierr);
+        ierr = PetscSectionSetComponentName(s, 0, dof + j, buffer);              CHKERRQ(ierr);
       }
     }
     dof += fields[i].dof;
