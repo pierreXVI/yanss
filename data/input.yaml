@@ -43,11 +43,11 @@ BoundaryConditions:
 
 MonitorOptions:
   Ascii_Res:
-      n_iter: 10
+      n_iter: 0
   Ascii_MinMax:
-      n_iter: 10
+      n_iter: 0
   Draw:
-      n_iter: 10
+      n_iter: 1
   Draw_NormU:
     n_iter: 0
   Debug:

@@ -11,17 +11,30 @@ static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2
   PetscErrorCode ierr;
   IS             is_1, is_2;
   const PetscInt *faces_1, *faces_2;
-  PetscInt       dim, ghoscCStart, ghostCEnd, nface, *cells_1, *cells_2;
+  PetscInt       dim, ghoscCStart, ghostCEnd, nface1, nface2, nface, *cells_1, *cells_2;
 
   PetscFunctionBeginUser;
+
+  PetscInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
 
   ierr = DMGetDimension(mesh->dm, &dim);                                CHKERRQ(ierr);
   ierr = DMPlexGetGhostCellStratum(mesh->dm, &ghoscCStart, &ghostCEnd); CHKERRQ(ierr);
   ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_1, &is_1);            CHKERRQ(ierr);
   ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_2, &is_2);            CHKERRQ(ierr);
-  ierr = ISGetSize(is_1, &nface);                                       CHKERRQ(ierr);
+  ierr = ISGetSize(is_1, &nface1);                                       CHKERRQ(ierr);
+  ierr = ISGetSize(is_2, &nface2);                                       CHKERRQ(ierr);
+  nface = nface1;
+
+  PetscPrintf(PETSC_COMM_SELF, "[%d] Perio %d -> %d, nface = %d - %d, ghostC in [%d, %d]\n", rank, bc_1, bc_2, nface1, nface2, ghoscCStart, ghostCEnd);
+  // ISView(is_2, PETSC_VIEWER_STDOUT_SELF);
+
+  IS shared, gathered;
+  ierr = ISOnComm(is_2, PETSC_COMM_WORLD, PETSC_USE_POINTER, &shared); CHKERRQ(ierr);
+  ierr = ISAllGather(shared, &gathered); CHKERRQ(ierr);
+
   ierr = ISGetIndices(is_1, &faces_1);                                  CHKERRQ(ierr);
-  ierr = ISGetIndices(is_2, &faces_2);                                  CHKERRQ(ierr);
+  ierr = ISGetIndices(gathered, &faces_2);                                  CHKERRQ(ierr);
   ierr = PetscMalloc1(2 * nface, &cells_1);                             CHKERRQ(ierr);
   ierr = PetscMalloc1(2 * nface, &cells_2);                             CHKERRQ(ierr);
 
@@ -30,12 +43,21 @@ static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2
     PetscBool found = PETSC_FALSE;
 
     ierr = DMPlexComputeCellGeometryFVM(mesh->dm, faces_1[i], &len, c_1, PETSC_NULL);         CHKERRQ(ierr);
+
+    if (rank) PetscPrintf(PETSC_COMM_SELF, "[%d] cell %d : %d in %f, %f\n", rank, i, faces_1[i], c_1[0], c_1[1]);
+
     for (PetscInt j = 0; j < nface; j++) {
       ierr = DMPlexComputeCellGeometryFVM(mesh->dm, faces_2[j], PETSC_NULL, c_2, PETSC_NULL); CHKERRQ(ierr);
+
+      if (rank) PetscPrintf(PETSC_COMM_SELF, "[%d]     cell %d : %d in %f, %f\n", rank, j, faces_2[j], c_2[0], c_2[1]);
+
       PetscReal dist = 0;
       for (PetscInt k = 0; k < dim; k++) dist += PetscSqr(c_2[k] - c_1[k] - disp[k]);
 
+      // if (rank) PetscPrintf(PETSC_COMM_SELF, "[%d] %d : %d, %d : %d, %f\n", rank, i, faces_1[i], j, faces_2[j], PetscSqrtReal(dist) / len);
+
       if (PetscSqrtReal(dist) / len < 1E-1) {
+        // PetscPrintf(PETSC_COMM_SELF, "[%d] %d <-> %d\n", rank, faces_1[i], faces_2[j]);
         found = PETSC_TRUE;
 
         PetscInt const *support_1, *support_2;
@@ -61,10 +83,12 @@ static PetscErrorCode MeshSetPeriodicity(Mesh mesh, PetscInt bc_1, PetscInt bc_2
       }
     }
 
-    if (!found) SETERRQ3(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d with given displacement", bc_2, faces_1[i], bc_1);
+    if (!found) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d with given displacement", bc_2, faces_1[i], bc_1);
   }
+  PetscPrintf(PETSC_COMM_SELF, "[%d] DONE\n", rank);
+
   ierr = ISRestoreIndices(is_1, &faces_1); CHKERRQ(ierr);
-  ierr = ISRestoreIndices(is_2, &faces_2); CHKERRQ(ierr);
+  ierr = ISRestoreIndices(gathered, &faces_2); CHKERRQ(ierr);
   ierr = ISDestroy(&is_1);                 CHKERRQ(ierr);
   ierr = ISDestroy(&is_2);                 CHKERRQ(ierr);
 
