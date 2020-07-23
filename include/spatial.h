@@ -63,6 +63,12 @@ PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
 PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, const PetscScalar*, PetscScalar*, void*), void*);
 
 
+/*
+  Reads the periodicity from the input file, and construct the `perio` context array
+  The periodicity contexts can only be created after some of the physical context is filled, as the number of components is needed
+*/
+PetscErrorCode MeshSetPeriodicity(Mesh, const char*);
+
 
 /*
   Compute the RHS

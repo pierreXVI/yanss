@@ -159,6 +159,8 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   }
   ierr = PetscFVSetFromOptions(fvm);                                             CHKERRQ(ierr);
 
+  ierr = MeshSetPeriodicity(mesh, filename); CHKERRQ(ierr);
+
   PetscDS prob;
   DMLabel label;
   IS      is;
