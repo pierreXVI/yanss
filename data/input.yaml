@@ -57,9 +57,9 @@ MonitorOptions:
 Options:
   - -mesh data/box.msh
   - -options_left no
-  - -draw_pause -1
+  # - -draw_pause -1
   # - -vec_view_bounds 0.999,1.001,0,1.2,-0.6,0.6,2.499E5,2.501E5
-  # - -vec_view_bounds 1.155233,1.160833,177.215181,225.202224,-22.919135,24.380877,262938.028290,271270.484817
+  - -vec_view_bounds 1.155233,1.160833,177.215181,225.202224,-22.919135,24.380877,262938.028290,271270.484817
   # - -draw_comp 0
   # - -ts_max_time 0.0001
   # - -ts_max_time 0

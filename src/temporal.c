@@ -59,6 +59,7 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, Mesh mesh
   dt = cfl * minRadius / (PetscSqrtReal(phys->gamma * phys->init[phys->dim + 1] / phys->init[0]) + PetscSqrtReal(norm2));
   ierr = TSSetTimeStep(*ts, dt); CHKERRQ(ierr);
 
-  ierr = TSSetFromOptions(*ts); CHKERRQ(ierr);
+  ierr = TSSetFromOptions(*ts);                          CHKERRQ(ierr);
+  ierr = TSViewFromOptions(*ts, PETSC_NULL, "-ts_view"); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

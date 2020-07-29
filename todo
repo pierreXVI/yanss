@@ -21,6 +21,3 @@ Periodic mesh
 
 
 Do I use pointer on local variables ? (heap/stack)
-
-
-Use VecSetBlockSize, and then VecStride API
