@@ -14,8 +14,8 @@ void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
 
 // Number of iterations of the fixed point pressure solver for the Riemann problem
 #define N_ITER_RIEMANN 10
-// Epsilon of the pressure solver for the Riemann problem
-#define EPS_RIEMANN 1E-14
+// Epsilon of the pressure solver for the Riemann problem, triggers linearisation of the rarefaction formula
+#define EPS_RIEMANN 1E-5
 
 void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nc,
                                const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
@@ -65,7 +65,7 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nc,
       ml = rl * cl * beta * (1 - pratiol) / (1 - PetscPowReal(pratiol, beta));
       flg_sl = PETSC_FALSE;
     } else {
-      ml = rl * cl * (3 - pratiol) / 2; // Linearisation of the rarefaction formula
+      ml = rl * cl * (3 * phys->gamma - 1 + (phys->gamma + 1) * pratiol) / (4 * phys->gamma); // Linearisation of the rarefaction formula
       flg_sl = PETSC_FALSE;
     }
 
