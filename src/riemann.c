@@ -1,5 +1,28 @@
 #include "physics.h"
 
+/*
+  Pointwise Riemann solver functions, with the following calling sequence:
+
+  ```
+  func(PetscInt dim, PetscInt Nf, const PetscReal x[], const PetscReal n[], const PetscScalar uL[],
+       const PetscScalar uR[], PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx)
+    dim          - Spatial dimension
+    Nf           - Number of fields
+    x            - Coordinates at a point on the interface
+    n            - Area-scaled normal vector to the interface
+    uL           - State vector to the left of the interface
+    uR           - State vector to the right of the interface
+    flux         - Output array of flux through the interface
+    numConstants - Number of constant parameters
+    constants    - Constant parameters
+    ctx          - Context, to be casted to (Physics)
+  ```
+*/
+
+
+/*
+  Constant advection at speed 1 in the first direction, for debugging purposes
+*/
 void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
                               const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
                               PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
@@ -17,9 +40,9 @@ void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
 // Epsilon of the pressure solver for the Riemann problem, triggers linearisation of the rarefaction formula
 #define EPS_RIEMANN 1E-5
 
-void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nc,
-                               const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
-                               PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
+                                const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                                PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
@@ -82,7 +105,7 @@ void RiemannSolver_Euler_Exact(PetscInt dim, PetscInt Nc,
     }
 
     pstar = (mr * pl + ml * pr + ml * mr * (ul - ur)) / (ml + mr);
-    if (pstar < 0) {SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");}
+    if (pstar < 0) SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");
   }
 
   PetscReal ustar = (ml * ul + mr * ur + pl - pr) / (ml + mr);
@@ -263,9 +286,9 @@ void RiemannSolver_Euler_Roe(PetscInt dim, PetscInt Nc,
 }
 */
 
-void RiemannSolver_Euler_LaxFriedrichs(PetscInt dim, PetscInt Nc,
-                                       const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
-                                       PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+static void RiemannSolver_LaxFriedrichs(PetscInt dim, PetscInt Nc,
+                                        const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                                        PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
@@ -296,81 +319,93 @@ void RiemannSolver_Euler_LaxFriedrichs(PetscInt dim, PetscInt Nc,
   Adaptative Noniterative Riemann Solver (Toro, Riemann Solvers and Numerical Methods for Fluid Dynamics)
 */
 #define Q_USER 2
-void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
-                        const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
-                        PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
-  Physics phys = (Physics) ctx;
+static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
+                               const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                               PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+  // Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
 
-  PetscReal area = 0, nn[dim]; // n = area * nn, nn normal unitary vector to the surface
-  for (PetscInt i = 0; i < dim; i++) area += PetscSqr(n[i]);
-  area = PetscSqrtReal(area);
-  for (PetscInt i = 0; i < dim; i++) nn[i] = n[i] / area;
-
-  PetscReal wL[Nc], wR[Nc]; // Primitive variables (rho, u_1, ..., u_dim, p)
-  ConservativeToPrimitive(phys, uL, wL);
-  ConservativeToPrimitive(phys, uR, wR);
-
-  PetscReal unL = 0, unR = 0; // normal speeds
-  for (PetscInt i = 0; i < dim; i++){
-    unL += wL[1 + i] * nn[i];
-    unR += wR[1 + i] * nn[i];
-  }
-  PetscReal utL[dim], utR[dim];                        // tangent speeds
-  for (PetscInt i = 0; i < dim; i++){
-    utL[i] = wL[1 + i] - unL * nn[i];
-    utR[i] = wR[1 + i] - unR * nn[i];
-  }
-
-  PetscReal aL, aR; // Speeds of sound
-  aL = PetscSqrtReal(phys->gamma * wL[dim + 1] / wL[0]);
-  aR = PetscSqrtReal(phys->gamma * wR[dim + 1] / wR[0]);
-
-  PetscReal CL, CR;
-  CL = aL = wL[0];
-  CR = aR = wR[0];
-
-  PetscReal pmin, pmax;
-  if (wL[dim + 1] < wR[dim + 1]) {
-    pmin = wL[dim + 1];
-    pmax = wR[dim + 1];
-  } else {
-    pmin = wR[dim + 1];
-    pmax = wL[dim + 1];
-  }
-
-  PetscReal pstar, ustar;
-  pstar = (CR * wL[dim + 1] + CL * wR[dim + 1] + CL * CR * (unL - unR)) / (CL + CR);
-  ustar = (CL * unL + CR * unR + wL[dim + 1] - wR[dim + 1]) / (CL + CR);
-
-  PetscReal rout, uout, *utout, pout; // density, normal and tangent speeds, and pressure at the interface
-  if (pmax / pmin < Q_USER && pmin < pstar && pstar < pmax) {
-    pout = pstar;
-    uout = ustar;
-    if (ustar < 0) {
-      rout = wR[0] + (pstar - wR[dim + 1]) / PetscSqr(aR);
-    } else {
-      rout = wL[0] + (pstar - wL[dim + 1]) / PetscSqr(aL);
-    }
-  } else if (pstar < pmin) {
-    p = 0;
-    un = 0;
-    rho = 0;
-    for (PetscInt i = 0; i < dim; i++) ut[i] = 0;
-  } else {
-    p = 0;
-    un = 0;
-    rho = 0;
-    for (PetscInt i = 0; i < dim; i++) ut[i] = 0;
-  }
-
-  PetscReal unorm2 = 0;
-  for (PetscInt i = 0; i < dim; i++) unorm2 += PetscSqr(un * nn[i] + ut[i]);
-
-  flux[0] = rho * un;
-  for (PetscInt i = 0; i < dim; i++) flux[1 + i] = rho * (un * nn[i] + ut[i]) * un + p * n[i];
-  flux[dim + 1] = (p * phys->gamma / (phys->gamma - 1) + 0.5 * rho * unorm2) * un;
+  // PetscReal area = 0, nn[dim]; // n = area * nn, nn normal unitary vector to the surface
+  // for (PetscInt i = 0; i < dim; i++) area += PetscSqr(n[i]);
+  // area = PetscSqrtReal(area);
+  // for (PetscInt i = 0; i < dim; i++) nn[i] = n[i] / area;
+  //
+  // PetscReal wL[Nc], wR[Nc]; // Primitive variables (rho, u_1, ..., u_dim, p)
+  // ConservativeToPrimitive(phys, uL, wL);
+  // ConservativeToPrimitive(phys, uR, wR);
+  //
+  // PetscReal unL = 0, unR = 0; // normal speeds
+  // for (PetscInt i = 0; i < dim; i++){
+  //   unL += wL[1 + i] * nn[i];
+  //   unR += wR[1 + i] * nn[i];
+  // }
+  // PetscReal utL[dim], utR[dim];                        // tangent speeds
+  // for (PetscInt i = 0; i < dim; i++){
+  //   utL[i] = wL[1 + i] - unL * nn[i];
+  //   utR[i] = wR[1 + i] - unR * nn[i];
+  // }
+  //
+  // PetscReal aL, aR; // Speeds of sound
+  // aL = PetscSqrtReal(phys->gamma * wL[dim + 1] / wL[0]);
+  // aR = PetscSqrtReal(phys->gamma * wR[dim + 1] / wR[0]);
+  //
+  // PetscReal CL, CR;
+  // CL = aL = wL[0];
+  // CR = aR = wR[0];
+  //
+  // PetscReal pmin, pmax;
+  // if (wL[dim + 1] < wR[dim + 1]) {
+  //   pmin = wL[dim + 1];
+  //   pmax = wR[dim + 1];
+  // } else {
+  //   pmin = wR[dim + 1];
+  //   pmax = wL[dim + 1];
+  // }
+  //
+  // PetscReal pstar, ustar;
+  // pstar = (CR * wL[dim + 1] + CL * wR[dim + 1] + CL * CR * (unL - unR)) / (CL + CR);
+  // ustar = (CL * unL + CR * unR + wL[dim + 1] - wR[dim + 1]) / (CL + CR);
+  //
+  // PetscReal rout, uout, *utout, pout; // density, normal and tangent speeds, and pressure at the interface
+  // if (pmax / pmin < Q_USER && pmin < pstar && pstar < pmax) {
+  //   pout = pstar;
+  //   uout = ustar;
+  //   if (ustar < 0) {
+  //     rout = wR[0] + (pstar - wR[dim + 1]) / PetscSqr(aR);
+  //   } else {
+  //     rout = wL[0] + (pstar - wL[dim + 1]) / PetscSqr(aL);
+  //   }
+  // } else if (pstar < pmin) {
+  //   p = 0;
+  //   un = 0;
+  //   rho = 0;
+  //   for (PetscInt i = 0; i < dim; i++) ut[i] = 0;
+  // } else {
+  //   p = 0;
+  //   un = 0;
+  //   rho = 0;
+  //   for (PetscInt i = 0; i < dim; i++) ut[i] = 0;
+  // }
+  //
+  // PetscReal unorm2 = 0;
+  // for (PetscInt i = 0; i < dim; i++) unorm2 += PetscSqr(un * nn[i] + ut[i]);
+  //
+  // flux[0] = rho * un;
+  // for (PetscInt i = 0; i < dim; i++) flux[1 + i] = rho * (un * nn[i] + ut[i]) * un + p * n[i];
+  // flux[dim + 1] = (p * phys->gamma / (phys->gamma - 1) + 0.5 * rho * unorm2) * un;
 
   PetscFunctionReturnVoid();
+}
+
+
+PetscErrorCode Register_RiemannSolver(PetscFunctionList *list){
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = PetscFunctionListAdd(list, "advection", RiemannSolver_AdvectionX);    CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(list, "exact",     RiemannSolver_Exact);         CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(list, "lax",       RiemannSolver_LaxFriedrichs); CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(list, "anrs",      RiemannSolver_ANRS);          CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }

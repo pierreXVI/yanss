@@ -21,3 +21,5 @@ Periodic mesh
 
 
 Do I use pointer on local variables ? (heap/stack)
+
+Check convergence of exact Riemann solver

@@ -129,6 +129,10 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
       vbound[0] = vbound_tot[2*i];
       vbound[1] = vbound_tot[2*i + 1];
     } else {
+      vbound[0] = 0;
+      vbound[1] = 0;
+    }
+    if (vbound[0] >= vbound[1]) {
       Vec subv;
       IS  is;
       ierr = ISCreateStride(PetscObjectComm((PetscObject) v), cEnd - cStart, comp, Nc, &is); CHKERRQ(ierr);
