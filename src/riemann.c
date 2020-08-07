@@ -35,10 +35,12 @@ void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
 }
 
 
-// Number of iterations of the fixed point pressure solver for the Riemann problem
-#define N_ITER_RIEMANN 10
-// Epsilon of the pressure solver for the Riemann problem, triggers linearisation of the rarefaction formula
-#define EPS_RIEMANN 1E-5
+#define N_ITER_FP_RIEMANN  10   /* Niter of the fixed point pressure solver */
+#define EPS_RIEMANN        1E-5 /* Epsilon on the pressure solver, triggers linearisation of the rarefaction formula */
+#define N_ITER_MAX_RIEMANN 20   /* Maximum number of iterations for the Newton-Raphson pressure solver */
+#define RTOL_PRESS_RIEMANN 1E-6 /* Relative tolerance that triggers convergence of the Newton-Raphson algorithm */
+// #define RIEMANN_PRESSURE_SOLVER_NEWTON
+// #define RIEMANN_PRESSURE_SOLVER_FP
 
 static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
                                 const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
@@ -47,9 +49,9 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
 
   PetscFunctionBeginUser;
 
-  PetscReal alpha = (phys->gamma + 1) / (2 * phys->gamma);
-  PetscReal beta  = (phys->gamma - 1) / (2 * phys->gamma);
-  PetscReal delta = (phys->gamma - 1) / (phys->gamma + 1);
+  PetscReal alpha = (phys->gamma + 1) / (2 * phys->gamma); // = 1 - beta
+  PetscReal beta  = (phys->gamma - 1) / (2 * phys->gamma); // = 1 - alpha
+  PetscReal delta = (phys->gamma - 1) / (phys->gamma + 1); // = beta / alpha
 
   PetscReal area, nn[dim];
   { // n = area * nn, nn normal unitary vector to the surface
@@ -87,39 +89,98 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
 
   PetscReal pstar, ustar;
   { // Solving Riemann problem
-    PetscReal mL, mR;
+    #if defined(RIEMANN_PRESSURE_SOLVER_NEWTON)
+      /*
+        From "Riemann Solvers and Numerical Methods for Fluid Dynamics", Euleterio F. Toro
+      */
 
-    // Initial guess, not the best but insure the next p* > 0
-    pstar = PetscPowReal((beta * (unL - unR) + aL + aR) / (aL * PetscPowReal(wL[dim + 1], -beta) + aR * PetscPowReal(wR[dim + 1], -beta)), 1 / beta);
+      PetscReal fL, fR, delta_u = unR - unL;
 
-    for (PetscInt i = 0; i < N_ITER_RIEMANN; i++) {
-      { // Left wave
-        PetscReal p_ratioL = pstar / wL[dim + 1];
-        if (p_ratioL > 1) {
-          mL = wL[0] * aL * PetscSqrtReal(1 + alpha * (p_ratioL - 1));
-        } else if (p_ratioL < 1 - EPS_RIEMANN) {
-          mL = wL[0] * aL * beta * (1 - p_ratioL) / (1 - PetscPowReal(p_ratioL, beta));
-        } else {
-          mL = wL[0] * aL * (3 * phys->gamma - 1 + (phys->gamma + 1) * p_ratioL) / (4 * phys->gamma); // Linearisation of the rarefaction formula
+      // Initial guess: two rarefaction waves, not the best but insure next p* > 0
+      pstar = PetscPowReal((aL + aR - phys->gamma * beta * delta_u) / (aL * PetscPowReal(wL[dim + 1], -beta) + aR * PetscPowReal(wR[dim + 1], -beta)), 1 / beta);
+
+      for (PetscInt i = 0; i < N_ITER_MAX_RIEMANN; i++) {
+        PetscReal fpL, fpR, pold, delta_p;
+        pold = pstar;
+
+        { // Left wave
+          PetscReal p_ratioL = pstar / wL[dim + 1];
+          if (p_ratioL > 1) {
+            PetscReal BL = delta * wL[dim + 1];
+            PetscReal CL = PetscSqrtReal(1 / ((wL[0] * phys->gamma * alpha) * (wL[dim + 1] + BL)));
+            fL = (pold - wL[dim + 1]) * CL;
+            fpL = CL * (1 - (pold - wL[dim + 1]) / (2 * (wL[dim + 1] + BL)));
+          } else {
+            fL = (PetscPowReal(p_ratioL, beta) - 1) * aL / (phys->gamma * beta);
+            fpL = PetscPowReal(p_ratioL, -alpha) / (wL[0] * aL);
+          }
         }
+
+        { // Right wave
+          PetscReal p_ratioR = pstar / wR[dim + 1];
+          if (p_ratioR > 1) {
+            PetscReal BR = delta * wR[dim + 1];
+            PetscReal CR = PetscSqrtReal(1 / ((wR[0] * phys->gamma * alpha) * (wR[dim + 1] + BR)));
+            fR = (pold - wR[dim + 1]) * CR;
+            fpR = CR * (1 - (pold - wR[dim + 1]) / (2 * (wR[dim + 1] + BR)));
+          } else {
+            fR = (PetscPowReal(p_ratioR, beta) - 1) * aR / (phys->gamma * beta);
+            fpR = PetscPowReal(p_ratioR, -alpha) / (wR[0] * aR);
+          }
+        }
+
+        delta_p = (fL + fR + delta_u) / (fpL + fpR);
+        pstar = pold - delta_p;
+        if (pstar < 0) SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");
+        if (2 * PetscAbs(delta_p) / (pstar + pold) < RTOL_PRESS_RIEMANN) break;
       }
 
-      { // Right wave
-        PetscReal p_ratioR = pstar / wR[dim + 1];
-        if (p_ratioR > 1) {
-          mR = wR[0] * aR * PetscSqrtReal(1 + alpha * (p_ratioR - 1));
-        } else if (p_ratioR < 1 - EPS_RIEMANN) {
-          mR = wR[0] * aR * beta * (1 - p_ratioR) / (1 - PetscPowReal(p_ratioR, beta));
-        } else {
-          mR = wR[0] * aR * (3 - p_ratioR) / 2; // Linearisation of the rarefaction formula
+      ustar = 0.5 * (unL + unR + fR - fL);
+    #elif defined(RIEMANN_PRESSURE_SOLVER_FP)
+      /*
+        From "I do like CFD", Katate Masatsuka
+        Runs N_ITER_RIEMANN iterations, but does not check pressure convergence
+      */
+
+      PetscReal mL, mR;
+
+      // Initial guess: two rarefaction waves, not the best but insure next p* > 0
+      pstar = PetscPowReal((phys->gamma * beta * (unL - unR) + aL + aR) / (aL * PetscPowReal(wL[dim + 1], -beta) + aR * PetscPowReal(wR[dim + 1], -beta)), 1 / beta);
+
+      for (PetscInt i = 0; i < N_ITER_FP_RIEMANN; i++) {
+        { // Left wave
+          PetscReal p_ratioL = pstar / wL[dim + 1];
+          if (p_ratioL > 1) {
+            mL = wL[0] * aL * PetscSqrtReal(1 + alpha * (p_ratioL - 1));
+          } else if (p_ratioL < 1 - EPS_RIEMANN) {
+            mL = wL[0] * aL * beta * (1 - p_ratioL) / (1 - PetscPowReal(p_ratioL, beta));
+          } else {
+            mL = wL[0] * aL * (3 * phys->gamma - 1 + (phys->gamma + 1) * p_ratioL) / (4 * phys->gamma); // Linearisation of the rarefaction formula
+          }
         }
+
+        { // Right wave
+          PetscReal p_ratioR = pstar / wR[dim + 1];
+          if (p_ratioR > 1) {
+            mR = wR[0] * aR * PetscSqrtReal(1 + alpha * (p_ratioR - 1));
+          } else if (p_ratioR < 1 - EPS_RIEMANN) {
+            mR = wR[0] * aR * beta * (1 - p_ratioR) / (1 - PetscPowReal(p_ratioR, beta));
+          } else {
+            mR = wR[0] * aR * (3 - p_ratioR) / 2; // Linearisation of the rarefaction formula
+          }
+        }
+
+        pstar = (mR * wL[dim + 1] + mL * wR[dim + 1] + mL * mR * (unL - unR)) / (mL + mR);
+        if (pstar < 0) SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");
       }
 
-      pstar = (mR * wL[dim + 1] + mL * wR[dim + 1] + mL * wL[dim + 1] * (unL - unR)) / (mL + mR);
-      if (pstar < 0) SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");
-    }
+      ustar = (mL * unL + mR * unR + wL[dim + 1] - wR[dim + 1]) / (mL + mR);
+    #else
+      pstar = 0;
+      ustar = 0;
+      SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_MAX_VALUE, "No pressure solver enabled for RiemannSolver_Exact");
 
-    ustar = (mL * unL + mR * unR + wL[dim + 1] - wR[dim + 1]) / (mL + mR);
+    #endif
   }
 
   PetscReal rho, un, *ut, p;
@@ -333,7 +394,7 @@ static void RiemannSolver_LaxFriedrichs(PetscInt dim, PetscInt Nc,
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
-  SETERRABORT(PETSC_COMM_WORLD, PETSC_ERR_SUP, "LaxFriedrichs Riemann solver not implemented yet");
+  SETERRABORT(PETSC_COMM_WORLD, PETSC_ERR_MAX_VALUE, "LaxFriedrichs Riemann solver not implemented yet");
 
   PetscReal wL[Nc], wR[Nc];
   ConservativeToPrimitive(phys, uL, wL);
