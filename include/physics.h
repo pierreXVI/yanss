@@ -61,6 +61,5 @@ PetscErrorCode Register_RiemannSolver(PetscFunctionList*);
 PetscErrorCode BCDirichlet(PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
 PetscErrorCode BCOutflow_P(PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
 PetscErrorCode BCWall     (PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
-PetscErrorCode BCPerio    (PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
 
 #endif
