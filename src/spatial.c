@@ -198,6 +198,8 @@ static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt b
   { // Get face description
     ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_1, &face1_is);      CHKERRQ(ierr);
     ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_2, &face2_is);      CHKERRQ(ierr);
+    if (!face1_is) {ierr = ISCreateGeneral(PETSC_COMM_SELF, 0, PETSC_NULL, PETSC_OWN_POINTER, &face1_is); CHKERRQ(ierr);}
+    if (!face2_is) {ierr = ISCreateGeneral(PETSC_COMM_SELF, 0, PETSC_NULL, PETSC_OWN_POINTER, &face2_is); CHKERRQ(ierr);}
     ierr = ISGetSize(face1_is, &nface1_loc);                            CHKERRQ(ierr);
     ierr = ISGetSize(face2_is, &nface2_loc);                            CHKERRQ(ierr);
     ierr = ISGetIndices(face1_is, &face1);                              CHKERRQ(ierr);
@@ -218,7 +220,6 @@ static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt b
     }
     nface_loc = nface1_loc + nface2_loc;
   }
-
 
   PetscInt        block_start;
   Vec             coord_vec;
@@ -347,53 +348,73 @@ PetscErrorCode MeshSetPeriodicity(Mesh mesh, const char *opt_filename) {
 
   PetscFunctionBeginUser;
 
-  PetscInt       dim, num;
-  IS             values_is;
-  const PetscInt *values;
-  ierr = DMGetDimension(mesh->dm, &dim);                    CHKERRQ(ierr);
-  ierr = DMGetLabelSize(mesh->dm, "Face Sets", &num);       CHKERRQ(ierr);
-  ierr = DMGetLabelIdIS(mesh->dm, "Face Sets", &values_is); CHKERRQ(ierr);
-  ierr = ISGetIndices(values_is, &values);                  CHKERRQ(ierr);
+  PetscInt       dim, num, num_loc; // Mesh dimension, number of boundaries on mesh and on local process
+  IS             bnd_is, bnd_is_loc;
+  const PetscInt *bnd, *bnd_loc;
+  {
+    IS bnd_is_mpi;
+    ierr = DMGetDimension(mesh->dm, &dim);                                                                 CHKERRQ(ierr);
+    ierr = DMGetLabelIdIS(mesh->dm, "Face Sets", &bnd_is_loc);                                             CHKERRQ(ierr);
+    ierr = ISOnComm(bnd_is_loc, PetscObjectComm((PetscObject) mesh->dm), PETSC_USE_POINTER , &bnd_is_mpi); CHKERRQ(ierr);
+    ierr = ISAllGather(bnd_is_mpi, &bnd_is);                                                               CHKERRQ(ierr);
+    ierr = ISDestroy(&bnd_is_mpi);                                                                         CHKERRQ(ierr);
+    ierr = ISSortRemoveDups(bnd_is);                                                                       CHKERRQ(ierr);
+    ierr = ISGetSize(bnd_is, &num);                                                                        CHKERRQ(ierr);
+    ierr = ISGetSize(bnd_is_loc, &num_loc);                                                                CHKERRQ(ierr);
+    ierr = ISGetIndices(bnd_is_loc, &bnd_loc);                                                             CHKERRQ(ierr);
+    ierr = ISGetIndices(bnd_is, &bnd);                                                                     CHKERRQ(ierr);
+  }
 
-  PetscBool rem[num];
-  struct    PerioCtx ctxs[num / 2];
-  mesh->n_perio = 0;
-  for (PetscInt i = 0; i < num; i++) rem[i] = PETSC_FALSE;
-  for (PetscInt i = 0; i < num; i++) {
-    PetscInt  master, i_master;
-    PetscReal *disp;
-    ierr = IOLoadPeriodicity(opt_filename, values[i], dim, &master, &disp); CHKERRQ(ierr);
-    if (disp) {
-      ierr = ISLocate(values_is, master, &i_master); CHKERRQ(ierr);
-      if (i_master < 0)  SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot find master boundary %d for periodic boundary %d", master, values[i]);
-      if (rem[i])        SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot set boundary %d as both master and slave", values[i]);
-      if (rem[i_master]) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot set boundary %d as both master and slave", master);
-      rem[i] = PETSC_TRUE;
-      rem[i_master] = PETSC_TRUE;
 
-      ierr = MeshSetPeriodicityCtx(mesh, master, values[i], disp, &ctxs[mesh->n_perio++]); CHKERRQ(ierr);
-      ierr = PetscFree(disp);                                                              CHKERRQ(ierr);
+  PetscBool       rem[num_loc]; // Boundaries to remove
+  struct PerioCtx ctxs[num / 2]; // Boundary contexts
+  {
+    mesh->n_perio = 0;
+    for (PetscInt i = 0; i < num_loc; i++) rem[i] = PETSC_FALSE;
+    for (PetscInt i = 0; i < num; i++) {
+      PetscInt master;
+      PetscReal *disp;
+      ierr = IOLoadPeriodicity(opt_filename, bnd[i], dim, &master, &disp); CHKERRQ(ierr);
+      if (disp) {
+        PetscInt i_master, i_slave;
+        ierr = ISLocate(bnd_is_loc, master, &i_master); CHKERRQ(ierr);
+        ierr = ISLocate(bnd_is_loc, bnd[i], &i_slave);  CHKERRQ(ierr);
+        if (i_master >= 0) rem[i_master] = PETSC_TRUE;
+        if (i_slave >= 0) rem[i_slave] = PETSC_TRUE;
+        ierr = MeshSetPeriodicityCtx(mesh, master, bnd[i], disp, &ctxs[mesh->n_perio++]); CHKERRQ(ierr);
+        ierr = PetscFree(disp);                                                           CHKERRQ(ierr);
+      }
     }
   }
 
-  DMLabel label_old, label_new;
-  ierr = DMRemoveLabel(mesh->dm, "Face Sets", &label_old); CHKERRQ(ierr);
-  ierr = DMCreateLabel(mesh->dm, "Face Sets");             CHKERRQ(ierr);
-  ierr = DMGetLabel(mesh->dm, "Face Sets", &label_new);    CHKERRQ(ierr);
-  for (PetscInt i = 0; i < num; i++) {
-    if (!rem[i]) {
-      IS points;
-      ierr = DMLabelGetStratumIS(label_old, values[i], &points); CHKERRQ(ierr);
-      ierr = DMLabelSetStratumIS(label_new, values[i], points);  CHKERRQ(ierr);
-      ierr = ISDestroy(&points);                                 CHKERRQ(ierr);
+  { // Removing periodic boundaries from "Face Sets"
+    DMLabel label_old, label_new;
+    ierr = DMRemoveLabel(mesh->dm, "Face Sets", &label_old); CHKERRQ(ierr);
+    ierr = DMCreateLabel(mesh->dm, "Face Sets");             CHKERRQ(ierr);
+    ierr = DMGetLabel(mesh->dm, "Face Sets", &label_new);    CHKERRQ(ierr);
+    for (PetscInt i = 0; i < num_loc; i++) {
+      if (!rem[i]) {
+        IS points;
+        ierr = DMLabelGetStratumIS(label_old, bnd_loc[i], &points); CHKERRQ(ierr);
+        ierr = DMLabelSetStratumIS(label_new, bnd_loc[i], points);  CHKERRQ(ierr);
+        ierr = ISDestroy(&points);                                  CHKERRQ(ierr);
+      }
     }
+    ierr = DMLabelDestroy(&label_old); CHKERRQ(ierr);
   }
-  ierr = DMLabelDestroy(&label_old);           CHKERRQ(ierr);
-  ierr = ISRestoreIndices(values_is, &values); CHKERRQ(ierr);
-  ierr = ISDestroy(&values_is);                CHKERRQ(ierr);
 
-  ierr = PetscMalloc1(mesh->n_perio, &mesh->perio); CHKERRQ(ierr);
-  for (PetscInt n = 0; n < mesh->n_perio; n++) mesh->perio[n] = ctxs[n];
+  { // Cleanup
+    ierr = ISRestoreIndices(bnd_is_loc, &bnd_loc); CHKERRQ(ierr);
+    ierr = ISRestoreIndices(bnd_is, &bnd);         CHKERRQ(ierr);
+    ierr = ISDestroy(&bnd_is_loc);                 CHKERRQ(ierr);
+    ierr = ISDestroy(&bnd_is);                     CHKERRQ(ierr);
+  }
+
+  { // Setting periodicity context for the mesh
+    ierr = PetscMalloc1(mesh->n_perio, &mesh->perio); CHKERRQ(ierr);
+    for (PetscInt n = 0; n < mesh->n_perio; n++) mesh->perio[n] = ctxs[n];
+  }
+
   PetscFunctionReturn(0);
 }
 
