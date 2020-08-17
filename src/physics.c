@@ -18,27 +18,27 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
   Physics phys = (Physics) ctx;
   PetscFunctionBeginUser;
 
-  // PetscReal M = 0.5, beta = 0.2, R = 0.005;
-  // PetscReal Xc = 0.05, Yc = 0.05;
-  // PetscReal Pinf = 1.0e+05, Tinf = 300, Rgas = 287.15;
-  //
-  // PetscReal Uinf = M * PetscSqrtReal(phys->gamma * Rgas * Tinf);
-  //
-  // PetscReal dx = (x[0] - Xc) / R, dy = (x[1] - Yc) / R;
-  // PetscReal r2 =  PetscSqr(dx) + PetscSqr(dy);
-  // PetscReal e = PetscExpReal(-r2 / 2);
-  //
-  // PetscReal T0 = Tinf - PetscSqr(Uinf * beta * e) * (phys->gamma - 1) / (2 * phys->gamma * Rgas);
-  // PetscReal rhoinf = Pinf / (Rgas * Tinf);
-  // PetscReal rho0 = rhoinf * PetscPowReal(T0 / Tinf, 1 / (phys->gamma - 1));
-  //
-  // u[0] = rho0;
-  // u[1] = Uinf * (1 - beta * e * dy);
-  // u[2] = Uinf * beta * e * dx;
-  // u[3] = Rgas * rho0 * T0;
-  //
-  // PrimitiveToConservative(phys, u, u);
-  PrimitiveToConservative(phys, phys->init, u);
+  PetscReal M = 0.5, beta = 0.2, R = 0.005;
+  PetscReal Xc = 0.05, Yc = 0.05;
+  PetscReal Pinf = 1.0e+05, Tinf = 300, Rgas = 287.15;
+
+  PetscReal Uinf = M * PetscSqrtReal(phys->gamma * Rgas * Tinf);
+
+  PetscReal dx = (x[0] - Xc) / R, dy = (x[1] - Yc) / R;
+  PetscReal r2 =  PetscSqr(dx) + PetscSqr(dy);
+  PetscReal e = PetscExpReal(-r2 / 2);
+
+  PetscReal T0 = Tinf - PetscSqr(Uinf * beta * e) * (phys->gamma - 1) / (2 * phys->gamma * Rgas);
+  PetscReal rhoinf = Pinf / (Rgas * Tinf);
+  PetscReal rho0 = rhoinf * PetscPowReal(T0 / Tinf, 1 / (phys->gamma - 1));
+
+  u[0] = rho0;
+  u[1] = Uinf * (1 - beta * e * dy);
+  u[2] = Uinf * beta * e * dx;
+  u[3] = Rgas * rho0 * T0;
+
+  PrimitiveToConservative(phys, u, u);
+  // PrimitiveToConservative(phys, phys->init, u);
 
   PetscFunctionReturn(0);
 }

@@ -30,6 +30,11 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
   ierr = DMPlexCreateFromFile(comm, filename, PETSC_TRUE, &(*mesh)->dm);          CHKERRQ(ierr);
   ierr = DMViewFromOptions((*mesh)->dm, PETSC_NULL, "-dm_view_orig");             CHKERRQ(ierr);
   ierr = DMSetBasicAdjacency((*mesh)->dm, PETSC_TRUE, PETSC_FALSE);               CHKERRQ(ierr);
+
+  PetscPartitioner part;
+  ierr = DMPlexGetPartitioner((*mesh)->dm, &part);                                CHKERRQ(ierr);
+  ierr = PetscPartitionerSetFromOptions(part);                                    CHKERRQ(ierr);
+
   ierr = DMPlexDistribute((*mesh)->dm, 1, PETSC_NULL, &foo_dm);                   CHKERRQ(ierr);
   if (foo_dm) {
     ierr = DMDestroy(&(*mesh)->dm);                                               CHKERRQ(ierr);

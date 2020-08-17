@@ -1,9 +1,9 @@
 AIRFOIL = 0012;  // NACA airfoil name
 CHORD = 1;       // Cord length
-RESOLUTION = 5; // Half the number of points used to mesh the airfoil
+RESOLUTION = 20; // Half the number of points used to mesh the airfoil
 
 MSH_SIZE_INNER = 1 * (CHORD / RESOLUTION);  // Size of the mesh on the surface of the airfoil
-MSH_SIZE_OUTTER = 1;  // Size of the mesh on the outter border
+MSH_SIZE_OUTTER = 0.1;  // Size of the mesh on the outter border
 
 HEIGHT = 0.5 * CHORD; // Height of the outter bountary
 LENGTH = 1.2 * CHORD; // Length of the outter bountary
