@@ -15,27 +15,30 @@ InitialConditions:
 
 
 Periodicity:
-  30:
-    master: 10
-    disp: [0, 0.1, 0]
-  40:
-    master: 20
-    disp: [-0.1, 0, 0]
+  # 30:
+  #   master: 10
+  #   disp: [0, 0.1, 0]
+  # 40:
+  #   master: 20
+  #   disp: [-0.1, 0, 0]
 
-# BoundaryConditions:
-#   10:
-#     name: wall
-#     type: BC_WALL
-#   20:
-#     name: outflow
-#     type: BC_OUTFLOW_P
-#     p: *p0
-#   30:
-#     name: inflow
-#     type: BC_DIRICHLET
-#     p: *p0
-#     rho: *rho0
-#     u: *u0
+BoundaryConditions:
+  10:
+    name: wall
+    type: BC_WALL
+  30:
+    name: wall
+    type: BC_WALL
+  20:
+    name: outflow
+    type: BC_OUTFLOW_P
+    p: *p0
+  40:
+    name: inflow
+    type: BC_DIRICHLET
+    p: *p0
+    rho: *rho0
+    u: *u0
 
 
 MonitorOptions:

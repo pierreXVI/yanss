@@ -100,6 +100,8 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
     bound[1] = PetscMin(bound[1], PetscRealPart(coords[ c +1])); bound[3] = PetscMax(bound[3], PetscRealPart(coords[c + 1]));
   }
   ierr = VecRestoreArrayRead(coordinates, &coords); CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(MPI_IN_PLACE, bound + 0, 2, MPIU_REAL, MPIU_MIN, PetscObjectComm((PetscObject) dm)); CHKERRQ(ierr);
+  ierr = MPIU_Allreduce(MPI_IN_PLACE, bound + 2, 2, MPIU_REAL, MPIU_MAX, PetscObjectComm((PetscObject) dm)); CHKERRQ(ierr);
   ierr = PetscDrawClear(draw);                      CHKERRQ(ierr);
 
   DM       fdm = dm;
@@ -142,6 +144,8 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
       ierr = VecRestoreSubVector(v, is, &subv);                                              CHKERRQ(ierr);
       ierr = ISDestroy(&is);                                                                 CHKERRQ(ierr);
       if (vbound[1] <= vbound[0]) vbound[1] = vbound[0] + 1.0;
+      ierr = MPIU_Allreduce(MPI_IN_PLACE, vbound + 0, 1, MPIU_REAL, MPIU_MIN, PetscObjectComm((PetscObject) dm)); CHKERRQ(ierr);
+      ierr = MPIU_Allreduce(MPI_IN_PLACE, vbound + 1, 1, MPIU_REAL, MPIU_MAX, PetscObjectComm((PetscObject) dm)); CHKERRQ(ierr);
     }
     ierr = PetscDrawGetPopup(draw, &popup);                                       CHKERRQ(ierr);
     ierr = PetscDrawScalePopup(popup, vbound[0], vbound[1]);                      CHKERRQ(ierr);
@@ -189,6 +193,33 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
       ierr = DMPlexVecRestoreClosure(dm, coordSection, coordinates, c, &numCoords, &coords); CHKERRQ(ierr);
     }
     ierr = VecRestoreArrayRead(v, &array);                   CHKERRQ(ierr);
+
+    /* Draw cells contour
+      for (c = cStart; c < cEnd; ++c) {
+       PetscScalar   *coords = NULL;
+       DMPolytopeType ct;
+       PetscInt       numCoords;
+
+       DMPlexGetCellType(dm, c, &ct);
+       DMPlexVecGetClosure(dm, coordSection, coordinates, c, &numCoords, &coords);
+       switch (ct) {
+       case DM_POLYTOPE_TRIANGLE:
+         PetscDrawLine(draw, PetscRealPart(coords[0]), PetscRealPart(coords[1]), PetscRealPart(coords[2]), PetscRealPart(coords[3]), PETSC_DRAW_BLACK);
+         PetscDrawLine(draw, PetscRealPart(coords[2]), PetscRealPart(coords[3]), PetscRealPart(coords[4]), PetscRealPart(coords[5]), PETSC_DRAW_BLACK);
+         PetscDrawLine(draw, PetscRealPart(coords[4]), PetscRealPart(coords[5]), PetscRealPart(coords[0]), PetscRealPart(coords[1]), PETSC_DRAW_BLACK);
+         break;
+       case DM_POLYTOPE_QUADRILATERAL:
+         PetscDrawLine(draw, PetscRealPart(coords[0]), PetscRealPart(coords[1]), PetscRealPart(coords[2]), PetscRealPart(coords[3]), PETSC_DRAW_BLACK);
+         PetscDrawLine(draw, PetscRealPart(coords[2]), PetscRealPart(coords[3]), PetscRealPart(coords[4]), PetscRealPart(coords[5]), PETSC_DRAW_BLACK);
+         PetscDrawLine(draw, PetscRealPart(coords[4]), PetscRealPart(coords[5]), PetscRealPart(coords[6]), PetscRealPart(coords[7]), PETSC_DRAW_BLACK);
+         PetscDrawLine(draw, PetscRealPart(coords[6]), PetscRealPart(coords[7]), PetscRealPart(coords[0]), PetscRealPart(coords[1]), PETSC_DRAW_BLACK);
+         break;
+       default: SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot draw cells of type %s", DMPolytopeTypes[ct]);
+       }
+       DMPlexVecRestoreClosure(dm, coordSection, coordinates, c, &numCoords, &coords);
+      }
+    */
+
     ierr = PetscDrawFlush(draw);                             CHKERRQ(ierr);
     if (i == ndisplaycomp - 1) {ierr = PetscDrawPause(draw); CHKERRQ(ierr);}
     ierr = PetscDrawSave(draw);                              CHKERRQ(ierr);
