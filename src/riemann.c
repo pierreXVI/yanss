@@ -40,7 +40,7 @@ void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
 #define N_ITER_MAX_RIEMANN 20   /* Maximum number of iterations for the Newton-Raphson pressure solver */
 #define RTOL_PRESS_RIEMANN 1E-6 /* Relative tolerance that triggers convergence of the Newton-Raphson algorithm */
 // #define RIEMANN_PRESSURE_SOLVER_NEWTON
-// #define RIEMANN_PRESSURE_SOLVER_FP
+#define RIEMANN_PRESSURE_SOLVER_FP
 
 static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
                                 const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
@@ -88,7 +88,7 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
   }
 
   PetscReal pstar, ustar;
-  { // Solving Riemann problem
+  { // Solving pressure problem
     #if defined(RIEMANN_PRESSURE_SOLVER_NEWTON)
       /*
         From "Riemann Solvers and Numerical Methods for Fluid Dynamics", Euleterio F. Toro
