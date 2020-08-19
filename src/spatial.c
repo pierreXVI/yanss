@@ -81,8 +81,8 @@ PetscErrorCode MeshDMCreateGlobalVector(DM dm, Vec *x){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = DMCreateGlobalVector(dm, x);                                      CHKERRQ(ierr);
-  ierr = VecSetOperation(*x, VECOP_VIEW, (void (*)(void)) MyVecView_Plex); CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dm, x);                                    CHKERRQ(ierr);
+  ierr = VecSetOperation(*x, VECOP_VIEW, (void (*)(void)) VecView_Mesh); CHKERRQ(ierr);
 
   PetscFV  fvm;
   PetscInt Nc;

@@ -12,10 +12,9 @@ PetscErrorCode DMPlexRestoreGhostCells(DM, PetscInt);
 
 
 /*
-  Same as VecView_Plex, but when viewer is of type PETSCVIEWERDRAW,
-  assumes the field classid is PETSCFV_CLASSID and uses MyVecView_Plex_Local_Draw
+  View a vector on a mesh
 */
-PetscErrorCode MyVecView_Plex(Vec, PetscViewer);
+PetscErrorCode VecView_Mesh(Vec, PetscViewer);
 
 
 #endif

@@ -57,7 +57,7 @@ static PetscErrorCode PetscSectionSelectFieldComponents(PetscSection s, PetscInt
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
+static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
   PetscErrorCode     ierr;
   DM                 dm;
   PetscSection       s;
@@ -231,7 +231,7 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
 }
 
 
-PetscErrorCode MyVecView_Plex(Vec v, PetscViewer viewer){
+PetscErrorCode VecView_Mesh(Vec v, PetscViewer viewer){
   DM             dm;
   PetscBool      isdraw;
   PetscErrorCode ierr;
@@ -251,7 +251,7 @@ PetscErrorCode MyVecView_Plex(Vec v, PetscViewer viewer){
     ierr = DMGlobalToLocalBegin(dm, v, INSERT_VALUES, locv); CHKERRQ(ierr);
     ierr = DMGlobalToLocalEnd(dm, v, INSERT_VALUES, locv);   CHKERRQ(ierr);
     ierr = DMPlexHideGhostCells(dm, &numGhostCells);         CHKERRQ(ierr);
-    ierr = MyVecView_Plex_Local_Draw(locv, viewer);          CHKERRQ(ierr);
+    ierr = VecView_Mesh_Local_Draw(locv, viewer);            CHKERRQ(ierr);
     ierr = DMPlexRestoreGhostCells(dm, numGhostCells);       CHKERRQ(ierr);
     ierr = DMRestoreLocalVector(dm, &locv);                  CHKERRQ(ierr);
   } else {
