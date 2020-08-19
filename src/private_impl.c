@@ -97,7 +97,7 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
   ierr = VecGetArrayRead(coordinates, &coords); CHKERRQ(ierr);
   for (c = 0; c < N; c += dim) {
     bound[0] = PetscMin(bound[0], PetscRealPart(coords[c]));     bound[2] = PetscMax(bound[2], PetscRealPart(coords[c]));
-    bound[1] = PetscMin(bound[1], PetscRealPart(coords[ c +1])); bound[3] = PetscMax(bound[3], PetscRealPart(coords[c + 1]));
+    bound[1] = PetscMin(bound[1], PetscRealPart(coords[c + 1])); bound[3] = PetscMax(bound[3], PetscRealPart(coords[c + 1]));
   }
   ierr = VecRestoreArrayRead(coordinates, &coords); CHKERRQ(ierr);
   ierr = MPIU_Allreduce(MPI_IN_PLACE, bound + 0, 2, MPIU_REAL, MPIU_MIN, PetscObjectComm((PetscObject) dm)); CHKERRQ(ierr);
