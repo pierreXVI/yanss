@@ -47,7 +47,7 @@ MonitorOptions:
   Ascii_MinMax:
       n_iter: 0
   Draw:
-      n_iter: 1
+      n_iter: 0
   Draw_NormU:
     n_iter: 0
   Debug:
@@ -67,4 +67,4 @@ Options:
   # - -ts_max_steps 100000
   # - -dm_view draw
   # - -riemann anrs
-  # - -dm_view draw
+  - -dm_view draw

@@ -17,4 +17,8 @@ PetscErrorCode DMPlexRestoreGhostCells(DM, PetscInt);
 PetscErrorCode VecView_Mesh(Vec, PetscViewer);
 
 
+
+PetscErrorCode MeshSetViewer(DM dm);
+
+
 #endif
