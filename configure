@@ -45,10 +45,6 @@ clean_dep:
 \trm -f $(DEP_DIR)/*.d
 distclean: clean_all
 \trm -f makefile
-
-make.inc:
-\t@echo "Run ./configure"
-\texit
 """
 
 
@@ -112,14 +108,18 @@ if __name__ == "__main__":
           err_head="Cannot include <yaml.h> with the current options:",
           err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n".format(CC, COMP_OPTS))
 
-    check('linking PETSc', '{0} -x c -o /dev/null {1} {2} -lpetsc -'.format(CC, COMP_OPTS, LINK_OPTS),
-          pipe="#include <petscsys.h>\nint main(int argc, char **argv){{return 0;}}",
-          err_head="Cannot link -lpetsc with the current options:",
-          err_msg="\tCC = {0}\n\tLINK_OPTS = {1}\n".format(CC, LINK_OPTS))
-    check('linking YAML', '{0} -x c -o /dev/null {1} {2} -lyaml -'.format(CC, COMP_OPTS, LINK_OPTS),
-          pipe="#include <yaml.h>\nint main(int argc, char **argv){{return 0;}}",
-          err_head="Cannot link -lyaml with the current options:",
-          err_msg="\tCC = {0}\n\tLINK_OPTS = {1}\n".format(CC, LINK_OPTS))
+    check('linking MPI', '{0} -x c -o /dev/null {1} - {2}'.format(CC, COMP_OPTS, LINK_OPTS),
+          pipe="#include <mpi.h>\nint main(int argc, char **argv){{MPI_Init(&argc, &argv); return 0;}}",
+          err_head="Cannot use MPI with the current options:",
+          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
+    check('linking PETSc', '{0} -x c -o /dev/null {1} - {2} -lpetsc'.format(CC, COMP_OPTS, LINK_OPTS),
+          pipe="#include <petscsys.h>\nint main(int argc, char **argv){{PetscInitialize(&argc, &argv, PETSC_NULL, PETSC_NULL); return 0;}}",
+          err_head="Cannot use PETSc with the current options:",
+          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
+    check('linking YAML', '{0} -x c -o /dev/null {1} - {2} -lyaml'.format(CC, COMP_OPTS, LINK_OPTS),
+          pipe="#include <yaml.h>\nint main(int argc, char **argv){{yaml_parser_initialize(0); return 0;}}",
+          err_head="Cannot use -lyaml with the current options:",
+          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
 
     LINK_OPTS = ' '.join((LINK_OPTS, '-lpetsc', '-lyaml', '-lm'))
 
