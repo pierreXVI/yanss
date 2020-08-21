@@ -1,7 +1,6 @@
 #include "output.h"
 
 #include "spatial.h"
-#include "private_impl.h"
 PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
   PetscErrorCode    ierr;
   Vec               v_dm;
