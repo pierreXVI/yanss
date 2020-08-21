@@ -1,6 +1,6 @@
 #include "spatial.h"
 #include "input.h"
-#include "private_impl.h"
+#include "view.h"
 
 
 PetscErrorCode MeshDestroy(Mesh *mesh){

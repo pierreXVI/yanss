@@ -1,5 +1,5 @@
-#ifndef INCLUDE_FLAG_PRIVATE_IMPL
-#define INCLUDE_FLAG_PRIVATE_IMPL
+#ifndef INCLUDE_FLAG_VIEW
+#define INCLUDE_FLAG_VIEW
 
 #include <petscdmplex.h>
 #include <petscdraw.h>

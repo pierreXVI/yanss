@@ -1,4 +1,4 @@
-#include "private_impl.h"
+#include "view.h"
 
 
 #include <petsc/private/dmlabelimpl.h>
