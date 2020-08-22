@@ -8,7 +8,7 @@ static const char help[] = "Finite Volume solver\n";
 int main(int argc, char **argv){
   PetscErrorCode ierr;
 
-  ierr = PetscInitialize(&argc, &argv, PETSC_NULL, help); if (ierr) return ierr;
+  ierr = PetscInitialize(&argc, &argv, NULL, help); if (ierr) return ierr;
 
   if (argc < 2) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "No input file was given: please use \"%s optionfile\"", argv[0]);
   char *input_filename = argv[1];
@@ -16,7 +16,7 @@ int main(int argc, char **argv){
 
   PetscBool set;
   char mesh_filename[256];
-  ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-mesh", mesh_filename, sizeof(mesh_filename), &set); CHKERRQ(ierr);
+  ierr = PetscOptionsGetString(NULL, NULL, "-mesh", mesh_filename, sizeof(mesh_filename), &set); CHKERRQ(ierr);
   if (!set) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "No mesh file was given: please use the option \"-mesh filename\"");
 
   Mesh    mesh;

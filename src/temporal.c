@@ -7,12 +7,12 @@ struct MonitorFunctionList {
   const char      *name;
   PetscErrorCode  (*func)(TS, PetscInt, PetscReal, Vec, void*);
   PetscViewerType type;
-} MonitorList[] = {{"Debug",        IOMonitorDEBUG,        PETSC_NULL},
-                   {"Ascii_Res",    IOMonitorAscii_Res,    PETSC_NULL},
-                   {"Ascii_MinMax", IOMonitorAscii_MinMax, PETSC_NULL },
+} MonitorList[] = {{"Debug",        IOMonitorDEBUG,        NULL},
+                   {"Ascii_Res",    IOMonitorAscii_Res,    NULL},
+                   {"Ascii_MinMax", IOMonitorAscii_MinMax, NULL },
                    {"Draw",         IOMonitorDraw,         PETSCVIEWERDRAW },
                    {"Draw_NormU",   IOMonitorDrawNormU,    PETSCVIEWERDRAW },
-                   {PETSC_NULL,     PETSC_NULL,            PETSC_NULL}};
+                   {NULL,           NULL,                  NULL}};
 
 /*
   Wrapper to free a Monitor Context
@@ -54,12 +54,12 @@ PetscErrorCode MyTsCreate(MPI_Comm comm, TS *ts, const char *filename, Mesh mesh
   }
 
   PetscReal dt, minRadius, norm2 = 0;
-  ierr = DMPlexTSGetGeometryFVM(mesh->dm, PETSC_NULL, PETSC_NULL, &minRadius); CHKERRQ(ierr);
+  ierr = DMPlexTSGetGeometryFVM(mesh->dm, NULL, NULL, &minRadius); CHKERRQ(ierr);
   for (PetscInt i = 0; i < phys->dim; i++) norm2 += PetscSqr(phys->init[1 + i]);
   dt = cfl * minRadius / (PetscSqrtReal(phys->gamma * phys->init[phys->dim + 1] / phys->init[0]) + PetscSqrtReal(norm2));
   ierr = TSSetTimeStep(*ts, dt); CHKERRQ(ierr);
 
-  ierr = TSSetFromOptions(*ts);                          CHKERRQ(ierr);
-  ierr = TSViewFromOptions(*ts, PETSC_NULL, "-ts_view"); CHKERRQ(ierr);
+  ierr = TSSetFromOptions(*ts);                    CHKERRQ(ierr);
+  ierr = TSViewFromOptions(*ts, NULL, "-ts_view"); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

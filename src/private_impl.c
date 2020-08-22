@@ -10,10 +10,10 @@ PetscErrorCode DMPlexHideGhostCells(DM dm, PetscInt *n){
   PetscInt       dim, pHyb, pEnd;
 
   PetscFunctionBeginUser;
-  ierr = DMGetDimension(dm, &dim);                          CHKERRQ(ierr);
-  ierr = DMPlexGetDepthStratum(dm, dim, PETSC_NULL, &pEnd); CHKERRQ(ierr);
-  ierr = DMPlexGetGhostCellStratum(dm, &pHyb, PETSC_NULL);  CHKERRQ(ierr);
-  ierr = DMPlexGetDepthLabel(dm, &label);                   CHKERRQ(ierr);
+  ierr = DMGetDimension(dm, &dim);                    CHKERRQ(ierr);
+  ierr = DMPlexGetDepthStratum(dm, dim, NULL, &pEnd); CHKERRQ(ierr);
+  ierr = DMPlexGetGhostCellStratum(dm, &pHyb, NULL);  CHKERRQ(ierr);
+  ierr = DMPlexGetDepthLabel(dm, &label);             CHKERRQ(ierr);
   label->points[dim]->max -= (pEnd - pHyb);
   if (n) *n = (pEnd - pHyb);
   PetscFunctionReturn(0);
@@ -50,7 +50,7 @@ static PetscErrorCode PetscSectionSelectFieldComponents(PetscSection s, PetscInt
   ierr = PetscMalloc1(Nc, &displaycomp);            CHKERRQ(ierr);
   for (k = 0; k < Nc; k++) displaycomp[k] = k;
   ndisplaycomp = Nc;
-  ierr = PetscOptionsGetIntArray(PETSC_NULL, PETSC_NULL, "-draw_comp", displaycomp, &ndisplaycomp, &flg); CHKERRQ(ierr);
+  ierr = PetscOptionsGetIntArray(NULL, NULL, "-draw_comp", displaycomp, &ndisplaycomp, &flg); CHKERRQ(ierr);
   if (!ndisplaycomp) ndisplaycomp = Nc;
   *components = displaycomp;
   *outcomponents = ndisplaycomp;
@@ -115,7 +115,7 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
 
   PetscInt  nmax = 2 * ndisplaycomp;
   PetscReal vbound_tot[nmax];
-  ierr = PetscOptionsGetRealArray(PETSC_NULL, prefix, "-vec_view_bounds", vbound_tot, &nmax, &flg); CHKERRQ(ierr);
+  ierr = PetscOptionsGetRealArray(NULL, prefix, "-vec_view_bounds", vbound_tot, &nmax, &flg); CHKERRQ(ierr);
   if (nmax < 2 * ndisplaycomp){
     for (PetscInt i = nmax; i < 2 * ndisplaycomp; i++) vbound_tot[i] = vbound_tot[i % 2];
   }
@@ -139,8 +139,8 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
       IS  is;
       ierr = ISCreateStride(PetscObjectComm((PetscObject) v), cEnd - cStart, comp, Nc, &is); CHKERRQ(ierr);
       ierr = VecGetSubVector(v, is, &subv);                                                  CHKERRQ(ierr);
-      ierr = VecMin(subv, PETSC_NULL, &vbound[0]);                                           CHKERRQ(ierr);
-      ierr = VecMax(subv, PETSC_NULL, &vbound[1]);                                           CHKERRQ(ierr);
+      ierr = VecMin(subv, NULL, &vbound[0]);                                                 CHKERRQ(ierr);
+      ierr = VecMax(subv, NULL, &vbound[1]);                                                 CHKERRQ(ierr);
       ierr = VecRestoreSubVector(v, is, &subv);                                              CHKERRQ(ierr);
       ierr = ISDestroy(&is);                                                                 CHKERRQ(ierr);
       if (vbound[1] <= vbound[0]) vbound[1] = vbound[0] + 1.0;
@@ -153,7 +153,7 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
 
     ierr = VecGetArrayRead(v, &array); CHKERRQ(ierr);
     for (c = cStart; c < cEnd; ++c) {
-      PetscScalar *coords = PETSC_NULL, *a = PETSC_NULL;
+      PetscScalar *coords = NULL, *a = NULL;
       PetscInt     numCoords, color[4] = {-1, -1, -1, -1};
 
       ierr = DMPlexPointLocalRead(fdm, c, array, &a); CHKERRQ(ierr);
@@ -161,10 +161,10 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
         color[0] = PetscDrawRealToColor(PetscRealPart(a[comp]), vbound[0], vbound[1]);
         color[1] = color[2] = color[3] = color[0];
       } else {
-        PetscScalar *vals = PETSC_NULL;
+        PetscScalar *vals = NULL;
         PetscInt     numVals, va;
 
-        ierr = DMPlexVecGetClosure(fdm, PETSC_NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
+        ierr = DMPlexVecGetClosure(fdm, NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
         if (numVals % Nc) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "The number of components %D does not divide the number of values in the closure %D", Nc, numVals);
         switch (numVals/Nc) {
         case 3: /* P1 Triangle */
@@ -177,7 +177,7 @@ static PetscErrorCode MyVecView_Plex_Local_Draw(Vec v, PetscViewer viewer){
           break;
         default: SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Number of values for cell closure %D cannot be handled", numVals/Nc);
         }
-        ierr = DMPlexVecRestoreClosure(fdm, PETSC_NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
+        ierr = DMPlexVecRestoreClosure(fdm, NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
       }
       ierr = DMPlexVecGetClosure(dm, coordSection, coordinates, c, &numCoords, &coords); CHKERRQ(ierr);
       switch (numCoords) {

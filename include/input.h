@@ -70,7 +70,7 @@ PetscErrorCode IOLoadBC(const char*, const PetscInt, PetscInt, struct BCCtx*);
 
 /*
   Load the periodicity data assiciated with slave
-  If no periodicity can be found, disp = PETSC_NULL, else it is allocated and must be freed with `PetscFree`
+  If no periodicity can be found, disp = NULL, else it is allocated and must be freed with `PetscFree`
 */
 PetscErrorCode IOLoadPeriodicity(const char*, const PetscInt, PetscInt, PetscInt*, PetscReal**);
 

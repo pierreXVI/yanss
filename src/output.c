@@ -13,8 +13,8 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
   const char        *name;
 
   PetscFunctionBeginUser;
-  ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-draw_comp", val, sizeof(val), &flg); CHKERRQ(ierr);
-  ierr = PetscOptionsSetValue(PETSC_NULL, "-draw_comp", "0");                                 CHKERRQ(ierr);
+  ierr = PetscOptionsGetString(NULL, NULL, "-draw_comp", val, sizeof(val), &flg); CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-draw_comp", "0");                           CHKERRQ(ierr);
 
   ierr = MeshDMCreateGlobalVector(dm, &v_dm); CHKERRQ(ierr);
   ierr = VecGetLocalSize(v, &n1);             CHKERRQ(ierr);
@@ -33,9 +33,9 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
   ierr = VecDestroy(&v_dm);                   CHKERRQ(ierr);
 
   if (flg) {
-    ierr = PetscOptionsSetValue(PETSC_NULL, "-draw_comp", val); CHKERRQ(ierr);
+    ierr = PetscOptionsSetValue(NULL, "-draw_comp", val); CHKERRQ(ierr);
   } else {
-    ierr = PetscOptionsClearValue(PETSC_NULL, "-draw_comp");    CHKERRQ(ierr);
+    ierr = PetscOptionsClearValue(NULL, "-draw_comp");    CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
@@ -53,14 +53,14 @@ PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec 
   DM       dm;
   PetscFV  fvm;
   PetscInt Nc;
-  ierr = VecGetDM(u, &dm);                                   CHKERRQ(ierr);
-  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
+  ierr = VecGetDM(u, &dm);                             CHKERRQ(ierr);
+  ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
   for (PetscInt comp = 0; comp < Nc; comp++) {
     PetscReal  min, max;
     const char *compName;
-    ierr = VecStrideMin(u, comp, PETSC_NULL, &min);                                        CHKERRQ(ierr);
-    ierr = VecStrideMax(u, comp, PETSC_NULL, &max);                                        CHKERRQ(ierr);
+    ierr = VecStrideMin(u, comp, NULL, &min);                                              CHKERRQ(ierr);
+    ierr = VecStrideMax(u, comp, NULL, &max);                                              CHKERRQ(ierr);
     ierr = PetscFVGetComponentName(fvm, comp, &compName);                                  CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD, "%s : [% 10.4g, % 10.4g], ", compName, min, max); CHKERRQ(ierr);
   }
@@ -84,16 +84,16 @@ PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, 
   DM       dm;
   PetscFV  fvm;
   PetscInt Nc, size;
-  ierr = VecGetDM(u, &dm);                                   CHKERRQ(ierr);
-  ierr = DMGetField(dm, 0, PETSC_NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVGetNumComponents(fvm, &Nc);                  CHKERRQ(ierr);
-  ierr = VecGetLocalSize(flux, &size);                       CHKERRQ(ierr);
+  ierr = VecGetDM(u, &dm);                             CHKERRQ(ierr);
+  ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
+  ierr = VecGetLocalSize(flux, &size);                 CHKERRQ(ierr);
   for (PetscInt comp = 0; comp < Nc; comp++) {
     PetscReal  norm;
     const char *compName;
-    ierr = VecStrideNorm(flux, comp, NORM_INFINITY, &norm);                                CHKERRQ(ierr);
-    ierr = PetscFVGetComponentName(fvm, comp, &compName);                                  CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "%s : % 10.4g, ", compName, norm);                CHKERRQ(ierr);
+    ierr = VecStrideNorm(flux, comp, NORM_INFINITY, &norm);                 CHKERRQ(ierr);
+    ierr = PetscFVGetComponentName(fvm, comp, &compName);                   CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "%s : % 10.4g, ", compName, norm); CHKERRQ(ierr);
   }
   ierr = VecDestroy(&flux);                          CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "\033[2D\n"); CHKERRQ(ierr);

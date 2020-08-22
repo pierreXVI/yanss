@@ -11,7 +11,7 @@ static struct FieldDescription {
 } fields_euler[] = {{"rho", DOF_1},
                     {"rho * U", DOF_DIM},
                     {"rho * E", DOF_1},
-                    {PETSC_NULL, 0}};
+                    {NULL, 0}};
 
 
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nc, PetscReal *u, void *ctx){
@@ -141,7 +141,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
 
     PetscSection s;
     PetscFV      fvm;
-    ierr = DMGetField(mesh->dm, 0, PETSC_NULL, (PetscObject*) &fvm);               CHKERRQ(ierr);
+    ierr = DMGetField(mesh->dm, 0, NULL, (PetscObject*) &fvm);                     CHKERRQ(ierr);
     ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                          CHKERRQ(ierr);
     ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                             CHKERRQ(ierr);
     ierr = DMGetLocalSection(mesh->dm, &s);                                        CHKERRQ(ierr);
@@ -168,8 +168,8 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   void *riemann_solver;
   { // Getting Riemann solver from options
     char riemann_name[256] = "exact";
-    PetscFunctionList riemann_list = PETSC_NULL;
-    ierr = PetscOptionsBegin(PetscObjectComm((PetscObject) mesh->dm), PETSC_NULL, "Physical solver", PETSC_NULL);                     CHKERRQ(ierr);
+    PetscFunctionList riemann_list = NULL;
+    ierr = PetscOptionsBegin(PetscObjectComm((PetscObject) mesh->dm), NULL, "Physical solver", NULL);                                 CHKERRQ(ierr);
     ierr = Register_RiemannSolver(&riemann_list);                                                                                     CHKERRQ(ierr);
     ierr = PetscOptionsFList("-riemann", "Riemann Solver", "", riemann_list, riemann_name, riemann_name, sizeof(riemann_name), NULL); CHKERRQ(ierr);
     ierr = PetscFunctionListFind(riemann_list, riemann_name, &riemann_solver);                                                        CHKERRQ(ierr);
@@ -212,7 +212,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
       break;
     }
     ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc_ctx[i].name, "Face Sets", 0, 0,
-                              PETSC_NULL, bcFunc, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
+                              NULL, bcFunc, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
   }
   ierr = ISRestoreIndices(is, &indices); CHKERRQ(ierr);
   ierr = ISDestroy(&is);                 CHKERRQ(ierr);
