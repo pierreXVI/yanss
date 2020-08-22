@@ -4,20 +4,17 @@
 #include <petscdmplex.h>
 #include <petscdraw.h>
 
-/*
-  Hide and restore the ghost cells from a `DMPlex`
-*/
-PetscErrorCode DMPlexHideGhostCells(DM, PetscInt*);
-PetscErrorCode DMPlexRestoreGhostCells(DM, PetscInt);
-
 
 /*
-  View a vector on a mesh
+  View a Mesh based vector
+  Calls VecView_Mesh_Local_Draw if the viewer is of type PETSCVIEWERDRAW, else calls VecViex_Plex
 */
 PetscErrorCode VecView_Mesh(Vec, PetscViewer);
 
 
-
+/*
+  Sets MeshDMView as the default object viewer for the given DM
+*/
 PetscErrorCode MeshDMSetViewer(DM dm);
 
 
