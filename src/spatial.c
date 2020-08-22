@@ -1,6 +1,6 @@
 #include "spatial.h"
 #include "input.h"
-#include "private_impl.h"
+#include "view.h"
 
 
 PetscErrorCode MeshDestroy(Mesh *mesh){
@@ -53,14 +53,9 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
 
   ierr = DMTSSetRHSFunctionLocal((*mesh)->dm, MeshDMTSComputeRHSFunctionFVM, *mesh); CHKERRQ(ierr);
 
-  char      opt[] = "____";
-  PetscBool flag;
-  PetscInt  numGhostCells;
-  ierr = PetscOptionsGetString(NULL, NULL, "-dm_view", opt, sizeof(opt), NULL); CHKERRQ(ierr);
-  ierr = PetscStrcmp(opt, "draw", &flag);                                       CHKERRQ(ierr);
-  if (flag) {ierr = DMPlexHideGhostCells((*mesh)->dm, &numGhostCells);          CHKERRQ(ierr);}
-  ierr = DMViewFromOptions((*mesh)->dm, NULL, "-dm_view");                      CHKERRQ(ierr);
-  if (flag) {ierr = DMPlexRestoreGhostCells((*mesh)->dm, numGhostCells);        CHKERRQ(ierr);}
+  ierr = MeshDMSetViewer((*mesh)->dm); CHKERRQ(ierr);
+
+  ierr = DMViewFromOptions((*mesh)->dm, PETSC_NULL, "-dm_view"); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
@@ -81,8 +76,8 @@ PetscErrorCode MeshDMCreateGlobalVector(DM dm, Vec *x){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = DMCreateGlobalVector(dm, x);                                      CHKERRQ(ierr);
-  ierr = VecSetOperation(*x, VECOP_VIEW, (void (*)(void)) MyVecView_Plex); CHKERRQ(ierr);
+  ierr = DMCreateGlobalVector(dm, x);                                    CHKERRQ(ierr);
+  ierr = VecSetOperation(*x, VECOP_VIEW, (void (*)(void)) VecView_Mesh); CHKERRQ(ierr);
 
   PetscFV  fvm;
   PetscInt Nc;
