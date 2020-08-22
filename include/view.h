@@ -18,7 +18,7 @@ PetscErrorCode VecView_Mesh(Vec, PetscViewer);
 
 
 
-PetscErrorCode MeshSetViewer(DM dm);
+PetscErrorCode MeshDMSetViewer(DM dm);
 
 
 #endif

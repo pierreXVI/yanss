@@ -53,16 +53,9 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
 
   ierr = DMTSSetRHSFunctionLocal((*mesh)->dm, MeshDMTSComputeRHSFunctionFVM, *mesh); CHKERRQ(ierr);
 
-  ierr = MeshSetViewer(*mesh); CHKERRQ(ierr);
+  ierr = MeshDMSetViewer((*mesh)->dm); CHKERRQ(ierr);
 
-  char      opt[] = "____";
-  PetscBool flag;
-  PetscInt  numGhostCells;
-  ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-dm_view", opt, sizeof(opt), PETSC_NULL); CHKERRQ(ierr);
-  ierr = PetscStrcmp(opt, "draw", &flag);                                                         CHKERRQ(ierr);
-  // if (flag) {ierr = DMPlexHideGhostCells((*mesh)->dm, &numGhostCells);                            CHKERRQ(ierr);}
-  ierr = DMViewFromOptions((*mesh)->dm, PETSC_NULL, "-dm_view");                                  CHKERRQ(ierr);
-  // if (flag) {ierr = DMPlexRestoreGhostCells((*mesh)->dm, numGhostCells);                          CHKERRQ(ierr);}
+  ierr = DMViewFromOptions((*mesh)->dm, PETSC_NULL, "-dm_view"); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
