@@ -35,12 +35,11 @@ void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
 }
 
 
-#define N_ITER_FP_RIEMANN  10   /* Niter of the fixed point pressure solver */
-#define EPS_RIEMANN        1E-5 /* Epsilon on the pressure solver, triggers linearisation of the rarefaction formula */
-#define N_ITER_MAX_RIEMANN 20   /* Maximum number of iterations for the Newton-Raphson pressure solver */
-#define RTOL_PRESS_RIEMANN 1E-6 /* Relative tolerance that triggers convergence of the Newton-Raphson algorithm */
-// #define RIEMANN_PRESSURE_SOLVER_NEWTON
-#define RIEMANN_PRESSURE_SOLVER_FP
+// #define RIEMANN_PRESSURE_SOLVER_FP
+#define RIEMANN_PRESSURE_SOLVER_NEWTON
+#define   EPS_RIEMANN                 1E-5 /* Epsilon on the pressure solver, triggers linearisation of the rarefaction formula */
+#define   N_ITER_MAX_PRESSURE_RIEMANN 20   /* Maximum number of iterations for the pressure solver */
+#define   RTOL_PRESSURE_RIEMANN       1E-6 /* Relative tolerance that triggers convergence of the pressure solver */
 
 static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
                                 const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
@@ -99,9 +98,8 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
       // Initial guess: two rarefaction waves, not the best but insure next p* > 0
       pstar = PetscPowReal((aL + aR - phys->gamma * beta * delta_u) / (aL * PetscPowReal(wL[dim + 1], -beta) + aR * PetscPowReal(wR[dim + 1], -beta)), 1 / beta);
 
-      for (PetscInt i = 0; i < N_ITER_MAX_RIEMANN; i++) {
-        PetscReal fpL, fpR, pold, delta_p;
-        pold = pstar;
+      for (PetscInt i = 0; i < N_ITER_MAX_PRESSURE_RIEMANN; i++) {
+        PetscReal fpL, fpR, delta_p, pold = pstar;
 
         { // Left wave
           PetscReal p_ratioL = pstar / wL[dim + 1];
@@ -132,7 +130,7 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
         delta_p = (fL + fR + delta_u) / (fpL + fpR);
         pstar = pold - delta_p;
         if (pstar < 0) SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");
-        if (2 * PetscAbs(delta_p) / (pstar + pold) < RTOL_PRESS_RIEMANN) break;
+        if (2 * PetscAbs(delta_p) / (pstar + pold) < RTOL_PRESSURE_RIEMANN) break;
       }
 
       ustar = 0.5 * (unL + unR + fR - fL);
@@ -147,7 +145,9 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
       // Initial guess: two rarefaction waves, not the best but insure next p* > 0
       pstar = PetscPowReal((phys->gamma * beta * (unL - unR) + aL + aR) / (aL * PetscPowReal(wL[dim + 1], -beta) + aR * PetscPowReal(wR[dim + 1], -beta)), 1 / beta);
 
-      for (PetscInt i = 0; i < N_ITER_FP_RIEMANN; i++) {
+      for (PetscInt i = 0; i < N_ITER_MAX_PRESSURE_RIEMANN; i++) {
+        PetscReal delta_p, pold = pstar;
+
         { // Left wave
           PetscReal p_ratioL = pstar / wL[dim + 1];
           if (p_ratioL > 1) {
@@ -171,7 +171,9 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
         }
 
         pstar = (mR * wL[dim + 1] + mL * wR[dim + 1] + mL * mR * (unL - unR)) / (mL + mR);
+        delta_p = pstar - pold;
         if (pstar < 0) SETERRABORT(PETSC_COMM_SELF, PETSC_ERR_NOT_CONVERGED, "ERROR : p* < 0");
+        if (2 * PetscAbs(delta_p) / (pstar + pold) < RTOL_PRESSURE_RIEMANN) break;
       }
 
       ustar = (mL * unL + mR * unR + wL[dim + 1] - wR[dim + 1]) / (mL + mR);
@@ -428,6 +430,10 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
 
   PetscFunctionBeginUser;
 
+  PetscReal alpha = (phys->gamma + 1) / (2 * phys->gamma); // = 1 - beta
+  PetscReal beta  = (phys->gamma - 1) / (2 * phys->gamma); // = 1 - alpha
+  PetscReal delta = (phys->gamma - 1) / (phys->gamma + 1); // = beta / alpha
+
   PetscReal area, nn[dim];
   { // n = area * nn, nn normal unitary vector to the surface
     area = 0;
@@ -476,50 +482,115 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
     }
   }
 
-  PetscReal pstar, ustar;
-  { // Pressure and speed at the contact interface
+  PetscReal pstar, ustar, rstarL, rstarR;
+  { // Solving pressure problem
     pstar = (CR * wL[dim + 1] + CL * wR[dim + 1] + CL * CR * (unL - unR)) / (CL + CR);
     ustar = (CL * unL + CR * unR + wL[dim + 1] - wR[dim + 1]) / (CL + CR);
-  }
 
-  PetscReal rho, un, *ut, p;
-  { // density, normal and tangent speeds, and pressure at the interface
-    if (pmax / pmin < Q_USER && pmin <= pstar && pstar <= pmax) {
-      p = pstar;
-      un = ustar;
-      if (ustar < 0) {
-        rho = wR[0] + (pstar - wR[dim + 1]) / PetscSqr(aR);
-        ut = utR;
-      } else {
-        rho = wL[0] + (pstar - wL[dim + 1]) / PetscSqr(aL);
-        ut = utL;
-      }
-    } else if (pstar < pmin) {
-      PetscPrintf(PETSC_COMM_WORLD, "TODO !!!!!!!!\n");
-      //   p = 0;
-      //   un = 0;
-      //   rho = 0;
-      //   ut = 0;
-    } else {
+    if (pmax / pmin < Q_USER && pmin <= pstar && pstar <= pmax) { // PVRS
+      rstarL = wL[0] + (pstar - wL[dim + 1]) / PetscSqr(aL);
+      rstarR = wR[0] + (pstar - wR[dim + 1]) / PetscSqr(aR);
+
+    } else if (pstar < pmin) { // TRRS
+      PetscReal PLR = PetscPowReal(wL[dim + 1] / wR[dim + 1], beta);
+
+      ustar = (PLR * unL / aL + unR / aR + 2 * (PLR - 1) / (phys->gamma - 1)) / (PLR / aL + 1 / aR);
+      pstar = (wL[dim + 1] * PetscPowReal(1 + phys->gamma * beta * (unL - ustar), beta) + wR[dim + 1] * PetscPowReal(1 + phys->gamma * beta * (unR - ustar), beta)) / 2;
+
+      rstarL = wL[0] * PetscPowReal(pstar / wL[dim + 1], 1 / phys->gamma);
+      rstarL = wR[0] * PetscPowReal(pstar / wR[dim + 1], 1 / phys->gamma);
+
+    } else { // TSRS
       if (pstar < 0) pstar = 0;
-      PetscReal gL, gR;
-      gL = PetscSqrtReal(2 / (wL[0] * ((phys->gamma + 1) * pstar + (phys->gamma - 1) * wL[dim + 1])));
-      gR = PetscSqrtReal(2 / (wR[0] * ((phys->gamma + 1) * pstar + (phys->gamma - 1) * wR[dim + 1])));
+      PetscReal gL = PetscSqrtReal(2 / (wL[0] * ((phys->gamma + 1) * pstar + (phys->gamma - 1) * wL[dim + 1])));
+      PetscReal gR = PetscSqrtReal(2 / (wR[0] * ((phys->gamma + 1) * pstar + (phys->gamma - 1) * wR[dim + 1])));
+
       pstar = (gL * wL[dim + 1] + gR * wR[dim + 1] + unL - unR) / (gL + gR);
       ustar = (unL + unR + (pstar - wR[dim + 1]) * gR - (pstar - wL[dim + 1]) * gL) / 2;
-      //   p = 0;
-      //   un = 0;
-      //   rho = 0;
-      //   ut = 0;
+
+      PetscReal p_ratioL = pstar / wL[dim + 1];
+      PetscReal p_ratioR = pstar / wR[dim + 1];
+
+      rstarL = wL[0] * (delta + p_ratioL) / (1 + delta * p_ratioL);
+      rstarR = wR[0] * (delta + p_ratioR) / (1 + delta * p_ratioR);
     }
   }
 
-  PetscReal unn = un * area, unorm2 = 0;
-  for (PetscInt i = 0; i < dim; i++) unorm2 += PetscSqr(un * nn[i] + ut[i]);
+  PetscReal rho, un, *ut, p;
+  { // Sampling the solution : density, normal and tangent speeds, and pressure at the interface
+    if (ustar > 0) { // left side of contact
+      ut = utL;
+      PetscReal p_ratioL = pstar / wL[dim + 1];
+      if (p_ratioL > 1) { // Shock wave
+        if (unL - aL * PetscSqrtReal(alpha * p_ratioL + beta) < 0) { // Shock speed < 0, star state
+          un = ustar;
+          p = pstar;
+          rho = rstarL;
+        } else { // Shock speed >= 0, left state
+          un = unL;
+          p = wL[dim + 1];
+          rho = wL[0];
+        }
+      } else { // Rarefaction wave
+        PetscReal astarL = PetscSqrtReal(phys->gamma * pstar / rstarL);
+        if (unL - aL > 0) { // Left of the rarefaction
+          un = unL;
+          p = wL[dim + 1];
+          rho = wL[0];
+        } else if (ustar - astarL < 0) { // Right of the rarefaction
+          un = ustar;
+          p = pstar;
+          rho = rstarL;
+        } else { // In the rarefaction fan
+          un = aL / (alpha * phys->gamma) + delta * unL;
+          p = wL[dim + 1] * PetscPowReal(un / aL, 1 / beta);
+          rho = wL[0] * PetscPowReal(un / aL, 1 / phys->gamma);
+        }
+      }
+    } else { // Right side of the contact
+      ut = utR;
+      PetscReal p_ratioR = pstar / wR[dim + 1];
+      if (p_ratioR > 1) { // Shock wave
+        if (unR + aR * PetscSqrtReal(alpha * p_ratioR + beta) > 0) { // Shock speed > 0, star state
+          un = ustar;
+          p = pstar;
+          rho = rstarR;
+        } else { // Shock speed <= 0, right state
+          un = unR;
+          p = wR[dim + 1];
+          rho = wR[0];
+        }
+      } else { // Rarefaction wave
+        PetscReal astarR = PetscSqrtReal(phys->gamma * pstar / rstarR);
+        if (unR + aR < 0) { // Right of the rarefaction
+          un = unR;
+          p = wR[dim + 1];
+          rho = wR[0];
+        } else if (ustar + astarR > 0) { // Left of the rarefaction
+          un = ustar;
+          p = pstar;
+          rho = rstarR;
+        } else { // In the rarefaction fan
+          un = -aR / (alpha * phys->gamma) + delta * unR;
+          p = wR[dim + 1] * PetscPowReal(un / aR, 1 / beta);
+          rho = wR[0] * PetscPowReal(un / aR, 1 / phys->gamma);
+        }
+      }
+    }
+  }
 
-  flux[0] = rho * unn;
-  for (PetscInt i = 0; i < dim; i++) flux[1 + i] = rho * (un * nn[i] + ut[i]) * unn + p * n[i];
-  flux[dim + 1] = (p * phys->gamma / (phys->gamma - 1) + 0.5 * rho * unorm2) * unn;
+  PetscReal us, unorm2;
+  { // Dot product u.S, speed squared norm
+    us = un * area;
+    unorm2 = 0;
+    for (PetscInt i = 0; i < dim; i++) unorm2 += PetscSqr(un * nn[i] + ut[i]);
+  }
+
+  { // Evaluating flux
+    flux[0] = rho * us;
+    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = rho * (un * nn[i] + ut[i]) * us + p * n[i];
+    flux[dim + 1] = (p / (2 * beta) + 0.5 * rho * unorm2) * us;
+  }
 
   PetscFunctionReturnVoid();
 }
