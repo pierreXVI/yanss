@@ -53,9 +53,8 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
 
   ierr = DMTSSetRHSFunctionLocal((*mesh)->dm, MeshDMTSComputeRHSFunctionFVM, *mesh); CHKERRQ(ierr);
 
-  ierr = MeshDMSetViewer((*mesh)->dm); CHKERRQ(ierr);
-
-  ierr = DMViewFromOptions((*mesh)->dm, PETSC_NULL, "-dm_view"); CHKERRQ(ierr);
+  ierr = MeshDMSetViewer((*mesh)->dm);                     CHKERRQ(ierr);
+  ierr = DMViewFromOptions((*mesh)->dm, NULL, "-dm_view"); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

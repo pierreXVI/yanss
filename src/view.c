@@ -15,7 +15,7 @@ static PetscErrorCode PetscSectionSelectFieldComponents(PetscSection s, PetscInt
   ierr = PetscMalloc1(Nc, &displaycomp);            CHKERRQ(ierr);
   for (k = 0; k < Nc; k++) displaycomp[k] = k;
   ndisplaycomp = Nc;
-  ierr = PetscOptionsGetIntArray(PETSC_NULL, PETSC_NULL, "-draw_comp", displaycomp, &ndisplaycomp, &flg); CHKERRQ(ierr);
+  ierr = PetscOptionsGetIntArray(NULL, NULL, "-draw_comp", displaycomp, &ndisplaycomp, &flg); CHKERRQ(ierr);
   if (!ndisplaycomp) ndisplaycomp = Nc;
   *components = displaycomp;
   *outcomponents = ndisplaycomp;
@@ -194,7 +194,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     PetscInt   nmax = 2 * ndisplaycomp;
     ierr = PetscMalloc1(nmax, &vbound_tot);
     ierr = PetscObjectGetOptionsPrefix((PetscObject) v, &prefix); CHKERRQ(ierr);
-    ierr = PetscOptionsGetRealArray(PETSC_NULL, prefix, "-vec_view_bounds", vbound_tot, &nmax, &flg_vbound); CHKERRQ(ierr);
+    ierr = PetscOptionsGetRealArray(NULL, prefix, "-vec_view_bounds", vbound_tot, &nmax, &flg_vbound); CHKERRQ(ierr);
     if (nmax < 2 * ndisplaycomp) {
       for (PetscInt i = nmax; i < 2 * ndisplaycomp; i++) vbound_tot[i] = (i % 2) ? PETSC_MAX_REAL : PETSC_MIN_REAL;
     }
@@ -241,10 +241,10 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
       if (a) {
         color[1] = color[2] = color[3] = color[0] = PetscDrawRealToColor(PetscRealPart(a[comp[i]]), vbound[0], vbound[1]);
       } else {
-        PetscScalar *vals = PETSC_NULL;
+        PetscScalar *vals = NULL;
         PetscInt     numVals, va;
 
-        ierr = DMPlexVecGetClosure(dm, PETSC_NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
+        ierr = DMPlexVecGetClosure(dm, NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
         if (numVals % Nc) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "The number of components %D does not divide the number of values in the closure %D", Nc, numVals);
         switch (numVals / Nc) {
         case 3: /* P1 Triangle */
@@ -257,7 +257,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
           break;
         default: SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Number of values for cell closure %D cannot be handled", numVals/Nc);
         }
-        ierr = DMPlexVecRestoreClosure(dm, PETSC_NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
+        ierr = DMPlexVecRestoreClosure(dm, NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
       }
 
       ierr = DMPlexGetCellType(dm, c, &ct);                                        CHKERRQ(ierr);
