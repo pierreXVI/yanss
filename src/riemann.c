@@ -468,9 +468,6 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
     aR = PetscSqrtReal(phys->gamma * wR[dim + 1] / wR[0]);
   }
 
-  PetscReal CL = aL * wL[0];
-  PetscReal CR = aR * wR[0];
-
   PetscReal pmin, pmax;
   { // Lower and upper pressures
     if (wL[dim + 1] < wR[dim + 1]) {
@@ -484,6 +481,9 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
 
   PetscReal pstar, ustar, rstarL, rstarR;
   { // Solving pressure problem
+    PetscReal CL = aL * wL[0];
+    PetscReal CR = aR * wR[0];
+
     pstar = (CR * wL[dim + 1] + CL * wR[dim + 1] + CL * CR * (unL - unR)) / (CL + CR);
     ustar = (CL * unL + CR * unR + wL[dim + 1] - wR[dim + 1]) / (CL + CR);
 
@@ -494,11 +494,11 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
     } else if (pstar < pmin) { // TRRS
       PetscReal PLR = PetscPowReal(wL[dim + 1] / wR[dim + 1], beta);
 
+      pstar = wL[dim + 1] * PetscPowReal((aL + aR - (unR - unL) * (phys->gamma - 1) / 2) / (aL + aR * PLR), 1 / beta);
       ustar = (PLR * unL / aL + unR / aR + 2 * (PLR - 1) / (phys->gamma - 1)) / (PLR / aL + 1 / aR);
-      pstar = (wL[dim + 1] * PetscPowReal(1 + phys->gamma * beta * (unL - ustar), beta) + wR[dim + 1] * PetscPowReal(1 + phys->gamma * beta * (unR - ustar), beta)) / 2;
 
       rstarL = wL[0] * PetscPowReal(pstar / wL[dim + 1], 1 / phys->gamma);
-      rstarL = wR[0] * PetscPowReal(pstar / wR[dim + 1], 1 / phys->gamma);
+      rstarR = wR[0] * PetscPowReal(pstar / wR[dim + 1], 1 / phys->gamma);
 
     } else { // TSRS
       if (pstar < 0) pstar = 0;
