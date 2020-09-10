@@ -473,6 +473,84 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
 }
 
 
+/*
+  Roe - Pike approximate Riemann solver
+  For details see Toro, Riemann Solvers and Numerical Methods for Fluid Dynamics
+*/
+static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
+                               const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                               PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+  Physics phys = (Physics) ctx;
+
+  PetscFunctionBeginUser;
+
+  PetscReal area, nn[dim];
+  { // n = area * nn, nn normal unitary vector to the surface
+    area = 0;
+    for (PetscInt i = 0; i < dim; i++) area += PetscSqr(n[i]);
+    area = PetscSqrtReal(area);
+    for (PetscInt i = 0; i < dim; i++) nn[i] = n[i] / area;
+  }
+
+  PetscReal wL[Nc], wR[Nc];
+  { // Primitive variables (rho, u_1, ..., u_dim, p)
+    ConservativeToPrimitive(phys, uL, wL);
+    ConservativeToPrimitive(phys, uR, wR);
+  }
+
+  PetscReal unL, unR, utL[dim], utR[dim];
+  { // Normal and tangent speeds
+    unL = 0;
+    unR = 0;
+    for (PetscInt i = 0; i < dim; i++){
+      unL += wL[1 + i] * nn[i];
+      unR += wR[1 + i] * nn[i];
+    }
+    for (PetscInt i = 0; i < dim; i++){
+      utL[i] = wL[1 + i] - unL * nn[i];
+      utR[i] = wR[1 + i] - unR * nn[i];
+    }
+  }
+
+  PetscReal rROE, uROE, utROE[dim], hROE, aROE, unorm2ROE;
+  { // Roe averages
+    PetscReal ratioLR = PetscSqrtReal(wL[0] * wR[0]);
+
+    rROE = PetscSqrtReal(wL[0] * wR[0]);
+    uROE = (ratioLR * unL + unR) / (ratioLR + 1);
+    for (PetscInt i = 0; i < dim; i++) utROE[i] = (ratioLR * utL[i] + utR[i]) / (ratioLR + 1);
+
+    unorm2ROE = 0;
+    for (PetscInt i = 0; i < dim; i++) unorm2ROE += PetscSqr(uROE * nn[i] + utROE[i]);
+
+    hROE = (uL[dim + 1] + wL[dim + 1] + ratioLR * (uR[dim + 1] + wR[dim + 1])) / (wL[0] + ratioLR);
+    aROE = PetscSqrtReal((phys->gamma - 1) * (hROE - unorm2ROE/ 2));
+  }
+
+  PetscReal coeff_p, coeff_m, coeff_u;
+  { // Wave strengths * |eigenvalue|
+    coeff_p = PetscAbs(uROE + aROE) * (wR[dim + 1] - wL[dim + 1] + rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
+    coeff_u = PetscAbs(uROE)        * (wR[0] - wL[0] - (wR[dim + 1] - wL[dim + 1]) / PetscSqr(aROE));
+    coeff_m = PetscAbs(uROE - aROE) * (wR[dim + 1] - wL[dim + 1] - rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
+  }
+
+  { // Evaluating flux
+    flux[0] = area * (wL[0] * unL + wR[0] * unR) / 2;
+    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = area * (uL[1 + i] * unL + uR[1 + i] * unR + (wL[dim + 1] + wR[dim + 1]) * nn[i]) / 2;
+    flux[dim + 1] = area * ((uL[dim + 1] + wL[dim + 1]) * unL + (uR[dim + 1] + wR[dim + 1]) * unR) / 2;
+
+    PetscReal coeff_rE = 0;
+    for (PetscInt i = 0; i < dim; i++) coeff_rE = utROE[i] * (wR[1 + i] - wL[1 + i] - (unR - unL) * nn[i]);
+
+    flux[0] -= area * (coeff_p + coeff_u + coeff_m) / 2;
+    for (PetscInt i = 0; i < dim; i++) flux[1 + i] -= area * ((coeff_p + coeff_m) * (uROE * n[i] + utROE[i]) + rROE * PetscAbs(uROE) * (utR[i] - utL[i]) + (coeff_p - coeff_m) * aROE * nn[i]) / 2;
+    flux[dim + 1] -= area * (coeff_m * (hROE - uROE * aROE) + coeff_u * unorm2ROE / 2 + coeff_p * (hROE + uROE * aROE) + rROE * PetscAbs(uROE) * coeff_rE) / 2;;
+  }
+
+  PetscFunctionReturnVoid();
+}
+
+
 PetscErrorCode Register_RiemannSolver(PetscFunctionList *list){
   PetscErrorCode ierr;
 
@@ -481,5 +559,6 @@ PetscErrorCode Register_RiemannSolver(PetscFunctionList *list){
   ierr = PetscFunctionListAdd(list, "exact",     RiemannSolver_Exact);         CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(list, "lax",       RiemannSolver_LaxFriedrichs); CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(list, "anrs",      RiemannSolver_ANRS);          CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(list, "roe",       RiemannSolver_RoePike);       CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
