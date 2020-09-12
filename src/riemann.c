@@ -535,16 +535,18 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
   }
 
   { // Evaluating flux
-    flux[0] = area * (wL[0] * unL + wR[0] * unR) / 2;
-    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = area * (uL[1 + i] * unL + uR[1 + i] * unR + (wL[dim + 1] + wR[dim + 1]) * nn[i]) / 2;
-    flux[dim + 1] = area * ((uL[dim + 1] + wL[dim + 1]) * unL + (uR[dim + 1] + wR[dim + 1]) * unR) / 2;
+    flux[0] = wL[0] * unL + wR[0] * unR;
+    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = uL[1 + i] * unL + uR[1 + i] * unR + (wL[dim + 1] + wR[dim + 1]) * nn[i];
+    flux[dim + 1] = (uL[dim + 1] + wL[dim + 1]) * unL + (uR[dim + 1] + wR[dim + 1]) * unR;
 
     PetscReal coeff_rE = 0;
     for (PetscInt i = 0; i < dim; i++) coeff_rE = utROE[i] * (wR[1 + i] - wL[1 + i] - (unR - unL) * nn[i]);
 
-    flux[0] -= area * (coeff_p + coeff_u + coeff_m) / 2;
-    for (PetscInt i = 0; i < dim; i++) flux[1 + i] -= area * ((coeff_p + coeff_m) * (uROE * n[i] + utROE[i]) + rROE * PetscAbs(uROE) * (utR[i] - utL[i]) + (coeff_p - coeff_m) * aROE * nn[i]) / 2;
-    flux[dim + 1] -= area * (coeff_m * (hROE - uROE * aROE) + coeff_u * unorm2ROE / 2 + coeff_p * (hROE + uROE * aROE) + rROE * PetscAbs(uROE) * coeff_rE) / 2;;
+    flux[0] -= coeff_p + coeff_u + coeff_m;
+    for (PetscInt i = 0; i < dim; i++) flux[1 + i] -= (coeff_p + coeff_m) * (uROE * n[i] + utROE[i]) + rROE * PetscAbs(uROE) * (utR[i] - utL[i]) + (coeff_p - coeff_m) * aROE * nn[i];
+    flux[dim + 1] -= coeff_m * (hROE - uROE * aROE) + coeff_u * unorm2ROE / 2 + coeff_p * (hROE + uROE * aROE) + rROE * PetscAbs(uROE) * coeff_rE;
+
+    for (PetscInt i = 0; i < Nc; i++) flux[i] *= area / 2;
   }
 
   PetscFunctionReturnVoid();
