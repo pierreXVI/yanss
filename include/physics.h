@@ -35,14 +35,17 @@ void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
 PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
 PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
 
+
 /*
-  Register the Riemann solvers in the given PetscFunctionList
+  Setup the Riemann solver from options
+
+  -riemann type, where type is:
     "advection", constant advection, for debugging purposes
     "exact",     exact Riemann solver
     "lax",       Lax Friedrich Riemann solver
-    "anrs",      Adaptative Noniterative Riemann Solver
+    "anrs",      Adaptive Noniterative Riemann Solver
 */
-PetscErrorCode Register_RiemannSolver(PetscFunctionList*);
+PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm, struct RiemannCtx*);
 
 
 /*

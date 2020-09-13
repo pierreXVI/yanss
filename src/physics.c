@@ -165,17 +165,8 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
 
   ierr = MeshSetPeriodicity(mesh, filename); CHKERRQ(ierr);
 
-  void *riemann_solver;
   { // Getting Riemann solver from options
-    char riemann_name[256] = "exact";
-    PetscFunctionList riemann_list = NULL;
-    ierr = PetscOptionsBegin(PetscObjectComm((PetscObject) mesh->dm), NULL, "Physical solver", NULL);                                 CHKERRQ(ierr);
-    ierr = Register_RiemannSolver(&riemann_list);                                                                                     CHKERRQ(ierr);
-    ierr = PetscOptionsFList("-riemann", "Riemann Solver", "", riemann_list, riemann_name, riemann_name, sizeof(riemann_name), NULL); CHKERRQ(ierr);
-    ierr = PetscFunctionListFind(riemann_list, riemann_name, &riemann_solver);                                                        CHKERRQ(ierr);
-    if (!riemann_solver) SETERRQ1(PETSC_COMM_WORLD, 1, "Unknown Riemann solver: '%s'", riemann_name);
-    ierr = PetscFunctionListDestroy(&riemann_list);                                                                                   CHKERRQ(ierr);
-    ierr = PetscOptionsEnd();                                                                                                         CHKERRQ(ierr);
+    ierr = PhysicsRiemannSetFromOptions(PetscObjectComm((PetscObject) mesh->dm), &(*phys)->riemann_ctx); CHKERRQ(ierr);
   }
 
 
@@ -185,7 +176,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   const PetscInt *indices;
   ierr = DMCreateDS(mesh->dm);                             CHKERRQ(ierr);
   ierr = DMGetDS(mesh->dm, &prob);                         CHKERRQ(ierr);
-  ierr = PetscDSSetRiemannSolver(prob, 0, riemann_solver); CHKERRQ(ierr);
+  ierr = PetscDSSetRiemannSolver(prob, 0, (*phys)->riemann_ctx.riemann_solver); CHKERRQ(ierr);
   ierr = PetscDSSetContext(prob, 0, (*phys));              CHKERRQ(ierr);
   ierr = DMGetLabel(mesh->dm, "Face Sets", &label);        CHKERRQ(ierr);
   ierr = DMLabelGetNumValues(label, &(*phys)->nbc);        CHKERRQ(ierr);
