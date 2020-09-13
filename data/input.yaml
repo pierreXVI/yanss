@@ -15,12 +15,12 @@ InitialConditions:
 
 
 Periodicity:
-  # 30:
-  #   master: 10
-  #   disp: [0, 0.1, 0]
-  # 40:
-  #   master: 20
-  #   disp: [-0.1, 0, 0]
+  30:
+    master: 10
+    disp: [0, 0.1, 0]
+  40:
+    master: 20
+    disp: [-0.1, 0, 0]
 
 BoundaryConditions:
   10:
@@ -63,8 +63,7 @@ Options:
   # - -vec_view_bounds 1.155233,1.160833,177.215181,225.202224,-22.919135,24.380877,262938.028290,271270.484817
   # - -draw_comp 0
   # - -ts_max_time 0.0001
-  - -ts_max_time 0
-  # - -ts_max_steps 100000
-  # - -dm_view draw
+  # - -ts_max_time 0
+  - -ts_max_steps 10
   # - -riemann anrs
-  - -dm_view draw
+  # - -dm_view draw

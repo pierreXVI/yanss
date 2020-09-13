@@ -165,8 +165,9 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
 
   ierr = MeshSetPeriodicity(mesh, filename); CHKERRQ(ierr);
 
+  void (*riemann_solver)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*);
   { // Getting Riemann solver from options
-    ierr = PhysicsRiemannSetFromOptions(PetscObjectComm((PetscObject) mesh->dm), &(*phys)->riemann_ctx); CHKERRQ(ierr);
+    ierr = PhysicsRiemannSetFromOptions(PetscObjectComm((PetscObject) mesh->dm), &riemann_solver, &(*phys)->riemann_ctx); CHKERRQ(ierr);
   }
 
 
@@ -176,7 +177,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   const PetscInt *indices;
   ierr = DMCreateDS(mesh->dm);                             CHKERRQ(ierr);
   ierr = DMGetDS(mesh->dm, &prob);                         CHKERRQ(ierr);
-  ierr = PetscDSSetRiemannSolver(prob, 0, (*phys)->riemann_ctx.riemann_solver); CHKERRQ(ierr);
+  ierr = PetscDSSetRiemannSolver(prob, 0, riemann_solver); CHKERRQ(ierr);
   ierr = PetscDSSetContext(prob, 0, (*phys));              CHKERRQ(ierr);
   ierr = DMGetLabel(mesh->dm, "Face Sets", &label);        CHKERRQ(ierr);
   ierr = DMLabelGetNumValues(label, &(*phys)->nbc);        CHKERRQ(ierr);

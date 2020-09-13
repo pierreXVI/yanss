@@ -1,7 +1,7 @@
 #include "physics.h"
 
 
-PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscReal *xI, PetscReal *xG, void *ctx){
+PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
@@ -9,7 +9,7 @@ PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[3], const PetscReal
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscReal *xI, PetscReal *xG, void *ctx){
+PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
@@ -31,7 +31,7 @@ PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[3], const PetscReal
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode BCWall(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscReal *xI, PetscReal *xG, void *ctx){
+PetscErrorCode BCWall(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;

@@ -45,8 +45,9 @@ PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx)
     "lax",       Lax Friedrich Riemann solver
     "anrs",      Adaptive Noniterative Riemann Solver
 */
-PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm, struct RiemannCtx*);
-
+PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm,
+                                            void (**)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*),
+                                            union RiemannCtx*);
 
 /*
   Pointwise boundary condition functions, with the following calling sequence:
@@ -61,8 +62,8 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm, struct RiemannCtx*);
     ctx  - Context, to be casted to (struct BC_ctx*)
   ```
 */
-PetscErrorCode BCDirichlet(PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
-PetscErrorCode BCOutflow_P(PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
-PetscErrorCode BCWall     (PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCDirichlet(PetscReal, const PetscReal[], const PetscReal[], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCOutflow_P(PetscReal, const PetscReal[], const PetscReal[], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCWall     (PetscReal, const PetscReal[], const PetscReal[], const PetscReal*, PetscReal*, void*);
 
 #endif

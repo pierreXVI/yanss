@@ -568,7 +568,9 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
 
 
 
-PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm, struct RiemannCtx *riemann_ctx){
+PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm,
+                                            void (**riemann_solver)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*),
+                                            union RiemannCtx *riemann_ctx){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -583,19 +585,19 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm, struct RiemannCtx *ri
     ierr = PetscFunctionListAdd(&riemann_list, "anrs",      RiemannSolver_ANRS);                                                      CHKERRQ(ierr);
     ierr = PetscFunctionListAdd(&riemann_list, "roe",       RiemannSolver_RoePike);                                                   CHKERRQ(ierr);
     ierr = PetscOptionsFList("-riemann", "Riemann Solver", "", riemann_list, riemann_name, riemann_name, sizeof(riemann_name), NULL); CHKERRQ(ierr);
-    ierr = PetscFunctionListFind(riemann_list, riemann_name, &riemann_ctx->riemann_solver);                                           CHKERRQ(ierr);
-    if (!riemann_ctx->riemann_solver) SETERRQ1(PETSC_COMM_WORLD, 1, "Unknown Riemann solver: '%s'", riemann_name);
+    ierr = PetscFunctionListFind(riemann_list, riemann_name, riemann_solver);                                           CHKERRQ(ierr);
+    if (!*riemann_solver) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Riemann solver: '%s'", riemann_name);
     ierr = PetscFunctionListDestroy(&riemann_list);                                                                                   CHKERRQ(ierr);
     ierr = PetscOptionsEnd();                                                                                                         CHKERRQ(ierr);
   }
 
 
-  if (riemann_ctx->riemann_solver == RiemannSolver_AdvectionX) {
+  if (*riemann_solver == RiemannSolver_AdvectionX) {
     ierr = PetscOptionsBegin(comm, "", "Options for the Advection Riemann solver", NULL);                                                            CHKERRQ(ierr);
     riemann_ctx->advection_speed = 1;
     ierr = PetscOptionsReal("-riemann_advection_speed", "Advection speed", NULL, riemann_ctx->advection_speed, &riemann_ctx->advection_speed, NULL); CHKERRQ(ierr);
     ierr = PetscOptionsEnd();                                                                                                                        CHKERRQ(ierr);
-  } else if (riemann_ctx->riemann_solver == RiemannSolver_Exact) {
+  } else if (*riemann_solver == RiemannSolver_Exact) {
     char p_solver_name[256] = "newton";
     PetscFunctionList p_solver_list = NULL;
     ierr = PetscOptionsBegin(comm, "", "Options for the Exact Riemann solver", NULL); CHKERRQ(ierr);
@@ -604,7 +606,7 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm, struct RiemannCtx *ri
     ierr = PetscFunctionListAdd(&p_solver_list, "fp",     RiemannPressureSolver_Exact_FP);                                                                              CHKERRQ(ierr);
     ierr = PetscOptionsFList("-riemann_exact_p_solver", "Riemann Exact Pressure Solver", "", p_solver_list, p_solver_name, p_solver_name, sizeof(p_solver_name), NULL); CHKERRQ(ierr);
     ierr = PetscFunctionListFind(p_solver_list, p_solver_name, &riemann_ctx->pressure_solver);                                                                          CHKERRQ(ierr);
-    if (!riemann_ctx->pressure_solver) SETERRQ1(PETSC_COMM_WORLD, 1, "Unknown Pressure solver: '%s'", p_solver_name);
+    if (!riemann_ctx->pressure_solver) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Pressure solver: '%s'", p_solver_name);
     ierr = PetscFunctionListDestroy(&p_solver_list);                                                                                                                    CHKERRQ(ierr);
 
     riemann_ctx->pressure_solver_rtol = 1E-6;
@@ -615,7 +617,7 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm, struct RiemannCtx *ri
     ierr = PetscOptionsReal("-riemann_exact_p_solver_eps", "Epsilon on the pressure solver, triggers linearisation of the rarefaction formula", NULL, riemann_ctx->pressure_solver_eps, &riemann_ctx->pressure_solver_eps, NULL); CHKERRQ(ierr);
 
     ierr = PetscOptionsEnd(); CHKERRQ(ierr);
-  } else if (riemann_ctx->riemann_solver == RiemannSolver_ANRS) {
+  } else if (*riemann_solver == RiemannSolver_ANRS) {
     ierr = PetscOptionsBegin(comm, "", "Options for the Adaptive Noniterative Riemann Solver", NULL); CHKERRQ(ierr);
     riemann_ctx->q_user = 2;
     ierr = PetscOptionsReal("-riemann_anrs_q", "Pressure ratio over which the PVRS is not used", NULL, riemann_ctx->q_user, &riemann_ctx->q_user, NULL); CHKERRQ(ierr);
