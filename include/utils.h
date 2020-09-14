@@ -38,6 +38,10 @@ union RiemannCtx{
   struct {
     PetscReal q_user;
   }; // RiemannSolver_ANRS
+
+  struct {
+    void (*entropy_fix)(PetscReal*, PetscReal, PetscReal);
+  }; // RiemannSolver_RoePike
 };
 
 typedef struct {

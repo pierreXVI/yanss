@@ -40,7 +40,7 @@ static void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
 /*
   From "I do like CFD", Katate Masatsuka
 */
-static void RiemannPressureSolver_Exact_FP(PetscInt dim, Physics phys, PetscReal *wL, PetscReal *wR,
+static void RiemannSolver_Exact_PressureSolver_FP(PetscInt dim, Physics phys, PetscReal *wL, PetscReal *wR,
                                      PetscReal unL, PetscReal unR, PetscReal *utL, PetscReal *utR, PetscReal aL, PetscReal aR,
                                      PetscReal *pstar, PetscReal *ustar){
   PetscFunctionBeginUser;
@@ -91,7 +91,7 @@ static void RiemannPressureSolver_Exact_FP(PetscInt dim, Physics phys, PetscReal
 /*
   From "Riemann Solvers and Numerical Methods for Fluid Dynamics", Euleterio F. Toro
 */
-static void RiemannPressureSolver_Exact_Newton(PetscInt dim, Physics phys, PetscReal *wL, PetscReal *wR,
+static void RiemannSolver_Exact_PressureSolver_Newton(PetscInt dim, Physics phys, PetscReal *wL, PetscReal *wR,
                                                PetscReal unL, PetscReal unR, PetscReal *utL, PetscReal *utR, PetscReal aL, PetscReal aR,
                                                PetscReal *pstar, PetscReal *ustar){
   PetscFunctionBeginUser;
@@ -313,7 +313,7 @@ static void RiemannSolver_LaxFriedrichs(PetscInt dim, PetscInt Nc,
 
 
 /*
-  Adaptive Noniterative Riemann Solver (Toro, Riemann Solvers and Numerical Methods for Fluid Dynamics)
+  Adaptive Noniterative Riemann Solver (Toro, "Riemann Solvers and Numerical Methods for Fluid Dynamics")
 */
 static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
                                const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
@@ -488,8 +488,21 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
 
 
 /*
-  Roe - Pike approximate Riemann solver
-  For details see Toro, Riemann Solvers and Numerical Methods for Fluid Dynamics
+  Entropy fixes for Roe-Pike Riemann solver
+  HH1 and HH2 are introduced in Harten and Hyman, "Self adjusting grid methods for one-dimensional hyperbolic conservation laws",
+  but an easier explanation can be found in Pelanti et al., "A review of entropy fixes as applied to Roe’s linearization"
+*/
+static void RiemannSolver_RoePike_EntropyFix_None(PetscReal *a_k, PetscReal a_kL, PetscReal a_kR){PetscFunctionReturnVoid();}
+static void RiemannSolver_RoePike_EntropyFix_HH1(PetscReal *a_k, PetscReal a_kL, PetscReal a_kR){
+  PetscReal delta_k = PetscMax(*a_k - a_kL, a_kR - *a_k); if (PetscAbs(*a_k) < delta_k) *a_k = delta_k;
+}
+static void RiemannSolver_RoePike_EntropyFix_HH2(PetscReal *a_k, PetscReal a_kL, PetscReal a_kR){
+  PetscReal delta_k = PetscMax(*a_k - a_kL, a_kR - *a_k); if (PetscAbs(*a_k) < delta_k) *a_k = (PetscSqr(*a_k) / delta_k + delta_k) / 2;
+}
+
+/*
+  Roe-Pike approximate Riemann solver
+  For details see Toro, "Riemann Solvers and Numerical Methods for Fluid Dynamics"
 */
 static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
                                const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
@@ -526,6 +539,12 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
     }
   }
 
+  PetscReal aL, aR;
+  { // Speeds of sound
+    aL = PetscSqrtReal(phys->gamma * wL[dim + 1] / wL[0]);
+    aR = PetscSqrtReal(phys->gamma * wR[dim + 1] / wR[0]);
+  }
+
   PetscReal rROE, uROE, utROE[dim], hROE, aROE, unorm2ROE;
   { // Roe averages
     PetscReal ratioLR = PetscSqrtReal(wL[0] * wR[0]);
@@ -541,11 +560,24 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
     aROE = PetscSqrtReal((phys->gamma - 1) * (hROE - unorm2ROE/ 2));
   }
 
+  PetscReal lambda_p, lambda_m, lambda_u;
+  { // Eigenvalues
+    lambda_p = uROE + aROE;
+    lambda_u = uROE;
+    lambda_m = uROE - aROE;
+  }
+
+  { // Entropy fix
+    RiemannSolver_RoePike_EntropyFix_HH1(&lambda_p, unL + aL, unR + aR);
+    RiemannSolver_RoePike_EntropyFix_HH1(&lambda_u, unL, unR);
+    RiemannSolver_RoePike_EntropyFix_HH1(&lambda_m, unL - aL, unR - aR);
+  }
+
   PetscReal coeff_p, coeff_m, coeff_u;
   { // Wave strengths * |eigenvalue|
-    coeff_p = PetscAbs(uROE + aROE) * (wR[dim + 1] - wL[dim + 1] + rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
-    coeff_u = PetscAbs(uROE)        * (wR[0] - wL[0] - (wR[dim + 1] - wL[dim + 1]) / PetscSqr(aROE));
-    coeff_m = PetscAbs(uROE - aROE) * (wR[dim + 1] - wL[dim + 1] - rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
+    coeff_p = PetscAbs(lambda_p) * (wR[dim + 1] - wL[dim + 1] + rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
+    coeff_u = PetscAbs(lambda_u) * (wR[0] - wL[0] - (wR[dim + 1] - wL[dim + 1]) / PetscSqr(aROE));
+    coeff_m = PetscAbs(lambda_m) * (wR[dim + 1] - wL[dim + 1] - rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
   }
 
   { // Evaluating flux
@@ -576,9 +608,9 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm,
   PetscFunctionBeginUser;
 
   { // Getting Riemann solver from options
+    ierr = PetscOptionsBegin(comm, NULL, "Physical solver", NULL);                                                                    CHKERRQ(ierr);
     char riemann_name[256] = "exact";
     PetscFunctionList riemann_list = NULL;
-    ierr = PetscOptionsBegin(comm, NULL, "Physical solver", NULL);                                                                    CHKERRQ(ierr);
     ierr = PetscFunctionListAdd(&riemann_list, "advection", RiemannSolver_AdvectionX);                                                CHKERRQ(ierr);
     ierr = PetscFunctionListAdd(&riemann_list, "exact",     RiemannSolver_Exact);                                                     CHKERRQ(ierr);
     ierr = PetscFunctionListAdd(&riemann_list, "lax",       RiemannSolver_LaxFriedrichs);                                             CHKERRQ(ierr);
@@ -598,12 +630,12 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm,
     ierr = PetscOptionsReal("-riemann_advection_speed", "Advection speed", NULL, riemann_ctx->advection_speed, &riemann_ctx->advection_speed, NULL); CHKERRQ(ierr);
     ierr = PetscOptionsEnd();                                                                                                                        CHKERRQ(ierr);
   } else if (*riemann_solver == RiemannSolver_Exact) {
-    char p_solver_name[256] = "newton";
-    PetscFunctionList p_solver_list = NULL;
     ierr = PetscOptionsBegin(comm, "", "Options for the Exact Riemann solver", NULL); CHKERRQ(ierr);
 
-    ierr = PetscFunctionListAdd(&p_solver_list, "newton", RiemannPressureSolver_Exact_Newton);                                                                          CHKERRQ(ierr);
-    ierr = PetscFunctionListAdd(&p_solver_list, "fp",     RiemannPressureSolver_Exact_FP);                                                                              CHKERRQ(ierr);
+    char p_solver_name[256] = "newton";
+    PetscFunctionList p_solver_list = NULL;
+    ierr = PetscFunctionListAdd(&p_solver_list, "newton", RiemannSolver_Exact_PressureSolver_Newton);                                                                          CHKERRQ(ierr);
+    ierr = PetscFunctionListAdd(&p_solver_list, "fp",     RiemannSolver_Exact_PressureSolver_FP);                                                                              CHKERRQ(ierr);
     ierr = PetscOptionsFList("-riemann_exact_p_solver", "Riemann Exact Pressure Solver", "", p_solver_list, p_solver_name, p_solver_name, sizeof(p_solver_name), NULL); CHKERRQ(ierr);
     ierr = PetscFunctionListFind(p_solver_list, p_solver_name, &riemann_ctx->pressure_solver);                                                                          CHKERRQ(ierr);
     if (!riemann_ctx->pressure_solver) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Pressure solver: '%s'", p_solver_name);
@@ -621,6 +653,18 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm,
     ierr = PetscOptionsBegin(comm, "", "Options for the Adaptive Noniterative Riemann Solver", NULL); CHKERRQ(ierr);
     riemann_ctx->q_user = 2;
     ierr = PetscOptionsReal("-riemann_anrs_q", "Pressure ratio over which the PVRS is not used", NULL, riemann_ctx->q_user, &riemann_ctx->q_user, NULL); CHKERRQ(ierr);
+    ierr = PetscOptionsEnd();
+  } else if (*riemann_solver == RiemannSolver_RoePike) {
+    ierr = PetscOptionsBegin(comm, "", "Options for the Roe-Pike Riemann Solver", NULL); CHKERRQ(ierr);
+    char entropy_fix_name[256] = "none";
+    PetscFunctionList entropy_fix_list = NULL;
+    ierr = PetscFunctionListAdd(&entropy_fix_list, "none", RiemannSolver_RoePike_EntropyFix_None); CHKERRQ(ierr);
+    ierr = PetscFunctionListAdd(&entropy_fix_list, "hh1",  RiemannSolver_RoePike_EntropyFix_HH1);  CHKERRQ(ierr);
+    ierr = PetscFunctionListAdd(&entropy_fix_list, "hh2",  RiemannSolver_RoePike_EntropyFix_HH2);  CHKERRQ(ierr);
+    ierr = PetscOptionsFList("-riemann_roe_entropy_fix", "Roe-Pike solver entropy fix", "", entropy_fix_list, entropy_fix_name, entropy_fix_name, sizeof(entropy_fix_name), NULL); CHKERRQ(ierr);
+    ierr = PetscFunctionListFind(entropy_fix_list, entropy_fix_name, &riemann_ctx->entropy_fix);                                                                          CHKERRQ(ierr);
+    if (!riemann_ctx->entropy_fix) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Entropy fix: '%s'", entropy_fix_name);
+    ierr = PetscFunctionListDestroy(&entropy_fix_list);
     ierr = PetscOptionsEnd();
   }
 
