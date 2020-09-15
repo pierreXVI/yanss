@@ -1,5 +1,6 @@
 build/
 .tags*
 data/*.msh
+data/input.yaml
 makefile
 .idea/*
