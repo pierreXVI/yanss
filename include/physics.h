@@ -35,15 +35,19 @@ void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
 PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
 PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
 
+
 /*
-  Register the Riemann solvers in the given PetscFunctionList
+  Setup the Riemann solver from options
+
+  -riemann type, where type is:
     "advection", constant advection, for debugging purposes
     "exact",     exact Riemann solver
     "lax",       Lax Friedrich Riemann solver
-    "anrs",      Adaptative Noniterative Riemann Solver
+    "anrs",      Adaptive Noniterative Riemann Solver
 */
-PetscErrorCode Register_RiemannSolver(PetscFunctionList*);
-
+PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm,
+                                            void (**)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*),
+                                            union RiemannCtx*);
 
 /*
   Pointwise boundary condition functions, with the following calling sequence:
@@ -58,8 +62,8 @@ PetscErrorCode Register_RiemannSolver(PetscFunctionList*);
     ctx  - Context, to be casted to (struct BC_ctx*)
   ```
 */
-PetscErrorCode BCDirichlet(PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
-PetscErrorCode BCOutflow_P(PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
-PetscErrorCode BCWall     (PetscReal, const PetscReal[3], const PetscReal[3], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCDirichlet(PetscReal, const PetscReal[], const PetscReal[], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCOutflow_P(PetscReal, const PetscReal[], const PetscReal[], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCWall     (PetscReal, const PetscReal[], const PetscReal[], const PetscReal*, PetscReal*, void*);
 
 #endif

@@ -165,17 +165,9 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
 
   ierr = MeshSetPeriodicity(mesh, filename); CHKERRQ(ierr);
 
-  void *riemann_solver;
+  void (*riemann_solver)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*);
   { // Getting Riemann solver from options
-    char riemann_name[256] = "exact";
-    PetscFunctionList riemann_list = NULL;
-    ierr = PetscOptionsBegin(PetscObjectComm((PetscObject) mesh->dm), NULL, "Physical solver", NULL);                                 CHKERRQ(ierr);
-    ierr = Register_RiemannSolver(&riemann_list);                                                                                     CHKERRQ(ierr);
-    ierr = PetscOptionsFList("-riemann", "Riemann Solver", "", riemann_list, riemann_name, riemann_name, sizeof(riemann_name), NULL); CHKERRQ(ierr);
-    ierr = PetscFunctionListFind(riemann_list, riemann_name, &riemann_solver);                                                        CHKERRQ(ierr);
-    if (!riemann_solver) SETERRQ1(PETSC_COMM_WORLD, 1, "Unknown Riemann solver: '%s'", riemann_name);
-    ierr = PetscFunctionListDestroy(&riemann_list);                                                                                   CHKERRQ(ierr);
-    ierr = PetscOptionsEnd();                                                                                                         CHKERRQ(ierr);
+    ierr = PhysicsRiemannSetFromOptions(PetscObjectComm((PetscObject) mesh->dm), &riemann_solver, &(*phys)->riemann_ctx); CHKERRQ(ierr);
   }
 
 
