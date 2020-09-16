@@ -11,9 +11,9 @@ DEP_DIR = build/dep
 OBJ_DIR = build/obj
 BIN_DIR = build/bin
 
-CC = {0}
-COMP_OPTS = {1}
-LINK_OPTS = {2}
+CC = {CC}
+COMP_OPTS = {COMP_OPTS}
+LINK_OPTS = {LINK_OPTS}
 
 .PHONY: all
 all: $(BIN_DIR)/yanss
@@ -26,12 +26,12 @@ SRC = $(wildcard $(SRC_DIR)/*.c)
 
 
 $(BIN_DIR)/yanss: $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o) | $(BIN_DIR)
-\t@# printf "Linking %-14s " yanss
-\t$(CC) -o $@ $^ $(LINK_OPTS)
+\t{verb_name}printf "Linking %-s\\n" $(@F)
+\t{verb_cmd}$(CC) -o $@ $^ $(LINK_OPTS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEP_DIR) $(OBJ_DIR)
-\t@# printf "Compiling %-12s " $*
-\t$(CC) -c $(COMP_OPTS) -Iinclude -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d $< -o $@
+\t{verb_name}printf "Compiling %-s\\n" $(@F)
+\t{verb_cmd}$(CC) -c $(COMP_OPTS) -Iinclude -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d $< -o $@
 
 
 -include $(SRC:$(SRC_DIR)/%.c=$(DEP_DIR)/%.d)
@@ -48,10 +48,11 @@ distclean: clean_all
 """
 
 
-"""
-    Check the command `cmd`, on input `pipe`
-"""
 def check(name, cmd, pipe='', err_head='', err_msg=''):
+    """
+    Check the command `cmd`, on input `pipe`
+    """
+
     print("Checking {0:40s} ".format(name), end='', flush=True)
     p = subprocess.Popen(cmd, shell=True,
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -67,10 +68,11 @@ def check(name, cmd, pipe='', err_head='', err_msg=''):
     print('\033[32mOK\033[39m')
 
 
-"""
-    Check include and linking for an external library
-"""
 def check_lib(cc, comp_opts, link_opts, name, header, library, test):
+    """
+    Check include and linking for an external library
+    """
+
     check('include {0}'.format(name), '{0} -x c -o /dev/null {1} -'.format(cc, comp_opts),
           pipe="#include <{0}>\nint main(int argc, char **argv){{return 0;}}".format(header),
           err_head="Cannot include <{0}> with the current options:".format(header),
@@ -89,7 +91,8 @@ if __name__ == "__main__":
     parser.add_argument('--with-petsc-dir', dest='PETSC_DIR',
                         help="Indicate the root directory of the PETSc installation")
     parser.add_argument('--with-yaml-dir', dest='YAML_DIR',
-                        help="Indicate the root directory of the YAML installation")
+                        help="Indicate the root directory of the LibYAML installation")
+    parser.add_argument('--make-verbose', dest='v', help="Specify the verbosity of the makefile", type=int, default=2)
     args = parser.parse_args()
 
     CC = args.CC if args.CC else os.environ.get('CC', 'cc')
@@ -133,15 +136,13 @@ if __name__ == "__main__":
           err_head="The C compiler is not c99 compliant:",
           err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\nTry again with -std=c99".format(CC, ' '.join(COMP_OPTS)))
 
-    if args.MPI_DIR == args.PETSC_DIR:
-      args.PETSC_DIR = None
-    if args.MPI_DIR == args.YAML_DIR:
-        args.YAML_DIR = None
-    if args.PETSC_DIR == args.YAML_DIR:
-        args.YAML_DIR = None
+    passed_dir = []
     for soft_dir in (args.MPI_DIR, args.PETSC_DIR, args.YAML_DIR):
         if soft_dir:
             soft_dir = os.path.abspath(os.path.expanduser(soft_dir))
+            if soft_dir in passed_dir:
+                continue
+            passed_dir.append(soft_dir)
             COMP_OPTS.append('-I ' + os.path.join(soft_dir, 'include'))
             LINK_OPTS.append('-Wl,-rpath,{0} -L{0}'.format(os.path.join(soft_dir, 'lib')))
     COMP_OPTS = ' '.join(COMP_OPTS)
@@ -153,8 +154,12 @@ if __name__ == "__main__":
 
     LINK_OPTS = ' '.join((LINK_OPTS, '-lmpi', '-lpetsc', '-lyaml', '-lm'))
 
+    verb_name = '@# ' if (args.v == 0 or args.v == 2) else '@ '
+    verb_cmd = '@ ' if (args.v == 0 or args.v == 1) else ''
+
     with open('makefile', 'w') as makefile:
-        makefile.write(MAKEFILE.format(CC, COMP_OPTS, LINK_OPTS))
+        makefile.write(MAKEFILE.format(CC=CC, COMP_OPTS=COMP_OPTS, LINK_OPTS=LINK_OPTS,
+                                       verb_name=verb_name, verb_cmd=verb_cmd))
 
     print("Configuration done with options:")
     print("\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
