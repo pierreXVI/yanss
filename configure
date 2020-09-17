@@ -11,9 +11,9 @@ DEP_DIR = build/dep
 OBJ_DIR = build/obj
 BIN_DIR = build/bin
 
-CC = {0}
-COMP_OPTS = {1}
-LINK_OPTS = {2}
+CC = {CC}
+COMP_OPTS = {COMP_OPTS}
+LINK_OPTS = {LINK_OPTS}
 
 .PHONY: all
 all: $(BIN_DIR)/yanss
@@ -26,12 +26,12 @@ SRC = $(wildcard $(SRC_DIR)/*.c)
 
 
 $(BIN_DIR)/yanss: $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o) | $(BIN_DIR)
-\t@# printf "Linking %-14s " yanss
-\t$(CC) -o $@ $^ $(LINK_OPTS)
+\t{verb_name}printf "Linking %-s\\n" $(@F)
+\t{verb_cmd}$(CC) -o $@ $^ $(LINK_OPTS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(DEP_DIR) $(OBJ_DIR)
-\t@# printf "Compiling %-12s " $*
-\t$(CC) -c $(COMP_OPTS) -Iinclude -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d $< -o $@
+\t{verb_name}printf "Compiling %-s\\n" $(@F)
+\t{verb_cmd}$(CC) -c $(COMP_OPTS) -Iinclude -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d $< -o $@
 
 
 -include $(SRC:$(SRC_DIR)/%.c=$(DEP_DIR)/%.d)
@@ -49,6 +49,10 @@ distclean: clean_all
 
 
 def check(name, cmd, pipe='', err_head='', err_msg=''):
+    """
+    Check the command `cmd`, on input `pipe`
+    """
+
     print("Checking {0:40s} ".format(name), end='', flush=True)
     p = subprocess.Popen(cmd, shell=True,
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -64,67 +68,98 @@ def check(name, cmd, pipe='', err_head='', err_msg=''):
     print('\033[32mOK\033[39m')
 
 
+def check_lib(cc, comp_opts, link_opts, name, header, library, test):
+    """
+    Check include and linking for an external library
+    """
+
+    check('include {0}'.format(name), '{0} -x c -o /dev/null {1} -'.format(cc, comp_opts),
+          pipe="#include <{0}>\nint main(int argc, char **argv){{return 0;}}".format(header),
+          err_head="Cannot include <{0}> with the current options:".format(header),
+          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n".format(cc, comp_opts))
+    check('linking {0}'.format(name), '{0} -x c -o /dev/null {1} - {2} {3}'.format(cc, comp_opts, link_opts, library),
+          pipe="#include <{0}>\nint main(int argc, char **argv){{{1}; return 0;}}".format(header, test),
+          err_head="Cannot use {0} with the current options:".format(name),
+          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(cc, comp_opts, link_opts))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Configure YANNS")
     parser.add_argument('--CC', help="Specify the C compiler")
+    parser.add_argument('--with-mpi-dir', dest='MPI_DIR',
+                        help="Indicate the root directory of the MPI installation")
     parser.add_argument('--with-petsc-dir', dest='PETSC_DIR',
                         help="Indicate the root directory of the PETSc installation")
     parser.add_argument('--with-yaml-dir', dest='YAML_DIR',
-                        help="Indicate the root directory of the YAML installation")
+                        help="Indicate the root directory of the LibYAML installation")
+    parser.add_argument('--make-verbose', dest='v', help="Specify the verbosity of the makefile", type=int, default=2)
     args = parser.parse_args()
 
     CC = args.CC if args.CC else os.environ.get('CC', 'cc')
-    COMP_OPTS = CC.split()[1:]
-    LINK_OPTS = []
+    COMP_OPTS, LINK_OPTS = [], []
+    flg_i, flg_l = False, False
+    for opt in CC.split()[1:]:
+        if flg_i:
+            COMP_OPTS.append('-I' + opt)
+            flg_i = False
+            continue
+        if flg_l:
+            LINK_OPTS.append('-L' + opt)
+            flg_l = False
+            continue
+
+        if opt == '-I':
+            flg_i = True
+            continue
+        if opt == '-L':
+            flg_l = True
+            continue
+
+        if opt[:2] == '-L' or opt[:2] == '-l' or opt[:3] == '-Wl':
+            LINK_OPTS.append(opt)
+        else:
+            COMP_OPTS.append(opt)
     CC = CC.split()[0]
 
     check('compiler', '{0} --version'.format(CC),
           err_head="Cannot find C compiler:", err_msg="\tCC = {0}\n".format(CC))
+    check('compiler options', '{0} -x c -o /dev/null {1} -'.format(CC, ' '.join(COMP_OPTS)),
+          pipe="int main(int argc, char **argv){{return 0;}}",
+          err_head="Wrong compiler options:",
+          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}".format(CC, ' '.join(COMP_OPTS)))
+    check('linker options', '{0} -x c -o /dev/null {1} -'.format(CC, ' '.join(LINK_OPTS)),
+          pipe="int main(int argc, char **argv){{return 0;}}",
+          err_head="Wrong linker options:",
+          err_msg="\tCC = {0}\n\tLINK_OPTS = {1}".format(CC, ' '.join(LINK_OPTS)))
     check('c99 standard', '{0} -x c -o /dev/null {1} -'.format(CC, ' '.join(COMP_OPTS)),
           pipe="int main(int argc, char **argv){{for(int i = 0; i < 10; i++){{}} return 0;}}",
           err_head="The C compiler is not c99 compliant:",
           err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\nTry again with -std=c99".format(CC, ' '.join(COMP_OPTS)))
 
-    if args.PETSC_DIR == args.YAML_DIR:
-        args.YAML_DIR = None
-    for soft_dir in (args.PETSC_DIR, args.YAML_DIR):
+    passed_dir = []
+    for soft_dir in (args.MPI_DIR, args.PETSC_DIR, args.YAML_DIR):
         if soft_dir:
             soft_dir = os.path.abspath(os.path.expanduser(soft_dir))
+            if soft_dir in passed_dir:
+                continue
+            passed_dir.append(soft_dir)
             COMP_OPTS.append('-I ' + os.path.join(soft_dir, 'include'))
             LINK_OPTS.append('-Wl,-rpath,{0} -L{0}'.format(os.path.join(soft_dir, 'lib')))
     COMP_OPTS = ' '.join(COMP_OPTS)
     LINK_OPTS = ' '.join(LINK_OPTS)
 
-    check('include MPI', '{0} -x c -o /dev/null {1} -'.format(CC, COMP_OPTS),
-          pipe="#include <mpi.h>\nint main(int argc, char **argv){{return 0;}}",
-          err_head="Cannot include <mpi.h> with the current options:",
-          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n".format(CC, COMP_OPTS))
-    check('include PETSc', '{0} -x c -o /dev/null {1} -'.format(CC, COMP_OPTS),
-          pipe="#include <petscsys.h>\nint main(int argc, char **argv){{return 0;}}",
-          err_head="Cannot include <petscsys.h> with the current options:",
-          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n".format(CC, COMP_OPTS))
-    check('include YAML', '{0} -x c -o /dev/null {1} -'.format(CC, COMP_OPTS),
-          pipe="#include <yaml.h>\nint main(int argc, char **argv){{return 0;}}",
-          err_head="Cannot include <yaml.h> with the current options:",
-          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n".format(CC, COMP_OPTS))
+    check_lib(CC, COMP_OPTS, LINK_OPTS, "MPI", "mpi.h", "-lmpi", "MPI_Init(&argc, &argv)")
+    check_lib(CC, COMP_OPTS, LINK_OPTS, "PETSc", "petscsys.h", "-lpetsc", "PetscInitialize(&argc, &argv, NULL, NULL)")
+    check_lib(CC, COMP_OPTS, LINK_OPTS, "LibYAML", "yaml.h", "-lyaml", "yaml_parser_initialize(NULL)")
 
-    check('linking MPI', '{0} -x c -o /dev/null {1} - {2}'.format(CC, COMP_OPTS, LINK_OPTS),
-          pipe="#include <mpi.h>\nint main(int argc, char **argv){{MPI_Init(&argc, &argv); return 0;}}",
-          err_head="Cannot use MPI with the current options:",
-          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
-    check('linking PETSc', '{0} -x c -o /dev/null {1} - {2} -lpetsc'.format(CC, COMP_OPTS, LINK_OPTS),
-          pipe="#include <petscsys.h>\nint main(int argc, char **argv){{PetscInitialize(&argc, &argv, NULL, NULL); return 0;}}",
-          err_head="Cannot use PETSc with the current options:",
-          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
-    check('linking YAML', '{0} -x c -o /dev/null {1} - {2} -lyaml'.format(CC, COMP_OPTS, LINK_OPTS),
-          pipe="#include <yaml.h>\nint main(int argc, char **argv){{yaml_parser_initialize(0); return 0;}}",
-          err_head="Cannot use -lyaml with the current options:",
-          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
+    LINK_OPTS = ' '.join((LINK_OPTS, '-lmpi', '-lpetsc', '-lyaml', '-lm'))
 
-    LINK_OPTS = ' '.join((LINK_OPTS, '-lpetsc', '-lyaml', '-lm'))
+    verb_name = '@# ' if (args.v == 0 or args.v == 2) else '@ '
+    verb_cmd = '@ ' if (args.v == 0 or args.v == 1) else ''
 
     with open('makefile', 'w') as makefile:
-        makefile.write(MAKEFILE.format(CC, COMP_OPTS, LINK_OPTS))
+        makefile.write(MAKEFILE.format(CC=CC, COMP_OPTS=COMP_OPTS, LINK_OPTS=LINK_OPTS,
+                                       verb_name=verb_name, verb_cmd=verb_cmd))
 
     print("Configuration done with options:")
     print("\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
