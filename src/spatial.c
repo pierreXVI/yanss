@@ -28,7 +28,7 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
   PetscFunctionBeginUser;
   ierr = PetscNew(mesh);                                                 CHKERRQ(ierr);
   ierr = DMPlexCreateFromFile(comm, filename, PETSC_TRUE, &(*mesh)->dm); CHKERRQ(ierr);
-  ierr = DMViewFromOptions((*mesh)->dm, NULL, "-dm_view_orig");          CHKERRQ(ierr);
+  ierr = DMViewFromOptions((*mesh)->dm, NULL, "-mesh_view_orig");        CHKERRQ(ierr);
   ierr = DMSetBasicAdjacency((*mesh)->dm, PETSC_TRUE, PETSC_FALSE);      CHKERRQ(ierr);
 
   PetscPartitioner part;
@@ -53,8 +53,8 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
 
   ierr = DMTSSetRHSFunctionLocal((*mesh)->dm, MeshDMTSComputeRHSFunctionFVM, *mesh); CHKERRQ(ierr);
 
-  ierr = MeshDMSetViewer((*mesh)->dm);                     CHKERRQ(ierr);
-  ierr = DMViewFromOptions((*mesh)->dm, NULL, "-dm_view"); CHKERRQ(ierr);
+  ierr = MeshDMSetViewer((*mesh)->dm);                       CHKERRQ(ierr);
+  ierr = DMViewFromOptions((*mesh)->dm, NULL, "-mesh_view"); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

@@ -16,6 +16,11 @@
     fieldND: array
     ...
 
+  Periodicity:
+    id:
+      master: value
+      disp: array
+
   BoundaryConditions:
     id:
       name: value

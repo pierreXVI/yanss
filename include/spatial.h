@@ -17,9 +17,9 @@ PetscErrorCode MeshDestroy(Mesh*);
 /*
   Setup the mesh.
   The output must be freed with `MeshDestroy`.
-  The mesh can be inspected with the options:
-   -dm_view_orig - To view the raw mesh from the input file
-   -dm_view      - To view the mesh produced by this function
+  The mesh can be viewed with the options:
+   -mesh_view_orig - To view the raw mesh from the input file
+   -mesh_view      - To view the mesh produced by this function
 */
 PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, const char*, Mesh*);
 

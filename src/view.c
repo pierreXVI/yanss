@@ -277,17 +277,29 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
       ierr = DMPlexVecRestoreClosure(dm, coordSection, coordinates, c, NULL, &coords); CHKERRQ(ierr);
     }
 
-    // ierr = PetscDraw_MeshDM_Cells(draw, dm); CHKERRQ(ierr);
-    ierr = PetscDraw_MeshDM_Partition(draw, dm); CHKERRQ(ierr);
+    { // Draw mesh
+      PetscBool flg = PETSC_FALSE;
+      ierr = PetscOptionsGetBool(NULL, NULL, "-vec_view_mesh", &flg, NULL); CHKERRQ(ierr);
+      if (flg) {
+        ierr = PetscDraw_MeshDM_Cells(draw, dm); CHKERRQ(ierr);
+      }
+    }
+    { // Draw partition
+      PetscBool flg = PETSC_FALSE;
+      ierr = PetscOptionsGetBool(NULL, NULL, "-vec_view_partition", &flg, NULL); CHKERRQ(ierr);
+      if (flg) {
+        ierr = PetscDraw_MeshDM_Partition(draw, dm); CHKERRQ(ierr);
+      }
+    }
 
     ierr = PetscDrawFlush(draw);                             CHKERRQ(ierr);
     if (i == ndisplaycomp - 1) {ierr = PetscDrawPause(draw); CHKERRQ(ierr);}
     ierr = PetscDrawSave(draw);                              CHKERRQ(ierr);
   }
 
-  ierr = VecRestoreArrayRead(v, &array);                   CHKERRQ(ierr);
-  ierr = PetscFree(vbound_tot); CHKERRQ(ierr);
-  ierr = PetscFree(comp);       CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(v, &array); CHKERRQ(ierr);
+  ierr = PetscFree(vbound_tot);          CHKERRQ(ierr);
+  ierr = PetscFree(comp);                CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
