@@ -48,7 +48,7 @@ PetscErrorCode BCWall(PetscReal time, const PetscReal c[], const PetscReal n[], 
     for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) xG[1 + i] = xI[1 + i] - 2 * dot * n[i] / norm2;
     break;
 
-  case TYPE_NS: /* u <- 0 */{}
+  case TYPE_NS: /* u <- 0 */
     xG[0] = xI[0];
     xG[bc_ctx->phys->dim + 1] = xI[bc_ctx->phys->dim + 1];
 

@@ -186,18 +186,16 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
   PetscBool    flg_vbound;
   PetscSection s;
   { // Selecting components
-    ierr = DMGetLocalSection(dm, &s);                                               CHKERRQ(ierr);
-    ierr = PetscSectionGetFieldComponents(s, 0, &Nc);                               CHKERRQ(ierr);
-    ierr = PetscSectionSelectFieldComponents(s, 0, &ndisplaycomp, &comp);    CHKERRQ(ierr);
+    ierr = DMGetLocalSection(dm, &s);                                     CHKERRQ(ierr);
+    ierr = PetscSectionGetFieldComponents(s, 0, &Nc);                     CHKERRQ(ierr);
+    ierr = PetscSectionSelectFieldComponents(s, 0, &ndisplaycomp, &comp); CHKERRQ(ierr);
 
     const char *prefix;
     PetscInt   nmax = 2 * ndisplaycomp;
     ierr = PetscMalloc1(nmax, &vbound_tot);
     ierr = PetscObjectGetOptionsPrefix((PetscObject) v, &prefix); CHKERRQ(ierr);
     ierr = PetscOptionsGetRealArray(NULL, prefix, "-vec_view_bounds", vbound_tot, &nmax, &flg_vbound); CHKERRQ(ierr);
-    if (nmax < 2 * ndisplaycomp) {
-      for (PetscInt i = nmax; i < 2 * ndisplaycomp; i++) vbound_tot[i] = (i % 2) ? PETSC_MAX_REAL : PETSC_MIN_REAL;
-    }
+    for (PetscInt i = nmax; i < 2 * ndisplaycomp; i++) vbound_tot[i] = (i % 2) ? PETSC_MAX_REAL : PETSC_MIN_REAL;
   }
 
   for (PetscInt i = 0; i < ndisplaycomp; ++i) {
