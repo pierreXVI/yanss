@@ -2,29 +2,6 @@
 
 
 /*
-    Allows a user to select a subset of the field components to be drawn by VecView() when the vector comes from a DMPlex with one field
-    Ispired from DMDASelectFields
-*/
-static PetscErrorCode PetscSectionSelectFieldComponents(PetscSection s, PetscInt f, PetscInt *outcomponents, PetscInt **components){
-  PetscErrorCode ierr;
-  PetscInt       Nc, ndisplaycomp, *displaycomp, k;
-  PetscBool      flg;
-
-  PetscFunctionBeginUser;
-  ierr = PetscSectionGetFieldComponents(s, f, &Nc); CHKERRQ(ierr);
-  ierr = PetscMalloc1(Nc, &displaycomp);            CHKERRQ(ierr);
-  for (k = 0; k < Nc; k++) displaycomp[k] = k;
-  ndisplaycomp = Nc;
-  ierr = PetscOptionsGetIntArray(NULL, NULL, "-draw_comp", displaycomp, &ndisplaycomp, &flg); CHKERRQ(ierr);
-  if (!ndisplaycomp) ndisplaycomp = Nc;
-  *components = displaycomp;
-  *outcomponents = ndisplaycomp;
-  PetscFunctionReturn(0);
-}
-
-
-
-/*
   Draws the mesh on the given PetscDraw
 */
 static PetscErrorCode PetscDraw_MeshDM_Cells(PetscDraw draw, DM dm){
@@ -184,11 +161,17 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
   PetscInt     ndisplaycomp, *comp, Nc;
   PetscReal    *vbound_tot;
   PetscBool    flg_vbound;
-  PetscSection s;
+  PetscFV      fvm;
   { // Selecting components
-    ierr = DMGetLocalSection(dm, &s);                                     CHKERRQ(ierr);
-    ierr = PetscSectionGetFieldComponents(s, 0, &Nc);                     CHKERRQ(ierr);
-    ierr = PetscSectionSelectFieldComponents(s, 0, &ndisplaycomp, &comp); CHKERRQ(ierr);
+    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+    ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
+
+    ierr = PetscMalloc1(Nc, &comp); CHKERRQ(ierr);
+    for (PetscInt k = 0; k < Nc; k++) comp[k] = k;
+    ndisplaycomp = Nc;
+    ierr = PetscOptionsGetIntArray(NULL, NULL, "-draw_comp", comp, &ndisplaycomp, NULL); CHKERRQ(ierr);
+    if (!ndisplaycomp) ndisplaycomp = Nc;
+
 
     const char *prefix;
     PetscInt   nmax = 2 * ndisplaycomp;
@@ -202,7 +185,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     PetscDraw  draw, popup;
     const char *cname;
     char       title[PETSC_MAX_PATH_LEN];
-    ierr = PetscSectionGetComponentName(s, 0, comp[i], &cname);                                       CHKERRQ(ierr);
+    ierr = PetscFVGetComponentName(fvm, comp[i], &cname);                                             CHKERRQ(ierr);
     ierr = PetscSNPrintf(title, sizeof(title), "%s:%s Step: %D Time: %.4g", name, cname, step, time); CHKERRQ(ierr);
     ierr = PetscViewerDrawGetDraw(viewer, i, &draw);                                                  CHKERRQ(ierr);
     ierr = PetscDrawSetTitle(draw, title);                                                            CHKERRQ(ierr);
