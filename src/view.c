@@ -129,12 +129,6 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
 
   DM dm;
   {
-    PetscBool isnull;
-    PetscDraw draw;
-    ierr = PetscViewerDrawGetDraw(viewer, 0, &draw); CHKERRQ(ierr);
-    ierr = PetscDrawIsNull(draw, &isnull);           CHKERRQ(ierr);
-    if (isnull) PetscFunctionReturn(0);
-
     PetscInt  dim;
     ierr = VecGetDM(v, &dm);             CHKERRQ(ierr);
     ierr = DMGetCoordinateDim(dm, &dim); CHKERRQ(ierr);
@@ -200,13 +194,17 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     }
   }
 
+  PetscDraw draw_last;
   for (PetscInt i = 0; i < ndisplaycomp; ++i) {
     PetscDraw  draw, popup;
     const char *cname;
     char       title[PETSC_MAX_PATH_LEN];
+    PetscBool  isnull;
     ierr = PetscSectionGetComponentName(s, 0, comp[i], &cname);                                       CHKERRQ(ierr);
     ierr = PetscSNPrintf(title, sizeof(title), "%s:%s Step: %D Time: %.4g", name, cname, step, time); CHKERRQ(ierr);
     ierr = PetscViewerDrawGetDraw(viewer, i, &draw);                                                  CHKERRQ(ierr);
+    ierr = PetscDrawIsNull(draw, &isnull);                                                            CHKERRQ(ierr);
+    if (isnull) continue;
     ierr = PetscDrawSetTitle(draw, title);                                                            CHKERRQ(ierr);
 
     PetscReal vbound[2] = {0, 0};
@@ -292,10 +290,11 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
       }
     }
 
-    ierr = PetscDrawFlush(draw);                             CHKERRQ(ierr);
-    if (i == ndisplaycomp - 1) {ierr = PetscDrawPause(draw); CHKERRQ(ierr);}
-    ierr = PetscDrawSave(draw);                              CHKERRQ(ierr);
+    ierr = PetscDrawFlush(draw); CHKERRQ(ierr);
+    ierr = PetscDrawSave(draw);  CHKERRQ(ierr);
+    draw_last = draw;
   }
+  ierr = PetscDrawPause(draw_last); CHKERRQ(ierr);
 
   ierr = VecRestoreArrayRead(v, &array); CHKERRQ(ierr);
   ierr = PetscFree(vbound_tot);          CHKERRQ(ierr);
