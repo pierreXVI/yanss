@@ -9,9 +9,9 @@ struct MonitorFunctionList {
   PetscViewerType type;
 } MonitorList[] = {{"Debug",        IOMonitorDEBUG,        NULL},
                    {"Ascii_Res",    IOMonitorAscii_Res,    NULL},
-                   {"Ascii_MinMax", IOMonitorAscii_MinMax, NULL },
-                   {"Draw",         IOMonitorDraw,         PETSCVIEWERDRAW },
-                   {"Draw_NormU",   IOMonitorDrawNormU,    PETSCVIEWERDRAW },
+                   {"Ascii_MinMax", IOMonitorAscii_MinMax, NULL},
+                   {"Draw",         IOMonitorDraw,         PETSCVIEWERDRAW},
+                   {"Draw_NormU",   IOMonitorDrawNormU,    PETSCVIEWERDRAW},
                    {NULL,           NULL,                  NULL}};
 
 /*
