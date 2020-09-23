@@ -164,17 +164,18 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
     ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
 
+    const char *prefix;
+    ierr = PetscObjectGetOptionsPrefix((PetscObject) v, &prefix); CHKERRQ(ierr);
+
     ierr = PetscMalloc1(Nc, &comp); CHKERRQ(ierr);
     for (PetscInt k = 0; k < Nc; k++) comp[k] = k;
     ndisplaycomp = Nc;
-    ierr = PetscOptionsGetIntArray(NULL, NULL, "-draw_comp", comp, &ndisplaycomp, NULL); CHKERRQ(ierr);
+    ierr = PetscOptionsGetIntArray(NULL, prefix, "-draw_comp", comp, &ndisplaycomp, NULL); CHKERRQ(ierr);
     if (!ndisplaycomp) ndisplaycomp = Nc;
 
 
-    const char *prefix;
-    PetscInt   nmax = 2 * ndisplaycomp;
-    ierr = PetscMalloc1(nmax, &vbound_tot);
-    ierr = PetscObjectGetOptionsPrefix((PetscObject) v, &prefix); CHKERRQ(ierr);
+    PetscInt nmax = 2 * ndisplaycomp;
+    ierr = PetscMalloc1(nmax, &vbound_tot); CHKERRQ(ierr);
     ierr = PetscOptionsGetRealArray(NULL, prefix, "-vec_view_bounds", vbound_tot, &nmax, &flg_vbound); CHKERRQ(ierr);
     for (PetscInt i = nmax; i < 2 * ndisplaycomp; i++) vbound_tot[i] = (i % 2) ? PETSC_MAX_REAL : PETSC_MIN_REAL;
   }
@@ -293,11 +294,13 @@ PetscErrorCode VecView_Mesh(Vec v, PetscViewer viewer){
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw); CHKERRQ(ierr);
   if (isdraw) {
     Vec        locv;
-    const char *name;
+    const char *name, *prefix;
 
     ierr = DMGetLocalVector(dm, &locv);                      CHKERRQ(ierr);
     ierr = PetscObjectGetName((PetscObject) v, &name);       CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) locv, name);     CHKERRQ(ierr);
+    ierr = VecGetOptionsPrefix(v, &prefix);                  CHKERRQ(ierr);
+    ierr = VecSetOptionsPrefix(locv, prefix);                CHKERRQ(ierr);
     ierr = DMGlobalToLocalBegin(dm, v, INSERT_VALUES, locv); CHKERRQ(ierr);
     ierr = DMGlobalToLocalEnd(dm, v, INSERT_VALUES, locv);   CHKERRQ(ierr);
     ierr = VecView_Mesh_Local_Draw(locv, viewer);            CHKERRQ(ierr);

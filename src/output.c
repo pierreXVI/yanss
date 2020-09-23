@@ -152,7 +152,7 @@ PetscErrorCode IOMonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, v
   ierr = DMGlobalToLocalEnd(dm, u, INSERT_VALUES, locX);                   CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dmGrad, &grad);                                 CHKERRQ(ierr);
   ierr = VecSetOperation(grad, VECOP_VIEW, (void (*)(void)) VecView_Mesh); CHKERRQ(ierr);
-  ierr = VecSetOptionsPrefix(grad, "grad");                                CHKERRQ(ierr);
+  ierr = VecSetOptionsPrefix(grad, "grad_");                               CHKERRQ(ierr);
   ierr = DMPlexReconstructGradientsFVM(dm, locX, grad);                    CHKERRQ(ierr);
 
   ierr = VecView(grad, mctx->viewer); CHKERRQ(ierr);
