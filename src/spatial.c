@@ -5,19 +5,25 @@
 
 PetscErrorCode MeshDestroy(Mesh *mesh){
   PetscErrorCode ierr;
-  PetscFV        fvm;
+  PetscFV        fvm, fvmGrad;
+  DM             dmGrad;
 
   PetscFunctionBeginUser;
-  ierr = DMGetField((*mesh)->dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVDestroy(&fvm);                                  CHKERRQ(ierr);
-  ierr = DMDestroy(&(*mesh)->dm);                               CHKERRQ(ierr);
+  ierr = DMGetField((*mesh)->dm, 0, NULL, (PetscObject*) &fvm);   CHKERRQ(ierr);
+  ierr = PetscFVSetComputeGradients(fvm, PETSC_TRUE);             CHKERRQ(ierr);
+  ierr = DMPlexGetDataFVM((*mesh)->dm, fvm, NULL, NULL, &dmGrad); CHKERRQ(ierr);
+  ierr = DMGetField(dmGrad, 0, NULL, (PetscObject*) &fvmGrad);    CHKERRQ(ierr);
+  ierr = PetscFVDestroy(&fvmGrad);                                CHKERRQ(ierr);
+
+  ierr = PetscFVDestroy(&fvm);                                    CHKERRQ(ierr);
+  ierr = DMDestroy(&(*mesh)->dm);                                 CHKERRQ(ierr);
   for (PetscInt n = 0; n < (*mesh)->n_perio; n++) {
-    ierr = VecDestroy(&(*mesh)->perio[n].buffer);               CHKERRQ(ierr);
-    ierr = ISDestroy(&(*mesh)->perio[n].master);                CHKERRQ(ierr);
-    ierr = ISDestroy(&(*mesh)->perio[n].slave);                 CHKERRQ(ierr);
+    ierr = VecDestroy(&(*mesh)->perio[n].buffer);                 CHKERRQ(ierr);
+    ierr = ISDestroy(&(*mesh)->perio[n].master);                  CHKERRQ(ierr);
+    ierr = ISDestroy(&(*mesh)->perio[n].slave);                   CHKERRQ(ierr);
   }
-  ierr = PetscFree((*mesh)->perio);                             CHKERRQ(ierr);
-  ierr = PetscFree(*mesh);                                      CHKERRQ(ierr);
+  ierr = PetscFree((*mesh)->perio);                               CHKERRQ(ierr);
+  ierr = PetscFree(*mesh);                                        CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
