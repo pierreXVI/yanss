@@ -50,7 +50,7 @@ PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
 
 /*
   Apply a pointwise function to a Vec
-  The Vec is linked to a Mesh, so that the number of field components
+  The Vec is linked to a Mesh, so that the number of field components is read from the DM's PetscFV
   The pointwise function calling sequence is
   ```
   func(PetscInt Nc, const PetscScalar x[], PetscScalar *y, void *ctx)

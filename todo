@@ -5,14 +5,6 @@ If the state variation are small the CFL number stays the same.
 If one wants to compute larger variations, the time step may need to be computed at each step from the CFL number.
 Of course the iteration coast more.
 
-Add ref values in input file, and plot relatively / remove ref velocity before plot + norm computation ...
+View : pause only on last PetscDraw
 
-
-Code cleanup :
-  indentation
-  Scalar <-> Real
-  MPIComm
-  #define RiemannSolver to declare them : RiemannSolver name;
-  disambiguation Nc <-> Nf
-
-Do I use pointer on local variables ? (heap/stack)
+Spatial : get 2nd neighbour cells
