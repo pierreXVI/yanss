@@ -117,7 +117,6 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
 PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
   struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
-  PetscInt          dim;
   DM                dm;
   Vec               y;
 
@@ -125,13 +124,44 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
   if (steps % mctx->n_iter != 0) PetscFunctionReturn(0);
 
   ierr = VecGetDM(u, &dm);                                    CHKERRQ(ierr);
-  ierr = DMGetDimension(dm, &dim);                            CHKERRQ(ierr);
   ierr = VecApplyFunctionComponents(u, &y, mach, mctx->phys); CHKERRQ(ierr);
   ierr = DrawVecOnDM(y, dm, mctx->viewer);                    CHKERRQ(ierr);
   ierr = VecDestroy(&y);                                      CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
+#include "view.h"
+PetscErrorCode IOMonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
+  PetscErrorCode    ierr;
+  struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
+  DM                dm, dmGrad;
+  Vec               locX, grad;
+  PetscFV           fvm;
+
+  PetscFunctionBeginUser;
+  if (steps % mctx->n_iter != 0) PetscFunctionReturn(0);
+
+  ierr = VecGetDM(u, &dm);                               CHKERRQ(ierr);
+  ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);   CHKERRQ(ierr);
+  ierr = PetscFVSetComputeGradients(fvm, PETSC_TRUE);    CHKERRQ(ierr);
+  ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad); CHKERRQ(ierr);
+  ierr = DMSetOutputSequenceNumber(dmGrad, steps, time); CHKERRQ(ierr);
+
+  ierr = DMGetLocalVector(dm, &locX);                                      CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(dm, u, INSERT_VALUES, locX);                 CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(dm, u, INSERT_VALUES, locX);                   CHKERRQ(ierr);
+  ierr = DMGetGlobalVector(dmGrad, &grad);                                 CHKERRQ(ierr);
+  ierr = VecSetOperation(grad, VECOP_VIEW, (void (*)(void)) VecView_Mesh); CHKERRQ(ierr);
+  ierr = VecSetOptionsPrefix(grad, "grad");                                CHKERRQ(ierr);
+  ierr = DMPlexReconstructGradientsFVM(dm, locX, grad);                    CHKERRQ(ierr);
+
+  ierr = VecView(grad, mctx->viewer); CHKERRQ(ierr);
+
+  ierr = DMRestoreGlobalVector(dmGrad, &grad); CHKERRQ(ierr);
+  ierr = DMRestoreLocalVector(dm, &locX);      CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
 
 PetscErrorCode IOMonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;

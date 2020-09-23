@@ -44,6 +44,11 @@ PetscErrorCode IOMonitorDraw(TS, PetscInt, PetscReal, Vec, void*);
 */
 PetscErrorCode IOMonitorDrawNormU(TS, PetscInt, PetscReal, Vec, void*);
 
+/*
+  Draw each field gradients in separate graphic windows
+*/
+PetscErrorCode IOMonitorDrawGrad(TS, PetscInt, PetscReal, Vec, void*);
+
 PetscErrorCode IOMonitorDEBUG(TS, PetscInt, PetscReal, Vec, void*);
 
 #endif

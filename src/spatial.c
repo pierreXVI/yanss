@@ -48,8 +48,12 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
 
   { // Finite Volume formulation
     PetscFV      fvm;
+    PetscLimiter limiter;
     ierr = PetscFVCreate(comm, &fvm);                         CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) fvm, "FV Model"); CHKERRQ(ierr);
+    ierr = PetscFVSetType(fvm, PETSCFVLEASTSQUARES);          CHKERRQ(ierr);
+    ierr = PetscFVGetLimiter(fvm, &limiter);                  CHKERRQ(ierr);
+    ierr = PetscLimiterSetType(limiter, PETSCLIMITERNONE);    CHKERRQ(ierr);
     ierr = DMAddField((*mesh)->dm, NULL, (PetscObject) fvm);  CHKERRQ(ierr);
   }
 
@@ -457,6 +461,7 @@ PetscErrorCode MeshDMTSComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Ve
     ierr = VecRestoreArray(locX, &locX_array); CHKERRQ(ierr);
   }
 
+  ierr = PetscFVSetComputeGradients(fvm, PETSC_FALSE); CHKERRQ(ierr);
   ierr = DMPlexTSComputeRHSFunctionFVM(dm, time, locX, F, ctx); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);

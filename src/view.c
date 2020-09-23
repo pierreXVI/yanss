@@ -123,7 +123,6 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
   PetscInt          cStart, cEnd, step;
   PetscReal         time;
   DMLabel           ghostLabel;
-  const char        *name;
   const PetscScalar *array;
   { // Reading data
     DM cdm;
@@ -136,7 +135,6 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
 
     ierr = DMGetLabel(dm, "ghost", &ghostLabel);         CHKERRQ(ierr);
 
-    ierr = PetscObjectGetName((PetscObject) v, &name);   CHKERRQ(ierr);
     ierr = DMGetOutputSequenceNumber(dm, &step, &time);  CHKERRQ(ierr);
 
     ierr = VecGetArrayRead(v, &array); CHKERRQ(ierr);
@@ -185,10 +183,10 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     PetscDraw  draw, popup;
     const char *cname;
     char       title[PETSC_MAX_PATH_LEN];
-    ierr = PetscFVGetComponentName(fvm, comp[i], &cname);                                             CHKERRQ(ierr);
-    ierr = PetscSNPrintf(title, sizeof(title), "%s:%s Step: %D Time: %.4g", name, cname, step, time); CHKERRQ(ierr);
-    ierr = PetscViewerDrawGetDraw(viewer, i, &draw);                                                  CHKERRQ(ierr);
-    ierr = PetscDrawSetTitle(draw, title);                                                            CHKERRQ(ierr);
+    ierr = PetscFVGetComponentName(fvm, comp[i], &cname);                                    CHKERRQ(ierr);
+    ierr = PetscSNPrintf(title, sizeof(title), "%s Step: %D Time: %.4g", cname, step, time); CHKERRQ(ierr);
+    ierr = PetscViewerDrawGetDraw(viewer, i, &draw);                                         CHKERRQ(ierr);
+    ierr = PetscDrawSetTitle(draw, title);                                                   CHKERRQ(ierr);
 
     PetscReal vbound[2] = {0, 0};
     if (flg_vbound) {vbound[0] = vbound_tot[2 * i]; vbound[1] = vbound_tot[2 * i + 1];}
