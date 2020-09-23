@@ -1,5 +1,9 @@
 #include "output.h"
 
+/*
+  TODO
+  Takes a single componant vector, casts it to the first component of a Mesh vector, and views it
+*/
 #include "spatial.h"
 PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
   PetscErrorCode    ierr;

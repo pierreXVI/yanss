@@ -37,13 +37,30 @@ PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx)
 
 
 /*
-  Setup the Riemann solver from options
+  Setup the Riemann solver from options:
 
   -riemann type, where type is:
     "advection", constant advection, for debugging purposes
-    "exact",     exact Riemann solver
+    "exact",     exact Riemann solver (default)
     "lax",       Lax Friedrich Riemann solver
     "anrs",      Adaptive Noniterative Riemann Solver
+
+  -riemann_advection_speed value
+
+  -riemann_exact_p_solver solver where solver is:
+    "newton", Newton iteration solver (default)
+    "fp",     Fixed-point iteration solver
+
+  -riemann_exact_p_solver_rtol value, relative tolerance for the pressure solver
+  -riemann_exact_p_solver_niter value, maximum number of iterations for the pressure solver
+  -riemann_exact_p_solver_eps value, epsilon on the pressure solver, triggers linearisation of the rarefaction formula
+
+  -riemann_anrs_q value, pressure ratio over which the PVRS is not used
+
+  -riemann_roe_entropy_fix fix, where fix is:
+    "none", no entropy fix (default)
+    "hh1",  Harten-Hyman first entropy fix
+    "hh2",  Harten-Hyman second entropy fix
 */
 PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm,
                                             void (**)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*),

@@ -568,9 +568,9 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
   }
 
   { // Entropy fix
-    RiemannSolver_RoePike_EntropyFix_HH1(&lambda_p, unL + aL, unR + aR);
-    RiemannSolver_RoePike_EntropyFix_HH1(&lambda_u, unL, unR);
-    RiemannSolver_RoePike_EntropyFix_HH1(&lambda_m, unL - aL, unR - aR);
+    phys->riemann_ctx.entropy_fix(&lambda_p, unL + aL, unR + aR);
+    phys->riemann_ctx.entropy_fix(&lambda_u, unL, unR);
+    phys->riemann_ctx.entropy_fix(&lambda_m, unL - aL, unR - aR);
   }
 
   PetscReal coeff_p, coeff_m, coeff_u;
@@ -643,8 +643,8 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm,
     riemann_ctx->pressure_solver_rtol = 1E-6;
     riemann_ctx->pressure_solver_niter = 20;
     riemann_ctx->pressure_solver_eps = 1E-5;
-    ierr = PetscOptionsReal("-riemann_exact_p_solver_rtol", "Relative tolerance for pressure solver", NULL, riemann_ctx->pressure_solver_rtol, &riemann_ctx->pressure_solver_rtol, NULL);                                         CHKERRQ(ierr);
-    ierr = PetscOptionsReal("-riemann_exact_p_solver_niter", "Maximum number of iterations for pressure solver", NULL, riemann_ctx->pressure_solver_niter, &riemann_ctx->pressure_solver_niter, NULL);                            CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-riemann_exact_p_solver_rtol", "Relative tolerance for the pressure solver", NULL, riemann_ctx->pressure_solver_rtol, &riemann_ctx->pressure_solver_rtol, NULL);                                     CHKERRQ(ierr);
+    ierr = PetscOptionsReal("-riemann_exact_p_solver_niter", "Maximum number of iterations for the pressure solver", NULL, riemann_ctx->pressure_solver_niter, &riemann_ctx->pressure_solver_niter, NULL);                        CHKERRQ(ierr);
     ierr = PetscOptionsReal("-riemann_exact_p_solver_eps", "Epsilon on the pressure solver, triggers linearisation of the rarefaction formula", NULL, riemann_ctx->pressure_solver_eps, &riemann_ctx->pressure_solver_eps, NULL); CHKERRQ(ierr);
 
     ierr = PetscOptionsEnd(); CHKERRQ(ierr);
