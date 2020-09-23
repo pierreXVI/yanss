@@ -44,6 +44,7 @@ PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx)
     "exact",     exact Riemann solver (default)
     "lax",       Lax Friedrich Riemann solver
     "anrs",      Adaptive Noniterative Riemann Solver
+    "roe",       Roe-Pike Riemann Solver
 
   -riemann_advection_speed value
 
