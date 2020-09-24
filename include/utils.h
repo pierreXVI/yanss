@@ -69,16 +69,4 @@ struct BCCtx {
   PetscReal   *val;  // Additional numerical values
 };
 
-
-typedef struct {
-  DM              dm;      // DMPLEX object
-  PetscInt        n_perio; // Number of periodic BC
-  struct PerioCtx *perio;  // Periodicity context
-} *Mesh;
-
-struct PerioCtx {
-  Vec buffer;        // Buffer vector
-  IS  master, slave; // Master and Slave cell ids
-};
-
 #endif

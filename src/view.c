@@ -4,7 +4,7 @@
 /*
   Draws the mesh on the given PetscDraw
 */
-static PetscErrorCode PetscDraw_MeshDM_Cells(PetscDraw draw, DM dm){
+static PetscErrorCode PetscDraw_Mesh_Cells(PetscDraw draw, DM dm){
   PetscErrorCode ierr;
   PetscInt       cStart, cEnd;
   DM             cdm;
@@ -53,7 +53,7 @@ static PetscErrorCode PetscDraw_MeshDM_Cells(PetscDraw draw, DM dm){
 /*
   Draws the border of each partition on the given PetscDraw
 */
-static PetscErrorCode PetscDraw_MeshDM_Partition(PetscDraw draw, DM dm){
+static PetscErrorCode PetscDraw_Mesh_Partition(PetscDraw draw, DM dm){
   PetscErrorCode ierr;
   PetscInt       cStart, cEnd;
   DM             cdm;
@@ -96,7 +96,7 @@ static PetscErrorCode PetscDraw_MeshDM_Partition(PetscDraw draw, DM dm){
 
 
 /*
-  Draws a Mesh based vector
+  Draws a mesh based vector
   Vector components can be selected with '-draw_comp', and scaling bounds with '-vec_view_bounds'
 */
 static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
@@ -259,14 +259,14 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
       PetscBool flg = PETSC_FALSE;
       ierr = PetscOptionsGetBool(NULL, NULL, "-vec_view_mesh", &flg, NULL); CHKERRQ(ierr);
       if (flg) {
-        ierr = PetscDraw_MeshDM_Cells(draw, dm); CHKERRQ(ierr);
+        ierr = PetscDraw_Mesh_Cells(draw, dm); CHKERRQ(ierr);
       }
     }
     { // Draw partition
       PetscBool flg = PETSC_FALSE;
       ierr = PetscOptionsGetBool(NULL, NULL, "-vec_view_partition", &flg, NULL); CHKERRQ(ierr);
       if (flg) {
-        ierr = PetscDraw_MeshDM_Partition(draw, dm); CHKERRQ(ierr);
+        ierr = PetscDraw_Mesh_Partition(draw, dm); CHKERRQ(ierr);
       }
     }
 
@@ -316,7 +316,7 @@ PetscErrorCode VecView_Mesh(Vec v, PetscViewer viewer){
 /*
   Draws a 2D Mesh
 */
-static PetscErrorCode MeshDMPlexView_Draw(DM dm, PetscViewer viewer){
+static PetscErrorCode MeshView_Draw(DM dm, PetscViewer viewer){
   PetscErrorCode     ierr;
 
   PetscFunctionBeginUser;
@@ -418,7 +418,7 @@ static PetscErrorCode MeshDMPlexView_Draw(DM dm, PetscViewer viewer){
     ierr = DMPlexVecRestoreClosure(dm, coordSection, coordinates, c, NULL, &coords); CHKERRQ(ierr);
   }
 
-  ierr = PetscDraw_MeshDM_Cells(draw, dm); CHKERRQ(ierr);
+  ierr = PetscDraw_Mesh_Cells(draw, dm); CHKERRQ(ierr);
 
   ierr = PetscDrawFlush(draw); CHKERRQ(ierr);
   ierr = PetscDrawPause(draw); CHKERRQ(ierr);
@@ -430,25 +430,25 @@ static PetscErrorCode MeshDMPlexView_Draw(DM dm, PetscViewer viewer){
 #include <petsc/private/dmimpl.h>
 
 /*
-  View a Mesh
-  Calls MeshDMPlexView_Draw if the viewer is of type PETSCVIEWERDRAW, else calls the native viewer (DMView_Plex)
+  View a mesh
+  Calls MeshView_Draw if the viewer is of type PETSCVIEWERDRAW, else calls the native viewer (DMView_Plex)
 */
-static PetscErrorCode MeshDMView(DM dm, PetscViewer viewer){
+static PetscErrorCode MeshView(DM dm, PetscViewer viewer){
   PetscErrorCode ierr;
   PetscBool      isdraw;
 
   PetscFunctionBeginUser;
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW, &isdraw); CHKERRQ(ierr);
   if (isdraw) {
-    ierr = MeshDMPlexView_Draw(dm, viewer);                                      CHKERRQ(ierr);
+    ierr = MeshView_Draw(dm, viewer);                                            CHKERRQ(ierr);
   } else {
     ierr = dm->ops->view(dm, viewer);                                            CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshDMSetViewer(DM dm){
+PetscErrorCode MeshSetViewer(DM dm){
   PetscFunctionBeginUser;
-  ((PetscObject) dm)->bops->view =  (PetscErrorCode (*)(PetscObject, PetscViewer)) MeshDMView;
+  ((PetscObject) dm)->bops->view =  (PetscErrorCode (*)(PetscObject, PetscViewer)) MeshView;
   PetscFunctionReturn(0);
 }

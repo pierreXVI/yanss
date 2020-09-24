@@ -10,6 +10,6 @@
   The time step is constant, based on the initial CFL value
   The TS can be viewed with the option `-ts_view`
 */
-PetscErrorCode MyTsCreate(MPI_Comm, TS*, const char*, Mesh, Physics, PetscReal);
+PetscErrorCode TsCreate_User(MPI_Comm, TS*, const char*, DM, Physics, PetscReal);
 
 #endif

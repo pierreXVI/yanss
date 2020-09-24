@@ -108,12 +108,12 @@ PetscErrorCode PhysicsDestroy(Physics *phys){
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
+PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = PetscNew(phys);                          CHKERRQ(ierr);
-  ierr = DMGetDimension(mesh->dm, &(*phys)->dim); CHKERRQ(ierr);
+  ierr = PetscNew(phys);                    CHKERRQ(ierr);
+  ierr = DMGetDimension(dm, &(*phys)->dim); CHKERRQ(ierr);
 
   { // Read gamma from input file
     const char *buffer, *loc = "Physics";
@@ -141,7 +141,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
 
     PetscFV fvm;
     char buffer[64];
-    ierr = DMGetField(mesh->dm, 0, NULL, (PetscObject*) &fvm);                     CHKERRQ(ierr);
+    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);                           CHKERRQ(ierr);
     ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                          CHKERRQ(ierr);
     ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                             CHKERRQ(ierr);
     for (PetscInt i = 0, dof = 0; i < nfields; i++){
@@ -160,9 +160,9 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
 
     DM      dmGrad;
     PetscFV fvmGrad;
-    ierr = PetscFVCreate(PetscObjectComm((PetscObject) mesh->dm), &fvmGrad); CHKERRQ(ierr);
-    ierr = PetscFVSetSpatialDimension(fvmGrad, (*phys)->dim);                CHKERRQ(ierr);
-    ierr = PetscFVSetNumComponents(fvmGrad, (*phys)->dim * (*phys)->dof);    CHKERRQ(ierr);
+    ierr = PetscFVCreate(PetscObjectComm((PetscObject) dm), &fvmGrad);    CHKERRQ(ierr);
+    ierr = PetscFVSetSpatialDimension(fvmGrad, (*phys)->dim);             CHKERRQ(ierr);
+    ierr = PetscFVSetNumComponents(fvmGrad, (*phys)->dim * (*phys)->dof); CHKERRQ(ierr);
     for (PetscInt i = 0, dof = 0; i < nfields; i++){
       if (fields[i].dof == 1) {
         for (PetscInt k = 0; k < (*phys)->dim; k++) {
@@ -180,15 +180,15 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
       }
       dof += (*phys)->dim * fields[i].dof;
     }
-    ierr = DMPlexGetDataFVM(mesh->dm, fvm, NULL, NULL, &dmGrad); CHKERRQ(ierr);
-    ierr = DMAddField(dmGrad, NULL, (PetscObject) fvmGrad);      CHKERRQ(ierr);
+    ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad);  CHKERRQ(ierr);
+    ierr = DMAddField(dmGrad, NULL, (PetscObject) fvmGrad); CHKERRQ(ierr);
   }
 
-  ierr = MeshSetPeriodicity(mesh, filename); CHKERRQ(ierr);
+  ierr = MeshSetPeriodicity(dm, filename); CHKERRQ(ierr);
 
   void (*riemann_solver)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*);
   { // Getting Riemann solver from options
-    ierr = PhysicsRiemannSetFromOptions(PetscObjectComm((PetscObject) mesh->dm), &riemann_solver, &(*phys)->riemann_ctx); CHKERRQ(ierr);
+    ierr = PhysicsRiemannSetFromOptions(PetscObjectComm((PetscObject) dm), &riemann_solver, &(*phys)->riemann_ctx); CHKERRQ(ierr);
   }
 
 
@@ -196,16 +196,16 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   DMLabel label;
   IS      is;
   const PetscInt *indices;
-  ierr = DMCreateDS(mesh->dm);                             CHKERRQ(ierr);
-  ierr = DMGetDS(mesh->dm, &prob);                         CHKERRQ(ierr);
+  ierr = DMCreateDS(dm);                                   CHKERRQ(ierr);
+  ierr = DMGetDS(dm, &prob);                               CHKERRQ(ierr);
   ierr = PetscDSSetRiemannSolver(prob, 0, riemann_solver); CHKERRQ(ierr);
   ierr = PetscDSSetContext(prob, 0, (*phys));              CHKERRQ(ierr);
-  ierr = DMGetLabel(mesh->dm, "Face Sets", &label);        CHKERRQ(ierr);
+  ierr = DMGetLabel(dm, "Face Sets", &label);              CHKERRQ(ierr);
   ierr = DMLabelGetNumValues(label, &(*phys)->nbc);        CHKERRQ(ierr);
   ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc_ctx);     CHKERRQ(ierr);
   ierr = DMLabelGetValueIS(label, &is);                    CHKERRQ(ierr);
   ierr = ISGetIndices(is, &indices);                       CHKERRQ(ierr);
-  ierr = DMGetDS(mesh->dm, &prob);                         CHKERRQ(ierr);
+  ierr = DMGetDS(dm, &prob);                               CHKERRQ(ierr);
 
   for (PetscInt i = 0; i < (*phys)->nbc; i++) {
     (*phys)->bc_ctx[i].phys = *phys;
@@ -234,9 +234,9 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, Mesh mesh){
   { // Setting solution vector and initial condition
     ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
 
-    ierr = MeshDMCreateGlobalVector(mesh->dm, &(*phys)->x);                       CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) (*phys)->x, "Solution");              CHKERRQ(ierr);
-    ierr = MeshDMApplyFunction(mesh->dm, 0, InitialCondition, *phys, (*phys)->x); CHKERRQ(ierr);
+    ierr = MeshCreateGlobalVector(dm, &(*phys)->x);                       CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) (*phys)->x, "Solution");      CHKERRQ(ierr);
+    ierr = MeshApplyFunction(dm, 0, InitialCondition, *phys, (*phys)->x); CHKERRQ(ierr);
   }
 
   PetscFunctionReturn(0);

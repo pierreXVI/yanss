@@ -8,11 +8,21 @@
   A mesh is a `DMPlex` instance, with FV adjacency and a single `PetscFV` field
 */
 
+typedef struct {
+  PetscInt        n_perio; // Number of periodic BC
+  struct PerioCtx *perio;  // Periodicity context
+} *MeshCtx;
+
+struct PerioCtx {
+  Vec buffer;        // Buffer vector
+  IS  master, slave; // Master and Slave cell ids
+};
+
 
 /*
   Destroy the mesh
 */
-PetscErrorCode MeshDestroy(Mesh*);
+PetscErrorCode MeshDestroy(DM*);
 
 /*
   Setup the mesh.
@@ -21,19 +31,19 @@ PetscErrorCode MeshDestroy(Mesh*);
    -mesh_view_orig - To view the raw mesh from the input file
    -mesh_view      - To view the mesh produced by this function
 */
-PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, const char*, Mesh*);
+PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, const char*, DM*);
 
 
 /*
   Apply a function on a mesh
 */
-PetscErrorCode MeshDMApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*), void*, Vec);
+PetscErrorCode MeshApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*), void*, Vec);
 
 
 /*
   Create a global vector, and set the user's Viewer
 */
-PetscErrorCode MeshDMCreateGlobalVector(DM, Vec*);
+PetscErrorCode MeshCreateGlobalVector(DM, Vec*);
 
 
 /*
@@ -50,7 +60,7 @@ PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
 
 /*
   Apply a pointwise function to a Vec
-  The Vec is linked to a Mesh, so that the number of field components is read from the DM's PetscFV
+  The Vec is linked to a mesh, so that the number of field components is read from the DM's PetscFV
   The pointwise function calling sequence is
   ```
   func(PetscInt Nc, const PetscScalar x[], PetscScalar *y, void *ctx)
@@ -67,15 +77,13 @@ PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, co
   Reads the periodicity from the input file, and construct the `perio` context array
   The periodicity contexts can only be created after some of the physical context is filled, as the number of components is needed
 */
-PetscErrorCode MeshSetPeriodicity(Mesh, const char*);
+PetscErrorCode MeshSetPeriodicity(DM, const char*);
 
 
 /*
   Compute the RHS
-  Fills the periodic boundaries first, using mesh->periodic
-  ctx is to be casted to (Mesh)
 */
-PetscErrorCode MeshDMTSComputeRHSFunctionFVM(DM, PetscReal, Vec, Vec, void*);
+PetscErrorCode MeshComputeRHSFunctionFVM(DM, PetscReal, Vec, Vec, void*);
 
 
 #endif
