@@ -81,6 +81,12 @@ PetscErrorCode MeshSetPeriodicity(DM, const char*);
 
 
 /*
+  Puts coefficients which represent periodic values into the local solution vector
+*/
+PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX);
+
+
+/*
   Compute the RHS
 */
 PetscErrorCode MeshComputeRHSFunctionFVM(DM, PetscReal, Vec, Vec, void*);

@@ -139,28 +139,49 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
       (*phys)->dof += fields[nfields].dof;
     }
 
-    PetscSection s;
-    PetscFV      fvm;
+    PetscFV fvm;
+    char buffer[64];
     ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);                           CHKERRQ(ierr);
     ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                          CHKERRQ(ierr);
     ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                             CHKERRQ(ierr);
-    ierr = DMGetLocalSection(dm, &s);                                              CHKERRQ(ierr);
     for (PetscInt i = 0, dof = 0; i < nfields; i++){
       if (fields[i].dof == 1) {
         ierr = PetscFVSetComponentName(fvm, dof, fields[i].name);                  CHKERRQ(ierr);
-        ierr = PetscSectionSetComponentName(s, 0, dof, fields[i].name);            CHKERRQ(ierr);
       }
       else {
         for (PetscInt j = 0; j < fields[i].dof; j++){
-          char buffer[32];
           ierr = PetscSNPrintf(buffer, sizeof(buffer),"%s_%d", fields[i].name, j); CHKERRQ(ierr);
           ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                    CHKERRQ(ierr);
-          ierr = PetscSectionSetComponentName(s, 0, dof + j, buffer);              CHKERRQ(ierr);
         }
       }
       dof += fields[i].dof;
     }
     ierr = PetscFVSetFromOptions(fvm);                                             CHKERRQ(ierr);
+
+    DM      dmGrad;
+    PetscFV fvmGrad;
+    ierr = PetscFVCreate(PetscObjectComm((PetscObject) dm), &fvmGrad);    CHKERRQ(ierr);
+    ierr = PetscFVSetSpatialDimension(fvmGrad, (*phys)->dim);             CHKERRQ(ierr);
+    ierr = PetscFVSetNumComponents(fvmGrad, (*phys)->dim * (*phys)->dof); CHKERRQ(ierr);
+    for (PetscInt i = 0, dof = 0; i < nfields; i++){
+      if (fields[i].dof == 1) {
+        for (PetscInt k = 0; k < (*phys)->dim; k++) {
+          ierr = PetscSNPrintf(buffer, sizeof(buffer),"d_%d %s", k, fields[i].name); CHKERRQ(ierr);
+          ierr = PetscFVSetComponentName(fvmGrad, dof + k, buffer);                  CHKERRQ(ierr);
+        }
+      }
+      else {
+        for (PetscInt j = 0; j < fields[i].dof; j++){
+          for (PetscInt k = 0; k < (*phys)->dim; k++) {
+            ierr = PetscSNPrintf(buffer, sizeof(buffer),"d_%d %s_%d", k, fields[i].name, j); CHKERRQ(ierr);
+            ierr = PetscFVSetComponentName(fvmGrad, dof + (*phys)->dim * j + k, buffer);     CHKERRQ(ierr);
+          }
+        }
+      }
+      dof += (*phys)->dim * fields[i].dof;
+    }
+    ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad);  CHKERRQ(ierr);
+    ierr = DMAddField(dmGrad, NULL, (PetscObject) fvmGrad); CHKERRQ(ierr);
   }
 
   ierr = MeshSetPeriodicity(dm, filename); CHKERRQ(ierr);

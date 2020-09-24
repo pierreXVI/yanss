@@ -117,7 +117,6 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
   PetscInt          cStart, cEnd, step;
   PetscReal         time;
   DMLabel           ghostLabel;
-  const char        *name;
   const PetscScalar *array;
   { // Reading data
     DM cdm;
@@ -130,7 +129,6 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
 
     ierr = DMGetLabel(dm, "ghost", &ghostLabel);         CHKERRQ(ierr);
 
-    ierr = PetscObjectGetName((PetscObject) v, &name);   CHKERRQ(ierr);
     ierr = DMGetOutputSequenceNumber(dm, &step, &time);  CHKERRQ(ierr);
 
     ierr = VecGetArrayRead(v, &array); CHKERRQ(ierr);
@@ -160,17 +158,18 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
     ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
 
+    const char *prefix;
+    ierr = PetscObjectGetOptionsPrefix((PetscObject) v, &prefix); CHKERRQ(ierr);
+
     ierr = PetscMalloc1(Nc, &comp); CHKERRQ(ierr);
     for (PetscInt k = 0; k < Nc; k++) comp[k] = k;
     ndisplaycomp = Nc;
-    ierr = PetscOptionsGetIntArray(NULL, NULL, "-draw_comp", comp, &ndisplaycomp, NULL); CHKERRQ(ierr);
+    ierr = PetscOptionsGetIntArray(NULL, prefix, "-draw_comp", comp, &ndisplaycomp, NULL); CHKERRQ(ierr);
     if (!ndisplaycomp) ndisplaycomp = Nc;
 
 
-    const char *prefix;
-    PetscInt   nmax = 2 * ndisplaycomp;
-    ierr = PetscMalloc1(nmax, &vbound_tot);
-    ierr = PetscObjectGetOptionsPrefix((PetscObject) v, &prefix); CHKERRQ(ierr);
+    PetscInt nmax = 2 * ndisplaycomp;
+    ierr = PetscMalloc1(nmax, &vbound_tot); CHKERRQ(ierr);
     ierr = PetscOptionsGetRealArray(NULL, prefix, "-vec_view_bounds", vbound_tot, &nmax, &flg_vbound); CHKERRQ(ierr);
     for (PetscInt i = nmax; i < 2 * ndisplaycomp; i++) vbound_tot[i] = (i % 2) ? PETSC_MIN_REAL : PETSC_MAX_REAL;
   }
@@ -181,12 +180,12 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     const char *cname;
     char       title[PETSC_MAX_PATH_LEN];
     PetscBool  isnull;
-    ierr = PetscFVGetComponentName(fvm, comp[i], &cname);                                             CHKERRQ(ierr);
-    ierr = PetscSNPrintf(title, sizeof(title), "%s:%s Step: %D Time: %.4g", name, cname, step, time); CHKERRQ(ierr);
-    ierr = PetscViewerDrawGetDraw(viewer, i, &draw);                                                  CHKERRQ(ierr);
-    ierr = PetscDrawIsNull(draw, &isnull);                                                            CHKERRQ(ierr);
+    ierr = PetscFVGetComponentName(fvm, comp[i], &cname);                                    CHKERRQ(ierr);
+    ierr = PetscSNPrintf(title, sizeof(title), "%s Step: %D Time: %.4g", cname, step, time); CHKERRQ(ierr);
+    ierr = PetscViewerDrawGetDraw(viewer, i, &draw);                                         CHKERRQ(ierr);
+    ierr = PetscDrawIsNull(draw, &isnull);                                                   CHKERRQ(ierr);
     if (isnull) continue;
-    ierr = PetscDrawSetTitle(draw, title);                                                            CHKERRQ(ierr);
+    ierr = PetscDrawSetTitle(draw, title);                                                   CHKERRQ(ierr);
 
     PetscReal vbound[2] = {0, 0};
     if (flg_vbound) {vbound[0] = vbound_tot[2 * i]; vbound[1] = vbound_tot[2 * i + 1];}
@@ -294,11 +293,13 @@ PetscErrorCode VecView_Mesh(Vec v, PetscViewer viewer){
   ierr = PetscObjectTypeCompare((PetscObject) viewer, PETSCVIEWERDRAW,  &isdraw); CHKERRQ(ierr);
   if (isdraw) {
     Vec        locv;
-    const char *name;
+    const char *name, *prefix;
 
     ierr = DMGetLocalVector(dm, &locv);                      CHKERRQ(ierr);
     ierr = PetscObjectGetName((PetscObject) v, &name);       CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) locv, name);     CHKERRQ(ierr);
+    ierr = VecGetOptionsPrefix(v, &prefix);                  CHKERRQ(ierr);
+    ierr = VecSetOptionsPrefix(locv, prefix);                CHKERRQ(ierr);
     ierr = DMGlobalToLocalBegin(dm, v, INSERT_VALUES, locv); CHKERRQ(ierr);
     ierr = DMGlobalToLocalEnd(dm, v, INSERT_VALUES, locv);   CHKERRQ(ierr);
     ierr = VecView_Mesh_Local_Draw(locv, viewer);            CHKERRQ(ierr);
