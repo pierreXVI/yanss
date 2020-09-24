@@ -431,51 +431,61 @@ PetscErrorCode MeshSetPeriodicity(DM dm, const char *opt_filename) {
 }
 
 
-PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F, void *ctx){
+PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX){
   PetscErrorCode ierr;
   PetscInt       Nc;
   PetscReal      *locX_array;
   PetscFV        fvm;
+  MeshCtx        ctx;
 
   PetscFunctionBeginUser;
   ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
   ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
 
-  { // Filling periodic boundaries
-    MeshCtx ctx;
-    ierr = DMGetApplicationContext(dm, &ctx); CHKERRQ(ierr);
+  ierr = DMGetApplicationContext(dm, &ctx); CHKERRQ(ierr);
 
-    ierr = VecGetArray(locX, &locX_array); CHKERRQ(ierr);
-    for (PetscInt n = 0; n < ctx->n_perio; n++) {
-      PetscInt       n_master, n_slave;
-      const PetscInt *master, *slave;
-      PetscReal      *buffer_array;
+  ierr = VecGetArray(locX, &locX_array); CHKERRQ(ierr);
+  for (PetscInt n = 0; n < ctx->n_perio; n++) {
+    PetscInt       n_master, n_slave;
+    const PetscInt *master, *slave;
+    PetscReal      *buffer_array;
 
-      ierr = ISGetSize(ctx->perio[n].master, &n_master);  CHKERRQ(ierr);
-      ierr = ISGetIndices(ctx->perio[n].master, &master); CHKERRQ(ierr);
-      for (PetscInt i = 0; i < n_master; i++) {
-        PetscReal *val;
-        ierr = DMPlexPointLocalFieldRead(dm, master[i], 0, locX_array, &val);             CHKERRQ(ierr);
-    		ierr = VecSetValuesBlockedLocal(ctx->perio[n].buffer, 1, &i, val, INSERT_VALUES); CHKERRQ(ierr);
-      }
-      ierr = ISRestoreIndices(ctx->perio[n].master, &master);  CHKERRQ(ierr);
-      ierr = VecAssemblyBegin(ctx->perio[n].buffer);           CHKERRQ(ierr);
-      ierr = VecAssemblyEnd(ctx->perio[n].buffer);             CHKERRQ(ierr);
-      ierr = VecGetArray(ctx->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
-
-      ierr = ISGetSize(ctx->perio[n].slave, &n_slave);  CHKERRQ(ierr);
-      ierr = ISGetIndices(ctx->perio[n].slave, &slave); CHKERRQ(ierr);
-      for (PetscInt i = 0; i < n_slave; i++) {
-        PetscReal *val;
-        ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, locX_array, &val); CHKERRQ(ierr);
-        for (PetscInt k = 0; k < Nc; k++) val[k] = buffer_array[Nc * i + k];
-      }
-      ierr = VecRestoreArray(ctx->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
+    ierr = ISGetSize(ctx->perio[n].master, &n_master);  CHKERRQ(ierr);
+    ierr = ISGetIndices(ctx->perio[n].master, &master); CHKERRQ(ierr);
+    for (PetscInt i = 0; i < n_master; i++) {
+      PetscReal *val;
+      ierr = DMPlexPointLocalFieldRead(dm, master[i], 0, locX_array, &val);             CHKERRQ(ierr);
+  		ierr = VecSetValuesBlockedLocal(ctx->perio[n].buffer, 1, &i, val, INSERT_VALUES); CHKERRQ(ierr);
     }
-    ierr = VecRestoreArray(locX, &locX_array); CHKERRQ(ierr);
-  }
+    ierr = ISRestoreIndices(ctx->perio[n].master, &master);  CHKERRQ(ierr);
+    ierr = VecAssemblyBegin(ctx->perio[n].buffer);           CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(ctx->perio[n].buffer);             CHKERRQ(ierr);
+    ierr = VecGetArray(ctx->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
 
-  ierr = PetscFVSetComputeGradients(fvm, PETSC_FALSE); CHKERRQ(ierr);
+    ierr = ISGetSize(ctx->perio[n].slave, &n_slave);  CHKERRQ(ierr);
+    ierr = ISGetIndices(ctx->perio[n].slave, &slave); CHKERRQ(ierr);
+    for (PetscInt i = 0; i < n_slave; i++) {
+      PetscReal *val;
+      ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, locX_array, &val); CHKERRQ(ierr);
+      for (PetscInt k = 0; k < Nc; k++) val[k] = buffer_array[Nc * i + k];
+    }
+    ierr = VecRestoreArray(ctx->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
+  }
+  ierr = VecRestoreArray(locX, &locX_array); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F, void *ctx){
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = MeshInsertPeriodicValues(dm, locX); CHKERRQ(ierr);
+
+  PetscFV fvm;
+  ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);          CHKERRQ(ierr);
+  ierr = PetscFVSetComputeGradients(fvm, PETSC_FALSE);          CHKERRQ(ierr);
   ierr = DMPlexTSComputeRHSFunctionFVM(dm, time, locX, F, ctx); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
