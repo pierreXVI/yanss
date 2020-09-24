@@ -174,7 +174,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     for (PetscInt i = nmax; i < 2 * ndisplaycomp; i++) vbound_tot[i] = (i % 2) ? PETSC_MIN_REAL : PETSC_MAX_REAL;
   }
 
-  PetscDraw draw_last;
+  PetscDraw draw_last = NULL;
   for (PetscInt i = 0; i < ndisplaycomp; ++i) {
     PetscDraw  draw, popup;
     const char *cname;
@@ -274,7 +274,9 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     ierr = PetscDrawSave(draw);  CHKERRQ(ierr);
     draw_last = draw;
   }
-  ierr = PetscDrawPause(draw_last); CHKERRQ(ierr);
+  if (draw_last) {
+    ierr = PetscDrawPause(draw_last); CHKERRQ(ierr);
+  }
 
   ierr = VecRestoreArrayRead(v, &array); CHKERRQ(ierr);
   ierr = PetscFree(vbound_tot);          CHKERRQ(ierr);
