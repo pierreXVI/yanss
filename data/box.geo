@@ -1,5 +1,5 @@
 L = 0.1;
-lc = 0.01;
+lc = 0.002;
 //+
 RECOMBINE = 0;
 STRUCTURED = 0;

@@ -143,7 +143,6 @@ PetscErrorCode IOMonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, v
 
   ierr = VecGetDM(u, &dm);                               CHKERRQ(ierr);
   ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);   CHKERRQ(ierr);
-  ierr = PetscFVSetComputeGradients(fvm, PETSC_TRUE);    CHKERRQ(ierr);
   ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad); CHKERRQ(ierr);
   ierr = DMSetOutputSequenceNumber(dmGrad, steps, time); CHKERRQ(ierr);
 

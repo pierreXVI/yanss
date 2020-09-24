@@ -11,7 +11,6 @@ PetscErrorCode MeshDestroy(DM *dm){
 
   PetscFunctionBeginUser;
   ierr = DMGetField(*dm, 0, NULL, (PetscObject*) &fvm);        CHKERRQ(ierr);
-  ierr = PetscFVSetComputeGradients(fvm, PETSC_TRUE);          CHKERRQ(ierr);
   ierr = DMPlexGetDataFVM(*dm, fvm, NULL, NULL, &dmGrad);      CHKERRQ(ierr);
   ierr = DMGetField(dmGrad, 0, NULL, (PetscObject*) &fvmGrad); CHKERRQ(ierr);
   ierr = PetscFVDestroy(&fvmGrad);                             CHKERRQ(ierr);
@@ -485,7 +484,6 @@ PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F,
 
   PetscFV fvm;
   ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);          CHKERRQ(ierr);
-  ierr = PetscFVSetComputeGradients(fvm, PETSC_FALSE);          CHKERRQ(ierr);
   ierr = DMPlexTSComputeRHSFunctionFVM(dm, time, locX, F, ctx); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
