@@ -3,68 +3,72 @@
 #include "view.h"
 
 
-PetscErrorCode MeshDestroy(Mesh *mesh){
+PetscErrorCode MeshDestroy(DM *dm){
   PetscErrorCode ierr;
   PetscFV        fvm;
+  MeshCtx        ctx;
 
   PetscFunctionBeginUser;
-  ierr = DMGetField((*mesh)->dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVDestroy(&fvm);                                  CHKERRQ(ierr);
-  ierr = DMDestroy(&(*mesh)->dm);                               CHKERRQ(ierr);
-  for (PetscInt n = 0; n < (*mesh)->n_perio; n++) {
-    ierr = VecDestroy(&(*mesh)->perio[n].buffer);               CHKERRQ(ierr);
-    ierr = ISDestroy(&(*mesh)->perio[n].master);                CHKERRQ(ierr);
-    ierr = ISDestroy(&(*mesh)->perio[n].slave);                 CHKERRQ(ierr);
+  ierr = DMGetField(*dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = PetscFVDestroy(&fvm);                          CHKERRQ(ierr);
+  ierr = DMGetApplicationContext(*dm, &ctx);            CHKERRQ(ierr);
+  ierr = DMDestroy(dm);                                 CHKERRQ(ierr);
+  for (PetscInt n = 0; n < ctx->n_perio; n++) {
+    ierr = VecDestroy(&ctx->perio[n].buffer);           CHKERRQ(ierr);
+    ierr = ISDestroy(&ctx->perio[n].master);            CHKERRQ(ierr);
+    ierr = ISDestroy(&ctx->perio[n].slave);             CHKERRQ(ierr);
   }
-  ierr = PetscFree((*mesh)->perio);                             CHKERRQ(ierr);
-  ierr = PetscFree(*mesh);                                      CHKERRQ(ierr);
+  ierr = PetscFree(ctx->perio);                         CHKERRQ(ierr);
+  ierr = PetscFree(ctx);                                CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char *opt_filename, Mesh *mesh){
+PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char *opt_filename, DM *dm){
   PetscErrorCode ierr;
   DM             foo_dm;
 
   PetscFunctionBeginUser;
-  ierr = PetscNew(mesh);                                                 CHKERRQ(ierr);
-  ierr = DMPlexCreateFromFile(comm, filename, PETSC_TRUE, &(*mesh)->dm); CHKERRQ(ierr);
-  ierr = DMViewFromOptions((*mesh)->dm, NULL, "-mesh_view_orig");        CHKERRQ(ierr);
-  ierr = DMSetBasicAdjacency((*mesh)->dm, PETSC_TRUE, PETSC_FALSE);      CHKERRQ(ierr);
+  ierr = DMPlexCreateFromFile(comm, filename, PETSC_TRUE, dm); CHKERRQ(ierr);
+  ierr = DMViewFromOptions(*dm, NULL, "-mesh_view_orig");      CHKERRQ(ierr);
+  ierr = DMSetBasicAdjacency(*dm, PETSC_TRUE, PETSC_FALSE);    CHKERRQ(ierr);
 
   PetscPartitioner part;
-  ierr = DMPlexGetPartitioner((*mesh)->dm, &part);                       CHKERRQ(ierr);
-  ierr = PetscPartitionerSetFromOptions(part);                           CHKERRQ(ierr);
+  ierr = DMPlexGetPartitioner(*dm, &part);                     CHKERRQ(ierr);
+  ierr = PetscPartitionerSetFromOptions(part);                 CHKERRQ(ierr);
 
-  ierr = DMPlexDistribute((*mesh)->dm, 1, NULL, &foo_dm);                CHKERRQ(ierr);
+  ierr = DMPlexDistribute(*dm, 1, NULL, &foo_dm);              CHKERRQ(ierr);
   if (foo_dm) {
-    ierr = DMDestroy(&(*mesh)->dm);                                      CHKERRQ(ierr);
-    (*mesh)->dm = foo_dm;
+    ierr = DMDestroy(dm);                                      CHKERRQ(ierr);
+    *dm = foo_dm;
   }
-  ierr = DMSetFromOptions((*mesh)->dm);                                  CHKERRQ(ierr);
-  ierr = DMPlexConstructGhostCells((*mesh)->dm, NULL, NULL, &foo_dm);    CHKERRQ(ierr);
-  ierr = DMDestroy(&(*mesh)->dm);                                        CHKERRQ(ierr);
-  (*mesh)->dm = foo_dm;
-  ierr = PetscObjectSetName((PetscObject) (*mesh)->dm, "Mesh");          CHKERRQ(ierr);
+  ierr = DMSetFromOptions(*dm);                                CHKERRQ(ierr);
+  ierr = DMPlexConstructGhostCells(*dm, NULL, NULL, &foo_dm);  CHKERRQ(ierr);
+  ierr = DMDestroy(dm);                                        CHKERRQ(ierr);
+  *dm = foo_dm;
+  ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");        CHKERRQ(ierr);
 
   { // Finite Volume formulation
     PetscFV      fvm;
     ierr = PetscFVCreate(comm, &fvm);                         CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) fvm, "FV Model"); CHKERRQ(ierr);
-    ierr = DMAddField((*mesh)->dm, NULL, (PetscObject) fvm);  CHKERRQ(ierr);
+    ierr = DMAddField(*dm, NULL, (PetscObject) fvm);          CHKERRQ(ierr);
   }
 
-  ierr = DMTSSetRHSFunctionLocal((*mesh)->dm, MeshDMTSComputeRHSFunctionFVM, *mesh); CHKERRQ(ierr);
+  MeshCtx ctx;
+  ierr = PetscNew(&ctx);                                                CHKERRQ(ierr);
+  ierr = DMSetApplicationContext(*dm, ctx);                             CHKERRQ(ierr);
+  ierr = DMTSSetRHSFunctionLocal(*dm, MeshComputeRHSFunctionFVM, NULL); CHKERRQ(ierr);
 
-  ierr = MeshDMSetViewer((*mesh)->dm);                       CHKERRQ(ierr);
-  ierr = DMViewFromOptions((*mesh)->dm, NULL, "-mesh_view"); CHKERRQ(ierr);
+  ierr = MeshSetViewer(*dm);                         CHKERRQ(ierr);
+  ierr = DMViewFromOptions(*dm, NULL, "-mesh_view"); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode MeshDMApplyFunction(DM dm, PetscReal time,
-                                   PetscErrorCode (*func)(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*),
-                                   void *ctx, Vec x){
+PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
+                                 PetscErrorCode (*func)(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*),
+                                 void *ctx, Vec x){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -73,7 +77,7 @@ PetscErrorCode MeshDMApplyFunction(DM dm, PetscReal time,
 }
 
 
-PetscErrorCode MeshDMCreateGlobalVector(DM dm, Vec *x){
+PetscErrorCode MeshCreateGlobalVector(DM dm, Vec *x){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -174,7 +178,7 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
   Fills the periodicity context
   disp is the displacement from bc_1 to bc_2
 */
-static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt bc_2, PetscReal *disp, struct PerioCtx *ctx){
+static PetscErrorCode MeshSetPeriodicityCtx(DM dm, PetscInt bc_1, PetscInt bc_2, PetscReal *disp, struct PerioCtx *ctx){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -182,36 +186,36 @@ static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt b
   PetscInt Nc, dim, ghostStart, ghostEnd;
   { // Get problem related values
     PetscFV  fvm;
-    ierr = DMGetDimension(mesh->dm, &dim);                              CHKERRQ(ierr);
-    ierr = DMPlexGetGhostCellStratum(mesh->dm, &ghostStart, &ghostEnd); CHKERRQ(ierr);
-    ierr = DMGetField(mesh->dm, 0, NULL, (PetscObject*) &fvm);          CHKERRQ(ierr);
-    ierr = PetscFVGetNumComponents(fvm, &Nc);                           CHKERRQ(ierr);
+    ierr = DMGetDimension(dm, &dim);                              CHKERRQ(ierr);
+    ierr = DMPlexGetGhostCellStratum(dm, &ghostStart, &ghostEnd); CHKERRQ(ierr);
+    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);          CHKERRQ(ierr);
+    ierr = PetscFVGetNumComponents(fvm, &Nc);                     CHKERRQ(ierr);
   }
 
   PetscInt       nface1_loc, nface2_loc, nface_loc;
   IS             face1_is, face2_is;
   const PetscInt *face1, *face2;
   { // Get face description
-    ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_1, &face1_is);      CHKERRQ(ierr);
-    ierr = DMGetStratumIS(mesh->dm, "Face Sets", bc_2, &face2_is);      CHKERRQ(ierr);
+    ierr = DMGetStratumIS(dm, "Face Sets", bc_1, &face1_is); CHKERRQ(ierr);
+    ierr = DMGetStratumIS(dm, "Face Sets", bc_2, &face2_is); CHKERRQ(ierr);
     if (!face1_is) {ierr = ISCreateGeneral(PETSC_COMM_SELF, 0, NULL, PETSC_OWN_POINTER, &face1_is); CHKERRQ(ierr);}
     if (!face2_is) {ierr = ISCreateGeneral(PETSC_COMM_SELF, 0, NULL, PETSC_OWN_POINTER, &face2_is); CHKERRQ(ierr);}
-    ierr = ISGetSize(face1_is, &nface1_loc);                            CHKERRQ(ierr);
-    ierr = ISGetSize(face2_is, &nface2_loc);                            CHKERRQ(ierr);
-    ierr = ISGetIndices(face1_is, &face1);                              CHKERRQ(ierr);
-    ierr = ISGetIndices(face2_is, &face2);                              CHKERRQ(ierr);
+    ierr = ISGetSize(face1_is, &nface1_loc); CHKERRQ(ierr);
+    ierr = ISGetSize(face2_is, &nface2_loc); CHKERRQ(ierr);
+    ierr = ISGetIndices(face1_is, &face1);   CHKERRQ(ierr);
+    ierr = ISGetIndices(face2_is, &face2);   CHKERRQ(ierr);
 
     PetscInt nface_save;
     nface_save = nface1_loc;
     for (PetscInt i = 0; i < nface_save; i++) {
       PetscInt support_size;
-      ierr = DMPlexGetSupportSize(mesh->dm, face1[i], &support_size); CHKERRQ(ierr);
+      ierr = DMPlexGetSupportSize(dm, face1[i], &support_size); CHKERRQ(ierr);
       if (support_size != 2) nface1_loc--;
     }
     nface_save = nface2_loc;
     for (PetscInt j = 0; j < nface_save; j++) {
       PetscInt support_size;
-      ierr = DMPlexGetSupportSize(mesh->dm, face2[j], &support_size); CHKERRQ(ierr);
+      ierr = DMPlexGetSupportSize(dm, face2[j], &support_size); CHKERRQ(ierr);
       if (support_size != 2) nface2_loc--;
     }
     nface_loc = nface1_loc + nface2_loc;
@@ -224,25 +228,25 @@ static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt b
   { // Get face coordinates and support
     Vec        coord_mpi;
     VecScatter scatter;
-    ierr = PetscMalloc1(nface_loc, &master_array);                              CHKERRQ(ierr);
-    ierr = PetscMalloc1(nface_loc, &slave_array);                               CHKERRQ(ierr);
-    ierr = VecCreate(PetscObjectComm((PetscObject) mesh->dm), &coord_mpi);      CHKERRQ(ierr);
-    ierr = VecSetType(coord_mpi, VECMPI);                                       CHKERRQ(ierr);
-    ierr = VecSetSizes(coord_mpi, nface_loc * dim, PETSC_DECIDE);               CHKERRQ(ierr);
-    ierr = VecSetBlockSize(coord_mpi, dim);                                     CHKERRQ(ierr);
-    ierr = VecGetOwnershipRange(coord_mpi, &block_start, NULL);                 CHKERRQ(ierr);
+    ierr = PetscMalloc1(nface_loc, &master_array);                   CHKERRQ(ierr);
+    ierr = PetscMalloc1(nface_loc, &slave_array);                    CHKERRQ(ierr);
+    ierr = VecCreate(PetscObjectComm((PetscObject) dm), &coord_mpi); CHKERRQ(ierr);
+    ierr = VecSetType(coord_mpi, VECMPI);                            CHKERRQ(ierr);
+    ierr = VecSetSizes(coord_mpi, nface_loc * dim, PETSC_DECIDE);    CHKERRQ(ierr);
+    ierr = VecSetBlockSize(coord_mpi, dim);                          CHKERRQ(ierr);
+    ierr = VecGetOwnershipRange(coord_mpi, &block_start, NULL);      CHKERRQ(ierr);
     block_start /= dim;
     for (PetscInt i = 0; i < nface1_loc; i++) {
       PetscInt  loc, support_size;
       PetscReal val[dim];
-      ierr = DMPlexGetSupportSize(mesh->dm, face1[i], &support_size);           CHKERRQ(ierr);
+      ierr = DMPlexGetSupportSize(dm, face1[i], &support_size);           CHKERRQ(ierr);
       if (support_size != 2) {i--; continue;}
       loc = i + block_start;
-      ierr = DMPlexComputeCellGeometryFVM(mesh->dm, face1[i], NULL, val, NULL); CHKERRQ(ierr);
-      ierr = VecSetValuesBlocked(coord_mpi, 1, &loc, val, INSERT_VALUES);       CHKERRQ(ierr);
+      ierr = DMPlexComputeCellGeometryFVM(dm, face1[i], NULL, val, NULL); CHKERRQ(ierr);
+      ierr = VecSetValuesBlocked(coord_mpi, 1, &loc, val, INSERT_VALUES); CHKERRQ(ierr);
 
       const PetscInt *support;
-      ierr = DMPlexGetSupport(mesh->dm, face1[i], &support);                    CHKERRQ(ierr);
+      ierr = DMPlexGetSupport(dm, face1[i], &support);                    CHKERRQ(ierr);
       if (ghostStart <= support[0] && support[0] < ghostEnd) {
         master_array[i] = support[1];
         slave_array[i] = support[0];
@@ -254,14 +258,14 @@ static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt b
     for (PetscInt j = 0; j < nface2_loc; j++) {
       PetscInt  loc, support_size;
       PetscReal val[dim];
-      ierr = DMPlexGetSupportSize(mesh->dm, face2[j], &support_size);           CHKERRQ(ierr);
+      ierr = DMPlexGetSupportSize(dm, face2[j], &support_size);           CHKERRQ(ierr);
       if (support_size != 2) {j--; continue;}
       loc = j + block_start + nface1_loc;
-      ierr = DMPlexComputeCellGeometryFVM(mesh->dm, face2[j], NULL, val, NULL); CHKERRQ(ierr);
-      ierr = VecSetValuesBlocked(coord_mpi, 1, &loc, val, INSERT_VALUES);       CHKERRQ(ierr);
+      ierr = DMPlexComputeCellGeometryFVM(dm, face2[j], NULL, val, NULL); CHKERRQ(ierr);
+      ierr = VecSetValuesBlocked(coord_mpi, 1, &loc, val, INSERT_VALUES); CHKERRQ(ierr);
 
       const PetscInt *support;
-      ierr = DMPlexGetSupport(mesh->dm, face2[j], &support);                    CHKERRQ(ierr);
+      ierr = DMPlexGetSupport(dm, face2[j], &support);                    CHKERRQ(ierr);
       if (ghostStart <= support[0] && support[0] < ghostEnd) {
         master_array[nface1_loc + j] = support[1];
         slave_array[nface1_loc + j] = support[0];
@@ -290,7 +294,7 @@ static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt b
   for (PetscInt i = 0; i < nface1_loc; i++) {
     PetscBool found = PETSC_FALSE;
     PetscReal len;
-    ierr = DMPlexComputeCellGeometryFVM(mesh->dm, face1[i], &len, NULL, NULL); CHKERRQ(ierr);
+    ierr = DMPlexComputeCellGeometryFVM(dm, face1[i], &len, NULL, NULL); CHKERRQ(ierr);
     for (PetscInt j = 0; j < nface_tot; j++) {
       PetscReal dist = 0;
       for (PetscInt k = 0; k < dim; k++) dist += PetscSqr(coord[dim * j + k] - coord[dim * (block_start + i) + k] - disp[k]);
@@ -305,7 +309,7 @@ static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt b
   for (PetscInt j = 0; j < nface2_loc; j++) {
     PetscBool found = PETSC_FALSE;
     PetscReal len;
-    ierr = DMPlexComputeCellGeometryFVM(mesh->dm, face2[j], &len, NULL, NULL); CHKERRQ(ierr);
+    ierr = DMPlexComputeCellGeometryFVM(dm, face2[j], &len, NULL, NULL); CHKERRQ(ierr);
     for (PetscInt i = 0; i < nface_tot; i++) {
       PetscReal dist = 0;
       for (PetscInt k = 0; k < dim; k++) dist += PetscSqr(coord[dim * (block_start + nface1_loc + j) + k] - coord[dim * i + k] - disp[k]);
@@ -329,7 +333,7 @@ static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt b
   ierr = ISCreateGeneral(PETSC_COMM_SELF, nface_loc, master_array, PETSC_OWN_POINTER, &ctx->master);               CHKERRQ(ierr);
   ierr = ISCreateGeneral(PETSC_COMM_SELF, nface_loc, slave_array, PETSC_OWN_POINTER, &ctx->slave);                 CHKERRQ(ierr);
   ierr = ISLocalToGlobalMappingCreate(PETSC_COMM_SELF, Nc, nface_loc, localToGlobal, PETSC_OWN_POINTER, &mapping); CHKERRQ(ierr);
-  ierr = VecCreate(PetscObjectComm((PetscObject) mesh->dm), &ctx->buffer);                                         CHKERRQ(ierr);
+  ierr = VecCreate(PetscObjectComm((PetscObject) dm), &ctx->buffer);                                               CHKERRQ(ierr);
   ierr = VecSetType(ctx->buffer, VECMPI);                                                                          CHKERRQ(ierr);
   ierr = VecSetSizes(ctx->buffer, nface_loc * Nc, PETSC_DECIDE);                                                   CHKERRQ(ierr);
   ierr = VecSetBlockSize(ctx->buffer, Nc);                                                                         CHKERRQ(ierr);
@@ -339,7 +343,7 @@ static PetscErrorCode MeshSetPeriodicityCtx(Mesh mesh, PetscInt bc_1, PetscInt b
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshSetPeriodicity(Mesh mesh, const char *opt_filename) {
+PetscErrorCode MeshSetPeriodicity(DM dm, const char *opt_filename) {
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -349,23 +353,25 @@ PetscErrorCode MeshSetPeriodicity(Mesh mesh, const char *opt_filename) {
   const PetscInt *bnd, *bnd_loc;
   {
     IS bnd_is_mpi;
-    ierr = DMGetDimension(mesh->dm, &dim);                                                                 CHKERRQ(ierr);
-    ierr = DMGetLabelIdIS(mesh->dm, "Face Sets", &bnd_is_loc);                                             CHKERRQ(ierr);
-    ierr = ISOnComm(bnd_is_loc, PetscObjectComm((PetscObject) mesh->dm), PETSC_USE_POINTER , &bnd_is_mpi); CHKERRQ(ierr);
-    ierr = ISAllGather(bnd_is_mpi, &bnd_is);                                                               CHKERRQ(ierr);
-    ierr = ISDestroy(&bnd_is_mpi);                                                                         CHKERRQ(ierr);
-    ierr = ISSortRemoveDups(bnd_is);                                                                       CHKERRQ(ierr);
-    ierr = ISGetSize(bnd_is, &num);                                                                        CHKERRQ(ierr);
-    ierr = ISGetSize(bnd_is_loc, &num_loc);                                                                CHKERRQ(ierr);
-    ierr = ISGetIndices(bnd_is_loc, &bnd_loc);                                                             CHKERRQ(ierr);
-    ierr = ISGetIndices(bnd_is, &bnd);                                                                     CHKERRQ(ierr);
+    ierr = DMGetDimension(dm, &dim);                                                                 CHKERRQ(ierr);
+    ierr = DMGetLabelIdIS(dm, "Face Sets", &bnd_is_loc);                                             CHKERRQ(ierr);
+    ierr = ISOnComm(bnd_is_loc, PetscObjectComm((PetscObject) dm), PETSC_USE_POINTER , &bnd_is_mpi); CHKERRQ(ierr);
+    ierr = ISAllGather(bnd_is_mpi, &bnd_is);                                                         CHKERRQ(ierr);
+    ierr = ISDestroy(&bnd_is_mpi);                                                                   CHKERRQ(ierr);
+    ierr = ISSortRemoveDups(bnd_is);                                                                 CHKERRQ(ierr);
+    ierr = ISGetSize(bnd_is, &num);                                                                  CHKERRQ(ierr);
+    ierr = ISGetSize(bnd_is_loc, &num_loc);                                                          CHKERRQ(ierr);
+    ierr = ISGetIndices(bnd_is_loc, &bnd_loc);                                                       CHKERRQ(ierr);
+    ierr = ISGetIndices(bnd_is, &bnd);                                                               CHKERRQ(ierr);
   }
 
+  MeshCtx ctx;
+  ierr = DMGetApplicationContext(dm, &ctx); CHKERRQ(ierr);
 
   PetscBool       rem[num_loc]; // Boundaries to remove
-  struct PerioCtx ctxs[num / 2]; // Boundary contexts
+  struct PerioCtx ctxs[num / 2]; // Periodicity contexts
   {
-    mesh->n_perio = 0;
+    ctx->n_perio = 0;
     for (PetscInt i = 0; i < num_loc; i++) rem[i] = PETSC_FALSE;
     for (PetscInt i = 0; i < num; i++) {
       PetscInt master;
@@ -377,17 +383,17 @@ PetscErrorCode MeshSetPeriodicity(Mesh mesh, const char *opt_filename) {
         ierr = ISLocate(bnd_is_loc, bnd[i], &i_slave);  CHKERRQ(ierr);
         if (i_master >= 0) rem[i_master] = PETSC_TRUE;
         if (i_slave >= 0) rem[i_slave] = PETSC_TRUE;
-        ierr = MeshSetPeriodicityCtx(mesh, master, bnd[i], disp, &ctxs[mesh->n_perio++]); CHKERRQ(ierr);
-        ierr = PetscFree(disp);                                                           CHKERRQ(ierr);
+        ierr = MeshSetPeriodicityCtx(dm, master, bnd[i], disp, &ctxs[ctx->n_perio++]); CHKERRQ(ierr);
+        ierr = PetscFree(disp);                                                        CHKERRQ(ierr);
       }
     }
   }
 
   { // Removing periodic boundaries from "Face Sets"
     DMLabel label_old, label_new;
-    ierr = DMRemoveLabel(mesh->dm, "Face Sets", &label_old); CHKERRQ(ierr);
-    ierr = DMCreateLabel(mesh->dm, "Face Sets");             CHKERRQ(ierr);
-    ierr = DMGetLabel(mesh->dm, "Face Sets", &label_new);    CHKERRQ(ierr);
+    ierr = DMRemoveLabel(dm, "Face Sets", &label_old); CHKERRQ(ierr);
+    ierr = DMCreateLabel(dm, "Face Sets");             CHKERRQ(ierr);
+    ierr = DMGetLabel(dm, "Face Sets", &label_new);    CHKERRQ(ierr);
     for (PetscInt i = 0; i < num_loc; i++) {
       if (!rem[i]) {
         IS points;
@@ -407,17 +413,16 @@ PetscErrorCode MeshSetPeriodicity(Mesh mesh, const char *opt_filename) {
   }
 
   { // Setting periodicity context for the mesh
-    ierr = PetscMalloc1(mesh->n_perio, &mesh->perio); CHKERRQ(ierr);
-    for (PetscInt n = 0; n < mesh->n_perio; n++) mesh->perio[n] = ctxs[n];
+    ierr = PetscMalloc1(ctx->n_perio, &ctx->perio); CHKERRQ(ierr);
+    for (PetscInt n = 0; n < ctx->n_perio; n++) ctx->perio[n] = ctxs[n];
   }
 
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode MeshDMTSComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F, void *ctx){
+PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F, void *ctx){
   PetscErrorCode ierr;
-  Mesh           mesh = (Mesh) ctx;
   PetscInt       Nc;
   PetscReal      *locX_array;
   PetscFV        fvm;
@@ -427,32 +432,35 @@ PetscErrorCode MeshDMTSComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Ve
   ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
 
   { // Filling periodic boundaries
+    MeshCtx ctx;
+    ierr = DMGetApplicationContext(dm, &ctx); CHKERRQ(ierr);
+
     ierr = VecGetArray(locX, &locX_array); CHKERRQ(ierr);
-    for (PetscInt n = 0; n < mesh->n_perio; n++) {
+    for (PetscInt n = 0; n < ctx->n_perio; n++) {
       PetscInt       n_master, n_slave;
       const PetscInt *master, *slave;
       PetscReal      *buffer_array;
 
-      ierr = ISGetSize(mesh->perio[n].master, &n_master);  CHKERRQ(ierr);
-      ierr = ISGetIndices(mesh->perio[n].master, &master); CHKERRQ(ierr);
+      ierr = ISGetSize(ctx->perio[n].master, &n_master);  CHKERRQ(ierr);
+      ierr = ISGetIndices(ctx->perio[n].master, &master); CHKERRQ(ierr);
       for (PetscInt i = 0; i < n_master; i++) {
         PetscReal *val;
-        ierr = DMPlexPointLocalFieldRead(dm, master[i], 0, locX_array, &val);              CHKERRQ(ierr);
-    		ierr = VecSetValuesBlockedLocal(mesh->perio[n].buffer, 1, &i, val, INSERT_VALUES); CHKERRQ(ierr);
+        ierr = DMPlexPointLocalFieldRead(dm, master[i], 0, locX_array, &val);             CHKERRQ(ierr);
+    		ierr = VecSetValuesBlockedLocal(ctx->perio[n].buffer, 1, &i, val, INSERT_VALUES); CHKERRQ(ierr);
       }
-      ierr = ISRestoreIndices(mesh->perio[n].master, &master);  CHKERRQ(ierr);
-      ierr = VecAssemblyBegin(mesh->perio[n].buffer);           CHKERRQ(ierr);
-      ierr = VecAssemblyEnd(mesh->perio[n].buffer);             CHKERRQ(ierr);
-      ierr = VecGetArray(mesh->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
+      ierr = ISRestoreIndices(ctx->perio[n].master, &master);  CHKERRQ(ierr);
+      ierr = VecAssemblyBegin(ctx->perio[n].buffer);           CHKERRQ(ierr);
+      ierr = VecAssemblyEnd(ctx->perio[n].buffer);             CHKERRQ(ierr);
+      ierr = VecGetArray(ctx->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
 
-      ierr = ISGetSize(mesh->perio[n].slave, &n_slave);  CHKERRQ(ierr);
-      ierr = ISGetIndices(mesh->perio[n].slave, &slave); CHKERRQ(ierr);
+      ierr = ISGetSize(ctx->perio[n].slave, &n_slave);  CHKERRQ(ierr);
+      ierr = ISGetIndices(ctx->perio[n].slave, &slave); CHKERRQ(ierr);
       for (PetscInt i = 0; i < n_slave; i++) {
         PetscReal *val;
         ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, locX_array, &val); CHKERRQ(ierr);
         for (PetscInt k = 0; k < Nc; k++) val[k] = buffer_array[Nc * i + k];
       }
-      ierr = VecRestoreArray(mesh->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
+      ierr = VecRestoreArray(ctx->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
     }
     ierr = VecRestoreArray(locX, &locX_array); CHKERRQ(ierr);
   }

@@ -6,7 +6,7 @@
 
 
 /*
-  View a Mesh based vector
+  View a mesh based vector
   Calls VecView_Mesh_Local_Draw if the viewer is of type PETSCVIEWERDRAW, else calls VecViex_Plex
   If so, the following options may be given:
     -draw_comp array,       select the vector components
@@ -18,9 +18,9 @@ PetscErrorCode VecView_Mesh(Vec, PetscViewer);
 
 
 /*
-  Sets MeshDMView as the default object viewer for the given DM
+  Sets MeshView as the default object viewer for the given DM
 */
-PetscErrorCode MeshDMSetViewer(DM dm);
+PetscErrorCode MeshSetViewer(DM dm);
 
 
 #endif

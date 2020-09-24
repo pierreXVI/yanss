@@ -19,7 +19,7 @@ int main(int argc, char **argv){
   ierr = PetscOptionsGetString(NULL, NULL, "-mesh", mesh_filename, sizeof(mesh_filename), &set); CHKERRQ(ierr);
   if (!set) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "No mesh file was given: please use the option \"-mesh filename\"");
 
-  Mesh    mesh;
+  DM      mesh;
   Physics phys;
   ierr = MeshLoadFromFile(PETSC_COMM_WORLD, mesh_filename, input_filename, &mesh); CHKERRQ(ierr);
   ierr = PhysicsCreate(&phys, input_filename, mesh);                               CHKERRQ(ierr);
@@ -27,8 +27,8 @@ int main(int argc, char **argv){
   PetscReal cfl = 0.9; // TODO
 
   TS  ts;
-  ierr = MyTsCreate(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
-  ierr = TSSolve(ts, phys->x);                                               CHKERRQ(ierr);
+  ierr = TsCreate_User(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
+  ierr = TSSolve(ts, phys->x);                                                  CHKERRQ(ierr);
 
   PetscReal         ftime;
   PetscInt          nsteps;
