@@ -35,6 +35,12 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, const char*, DM*);
 
 
 /*
+  Sets up the mesh and the physical context (for the boundaries conditions)
+*/
+PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename);
+
+
+/*
   Apply a function on a mesh
 */
 PetscErrorCode MeshApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*), void*, Vec);

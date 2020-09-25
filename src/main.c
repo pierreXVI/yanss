@@ -25,6 +25,8 @@ int main(int argc, char **argv){
   Physics phys;
   ierr = PhysicsCreate(&phys, input_filename, mesh); CHKERRQ(ierr);
 
+  ierr = MeshSetUp(mesh, phys, input_filename); CHKERRQ(ierr);
+
   Vec x;
   ierr = MeshCreateGlobalVector(mesh, &x);                      CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) x, "Solution");       CHKERRQ(ierr);

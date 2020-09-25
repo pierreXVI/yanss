@@ -114,11 +114,13 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   ierr = PetscNew(phys);                    CHKERRQ(ierr);
   ierr = DMGetDimension(dm, &(*phys)->dim); CHKERRQ(ierr);
 
-  { // Read gamma from input file
+  { // Read values from input file
     const char *buffer, *loc = "Physics";
     ierr = IOLoadVarFromLoc(filename, "gamma", 1, &loc, &buffer); CHKERRQ(ierr);
     (*phys)->gamma = atof(buffer);
     ierr = PetscFree(buffer);                                     CHKERRQ(ierr);
+
+    ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
   }
 
   { // Setting fields
@@ -141,7 +143,6 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
     PetscFV fvm;
     char buffer[64];
     ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);                           CHKERRQ(ierr);
-    ierr = PetscFVSetSpatialDimension(fvm, (*phys)->dim);                          CHKERRQ(ierr);
     ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                             CHKERRQ(ierr);
     for (PetscInt i = 0, dof = 0; i < nfields; i++){
       if (fields[i].dof == 1) {
@@ -155,82 +156,9 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
       }
       dof += fields[i].dof;
     }
-    ierr = PetscFVSetFromOptions(fvm);                                             CHKERRQ(ierr);
-
-    DM      dmGrad;
-    PetscFV fvmGrad;
-    ierr = PetscFVCreate(PetscObjectComm((PetscObject) dm), &fvmGrad);    CHKERRQ(ierr);
-    ierr = PetscFVSetSpatialDimension(fvmGrad, (*phys)->dim);             CHKERRQ(ierr);
-    ierr = PetscFVSetNumComponents(fvmGrad, (*phys)->dim * (*phys)->dof); CHKERRQ(ierr);
-    for (PetscInt i = 0, dof = 0; i < nfields; i++){
-      if (fields[i].dof == 1) {
-        for (PetscInt k = 0; k < (*phys)->dim; k++) {
-          ierr = PetscSNPrintf(buffer, sizeof(buffer),"d_%d %s", k, fields[i].name); CHKERRQ(ierr);
-          ierr = PetscFVSetComponentName(fvmGrad, dof + k, buffer);                  CHKERRQ(ierr);
-        }
-      }
-      else {
-        for (PetscInt j = 0; j < fields[i].dof; j++){
-          for (PetscInt k = 0; k < (*phys)->dim; k++) {
-            ierr = PetscSNPrintf(buffer, sizeof(buffer),"d_%d %s_%d", k, fields[i].name, j); CHKERRQ(ierr);
-            ierr = PetscFVSetComponentName(fvmGrad, dof + (*phys)->dim * j + k, buffer);     CHKERRQ(ierr);
-          }
-        }
-      }
-      dof += (*phys)->dim * fields[i].dof;
-    }
-    ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad);  CHKERRQ(ierr);
-    ierr = DMAddField(dmGrad, NULL, (PetscObject) fvmGrad); CHKERRQ(ierr);
   }
 
-  ierr = MeshSetPeriodicity(dm, filename); CHKERRQ(ierr);
-
-  void (*riemann_solver)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*);
-  { // Getting Riemann solver from options
-    ierr = PhysicsRiemannSetFromOptions(PetscObjectComm((PetscObject) dm), &riemann_solver, &(*phys)->riemann_ctx); CHKERRQ(ierr);
-  }
-
-
-  PetscDS prob;
-  DMLabel label;
-  IS      is;
-  const PetscInt *indices;
-  ierr = DMCreateDS(dm);                                   CHKERRQ(ierr);
-  ierr = DMGetDS(dm, &prob);                               CHKERRQ(ierr);
-  ierr = PetscDSSetRiemannSolver(prob, 0, riemann_solver); CHKERRQ(ierr);
-  ierr = PetscDSSetContext(prob, 0, (*phys));              CHKERRQ(ierr);
-  ierr = DMGetLabel(dm, "Face Sets", &label);              CHKERRQ(ierr);
-  ierr = DMLabelGetNumValues(label, &(*phys)->nbc);        CHKERRQ(ierr);
-  ierr = PetscMalloc1((*phys)->nbc, &(*phys)->bc_ctx);     CHKERRQ(ierr);
-  ierr = DMLabelGetValueIS(label, &is);                    CHKERRQ(ierr);
-  ierr = ISGetIndices(is, &indices);                       CHKERRQ(ierr);
-  ierr = DMGetDS(dm, &prob);                               CHKERRQ(ierr);
-
-  for (PetscInt i = 0; i < (*phys)->nbc; i++) {
-    (*phys)->bc_ctx[i].phys = *phys;
-    ierr = IOLoadBC(filename, indices[i], (*phys)->dim, (*phys)->bc_ctx + i); CHKERRQ(ierr);
-
-    void (*bcFunc)(void);
-    switch ((*phys)->bc_ctx[i].type) {
-    case BC_DIRICHLET:
-      PrimitiveToConservative(*phys, (*phys)->bc_ctx[i].val, (*phys)->bc_ctx[i].val);
-      bcFunc = (void (*)(void)) BCDirichlet;
-      break;
-    case BC_OUTFLOW_P:
-      bcFunc = (void (*)(void)) BCOutflow_P;
-      break;
-    case BC_WALL:
-      bcFunc = (void (*)(void)) BCWall;
-      break;
-    }
-    ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, (*phys)->bc_ctx[i].name, "Face Sets", 0, 0,
-                              NULL, bcFunc, 1, indices + i, (*phys)->bc_ctx + i); CHKERRQ(ierr);
-  }
-  ierr = ISRestoreIndices(is, &indices); CHKERRQ(ierr);
-  ierr = ISDestroy(&is);                 CHKERRQ(ierr);
-  ierr = PetscDSSetFromOptions(prob);    CHKERRQ(ierr);
-
-  ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
+  ierr = PhysicsRiemannSetFromOptions(PetscObjectComm((PetscObject) dm), *phys); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

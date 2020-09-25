@@ -306,11 +306,8 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
   const char* loc[] = {"BoundaryConditions", id_str};
 
   ierr = IOLoadVarFromLoc(filename, "name", 2, loc, &bc->name); CHKERRQ(ierr);
-
-  const char *buffer_type;
-  ierr = IOLoadVarFromLoc(filename, "type", 2, loc, &buffer_type); CHKERRQ(ierr);
-  if (!strcmp(buffer_type, "BC_DIRICHLET")) {
-    bc->type = BC_DIRICHLET;
+  ierr = IOLoadVarFromLoc(filename, "type", 2, loc, &bc->type); CHKERRQ(ierr);
+  if (!strcmp(bc->type, "BC_DIRICHLET")) {
     ierr = PetscMalloc1(dim + 2, &bc->val); CHKERRQ(ierr);
 
     const char *buffer_val;
@@ -331,8 +328,7 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
     bc->val[dim + 1] = atof(buffer_val);
     ierr = PetscFree(buffer_val);                                CHKERRQ(ierr);
 
-  } else if (!strcmp(buffer_type, "BC_OUTFLOW_P")) {
-    bc->type = BC_OUTFLOW_P;
+  } else if (!strcmp(bc->type, "BC_OUTFLOW_P")) {
     ierr = PetscMalloc1(1, &bc->val); CHKERRQ(ierr);
 
     const char *buffer_val;
@@ -340,13 +336,9 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
     bc->val[0] = atof(buffer_val);
     ierr = PetscFree(buffer_val);                                CHKERRQ(ierr);
 
-  } else if (!strcmp(buffer_type, "BC_WALL")) {
-    bc->type = BC_WALL;
+  } else if (!strcmp(bc->type, "BC_WALL")) {
     bc->val = NULL;
-  } else {
-    SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", buffer_type);
   }
-  ierr = PetscFree(buffer_type); CHKERRQ(ierr);
 
   ERR_HEADER[0] = '\0';
   PetscFunctionReturn(0);
