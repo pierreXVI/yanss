@@ -49,7 +49,9 @@ typedef struct {
   PetscReal            *init;       // Initial conditions, in primitive variables
 
   union RiemannCtx     riemann_ctx; // Riemann solver context
-  void (*riemann_solver)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*);
+  void (*riemann_solver)(PetscInt, PetscInt,
+                         const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[],
+                         PetscInt, const PetscScalar[], PetscScalar[], void*);
 } *Physics;
 
 struct BCCtx {

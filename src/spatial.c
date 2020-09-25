@@ -60,94 +60,9 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
   MeshCtx ctx;
   ierr = PetscNew(&ctx);                                                CHKERRQ(ierr);
   ierr = DMSetApplicationContext(*dm, ctx);                             CHKERRQ(ierr);
-  ierr = DMTSSetRHSFunctionLocal(*dm, MeshComputeRHSFunctionFVM, NULL); CHKERRQ(ierr);
 
   ierr = MeshSetViewer(*dm);                         CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-mesh_view"); CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-
-PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-
-  PetscFV fvm;
-  { // Setting PetscFV
-    PetscLimiter limiter;
-    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);      CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) fvm, "FV Model"); CHKERRQ(ierr);
-    ierr = PetscFVSetType(fvm, PETSCFVLEASTSQUARES);          CHKERRQ(ierr);
-    ierr = PetscFVGetLimiter(fvm, &limiter);                  CHKERRQ(ierr);
-    ierr = PetscLimiterSetType(limiter, PETSCLIMITERNONE);    CHKERRQ(ierr);
-    ierr = PetscFVSetSpatialDimension(fvm, phys->dim);        CHKERRQ(ierr);
-    ierr = PetscFVSetFromOptions(fvm);                        CHKERRQ(ierr);
-
-    PetscFV  fvmGrad;
-    PetscInt Nc;
-    char buffer[64];
-    ierr = PetscFVCreate(PetscObjectComm((PetscObject) dm), &fvmGrad); CHKERRQ(ierr);
-    ierr = PetscFVGetNumComponents(fvm, &Nc);                          CHKERRQ(ierr);
-    ierr = PetscFVSetSpatialDimension(fvmGrad, phys->dim);             CHKERRQ(ierr);
-    ierr = PetscFVSetNumComponents(fvmGrad, phys->dim * Nc);           CHKERRQ(ierr);
-    for (PetscInt i = 0; i < Nc; i++){
-        const char *cname;
-        ierr = PetscFVGetComponentName(fvm, i, &cname); CHKERRQ(ierr);
-        for (PetscInt k = 0; k < phys->dim; k++) {
-          ierr = PetscSNPrintf(buffer, sizeof(buffer),"d_%d %s", k, cname);   CHKERRQ(ierr);
-          ierr = PetscFVSetComponentName(fvmGrad, phys->dim * i + k, buffer); CHKERRQ(ierr);
-        }
-      }
-
-    DM dmGrad;
-    ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad);  CHKERRQ(ierr);
-    ierr = DMAddField(dmGrad, NULL, (PetscObject) fvmGrad); CHKERRQ(ierr);
-  }
-
-  ierr = MeshSetPeriodicity(dm, filename); CHKERRQ(ierr);
-
-  {
-    PetscDS prob;
-    DMLabel label;
-    IS      is;
-    const PetscInt *indices;
-    ierr = DMCreateDS(dm);                                         CHKERRQ(ierr);
-    ierr = DMGetDS(dm, &prob);                                     CHKERRQ(ierr);
-    ierr = PetscDSSetRiemannSolver(prob, 0, phys->riemann_solver); CHKERRQ(ierr);
-    ierr = PetscDSSetContext(prob, 0, phys);                       CHKERRQ(ierr);
-    ierr = DMGetLabel(dm, "Face Sets", &label);                    CHKERRQ(ierr);
-    ierr = DMLabelGetNumValues(label, &phys->nbc);                 CHKERRQ(ierr);
-    ierr = PetscMalloc1(phys->nbc, &phys->bc_ctx);                 CHKERRQ(ierr);
-    ierr = DMLabelGetValueIS(label, &is);                          CHKERRQ(ierr);
-    ierr = ISGetIndices(is, &indices);                             CHKERRQ(ierr);
-    ierr = DMGetDS(dm, &prob);                                     CHKERRQ(ierr);
-
-    PetscFunctionList bcList;
-    ierr = BCRegister(&bcList); CHKERRQ(ierr);
-
-    for (PetscInt i = 0; i < phys->nbc; i++) {
-      void (*bcFunc)(void);
-
-      phys->bc_ctx[i].phys = phys;
-      ierr = IOLoadBC(filename, indices[i], phys->dim, phys->bc_ctx + i);       CHKERRQ(ierr);
-      ierr = PetscFunctionListFind(bcList, phys->bc_ctx[i].type, &bcFunc);      CHKERRQ(ierr);
-
-      if (!strcmp(phys->bc_ctx[i].type, "BC_DIRICHLET")) {
-        PrimitiveToConservative(phys, phys->bc_ctx[i].val, phys->bc_ctx[i].val);
-      }
-
-      if (!bcFunc) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", phys->bc_ctx[i].type);
-      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, phys->bc_ctx[i].name, "Face Sets", 0, 0,
-                                NULL, bcFunc, 1, indices + i, phys->bc_ctx + i); CHKERRQ(ierr);
-    }
-    ierr = PetscFunctionListDestroy(&bcList); CHKERRQ(ierr);
-    ierr = ISRestoreIndices(is, &indices); CHKERRQ(ierr);
-    ierr = ISDestroy(&is);                 CHKERRQ(ierr);
-    ierr = PetscDSSetFromOptions(prob);    CHKERRQ(ierr);
-
-  }
 
   PetscFunctionReturn(0);
 }
@@ -430,7 +345,11 @@ static PetscErrorCode MeshSetPeriodicityCtx(DM dm, PetscInt bc_1, PetscInt bc_2,
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode MeshSetPeriodicity(DM dm, const char *opt_filename) {
+/*
+  Reads the periodicity from the input file, and construct the `perio` context array
+  The periodicity contexts can only be created after some of the physical context is filled, as the number of components is needed
+*/
+static PetscErrorCode MeshSetPeriodicity(DM dm, const char *opt_filename) {
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -508,6 +427,109 @@ PetscErrorCode MeshSetPeriodicity(DM dm, const char *opt_filename) {
 }
 
 
+/*
+  Compute the RHS
+*/
+static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F, void *ctx){
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+  ierr = MeshInsertPeriodicValues(dm, locX); CHKERRQ(ierr);
+
+  PetscFV fvm;
+  ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);          CHKERRQ(ierr);
+  ierr = DMPlexTSComputeRHSFunctionFVM(dm, time, locX, F, ctx); CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
+  PetscErrorCode ierr;
+
+  PetscFunctionBeginUser;
+
+  ierr = DMTSSetRHSFunctionLocal(dm, MeshComputeRHSFunctionFVM, NULL); CHKERRQ(ierr);
+
+  PetscFV fvm;
+  { // Setting PetscFV
+    PetscLimiter limiter;
+    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);      CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) fvm, "FV Model"); CHKERRQ(ierr);
+    ierr = PetscFVSetType(fvm, PETSCFVLEASTSQUARES);          CHKERRQ(ierr);
+    ierr = PetscFVGetLimiter(fvm, &limiter);                  CHKERRQ(ierr);
+    ierr = PetscLimiterSetType(limiter, PETSCLIMITERNONE);    CHKERRQ(ierr);
+    ierr = PetscFVSetSpatialDimension(fvm, phys->dim);        CHKERRQ(ierr);
+    ierr = PetscFVSetFromOptions(fvm);                        CHKERRQ(ierr);
+
+    PetscFV  fvmGrad;
+    PetscInt Nc;
+    char buffer[64];
+    ierr = PetscFVCreate(PetscObjectComm((PetscObject) dm), &fvmGrad); CHKERRQ(ierr);
+    ierr = PetscFVGetNumComponents(fvm, &Nc);                          CHKERRQ(ierr);
+    ierr = PetscFVSetSpatialDimension(fvmGrad, phys->dim);             CHKERRQ(ierr);
+    ierr = PetscFVSetNumComponents(fvmGrad, phys->dim * Nc);           CHKERRQ(ierr);
+    for (PetscInt i = 0; i < Nc; i++){
+        const char *cname;
+        ierr = PetscFVGetComponentName(fvm, i, &cname); CHKERRQ(ierr);
+        for (PetscInt k = 0; k < phys->dim; k++) {
+          ierr = PetscSNPrintf(buffer, sizeof(buffer),"d_%d %s", k, cname);   CHKERRQ(ierr);
+          ierr = PetscFVSetComponentName(fvmGrad, phys->dim * i + k, buffer); CHKERRQ(ierr);
+        }
+      }
+
+    DM dmGrad;
+    ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad);  CHKERRQ(ierr);
+    ierr = DMAddField(dmGrad, NULL, (PetscObject) fvmGrad); CHKERRQ(ierr);
+  }
+
+  ierr = MeshSetPeriodicity(dm, filename); CHKERRQ(ierr);
+
+  {
+    PetscDS prob;
+    DMLabel label;
+    IS      is;
+    const PetscInt *indices;
+    ierr = DMCreateDS(dm);                                         CHKERRQ(ierr);
+    ierr = DMGetDS(dm, &prob);                                     CHKERRQ(ierr);
+    ierr = PetscDSSetRiemannSolver(prob, 0, phys->riemann_solver); CHKERRQ(ierr);
+    ierr = PetscDSSetContext(prob, 0, phys);                       CHKERRQ(ierr);
+    ierr = DMGetLabel(dm, "Face Sets", &label);                    CHKERRQ(ierr);
+    ierr = DMLabelGetNumValues(label, &phys->nbc);                 CHKERRQ(ierr);
+    ierr = PetscMalloc1(phys->nbc, &phys->bc_ctx);                 CHKERRQ(ierr);
+    ierr = DMLabelGetValueIS(label, &is);                          CHKERRQ(ierr);
+    ierr = ISGetIndices(is, &indices);                             CHKERRQ(ierr);
+    ierr = DMGetDS(dm, &prob);                                     CHKERRQ(ierr);
+
+    PetscFunctionList bcList;
+    ierr = BCRegister(&bcList); CHKERRQ(ierr);
+
+    for (PetscInt i = 0; i < phys->nbc; i++) {
+      void (*bcFunc)(void);
+
+      phys->bc_ctx[i].phys = phys;
+      ierr = IOLoadBC(filename, indices[i], phys->dim, phys->bc_ctx + i);       CHKERRQ(ierr);
+      ierr = PetscFunctionListFind(bcList, phys->bc_ctx[i].type, &bcFunc);      CHKERRQ(ierr);
+
+      if (!strcmp(phys->bc_ctx[i].type, "BC_DIRICHLET")) {
+        PrimitiveToConservative(phys, phys->bc_ctx[i].val, phys->bc_ctx[i].val);
+      }
+
+      if (!bcFunc) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", phys->bc_ctx[i].type);
+      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, phys->bc_ctx[i].name, "Face Sets", 0, 0,
+                                NULL, bcFunc, 1, indices + i, phys->bc_ctx + i); CHKERRQ(ierr);
+    }
+    ierr = PetscFunctionListDestroy(&bcList); CHKERRQ(ierr);
+    ierr = ISRestoreIndices(is, &indices); CHKERRQ(ierr);
+    ierr = ISDestroy(&is);                 CHKERRQ(ierr);
+    ierr = PetscDSSetFromOptions(prob);    CHKERRQ(ierr);
+
+  }
+
+  PetscFunctionReturn(0);
+}
+
+
 PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX){
   PetscErrorCode ierr;
   PetscInt       Nc;
@@ -549,20 +571,6 @@ PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX){
     ierr = VecRestoreArray(ctx->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
   }
   ierr = VecRestoreArray(locX, &locX_array); CHKERRQ(ierr);
-
-  PetscFunctionReturn(0);
-}
-
-
-PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F, void *ctx){
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-  ierr = MeshInsertPeriodicValues(dm, locX); CHKERRQ(ierr);
-
-  PetscFV fvm;
-  ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);          CHKERRQ(ierr);
-  ierr = DMPlexTSComputeRHSFunctionFVM(dm, time, locX, F, ctx); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

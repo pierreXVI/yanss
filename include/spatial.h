@@ -35,12 +35,6 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, const char*, DM*);
 
 
 /*
-  Sets up the mesh and the physical context (for the boundaries conditions)
-*/
-PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename);
-
-
-/*
   Apply a function on a mesh
 */
 PetscErrorCode MeshApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*), void*, Vec);
@@ -80,22 +74,14 @@ PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, co
 
 
 /*
-  Reads the periodicity from the input file, and construct the `perio` context array
-  The periodicity contexts can only be created after some of the physical context is filled, as the number of components is needed
+  Sets up the mesh and the physical context (for the boundaries conditions)
 */
-PetscErrorCode MeshSetPeriodicity(DM, const char*);
+PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename);
 
 
 /*
   Puts coefficients which represent periodic values into the local solution vector
 */
 PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX);
-
-
-/*
-  Compute the RHS
-*/
-PetscErrorCode MeshComputeRHSFunctionFVM(DM, PetscReal, Vec, Vec, void*);
-
 
 #endif
