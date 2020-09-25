@@ -58,8 +58,6 @@ typedef struct {
   PetscReal            *init;       // Initial conditions, in primitive variables
 
   union RiemannCtx     riemann_ctx; // Riemann solver context
-
-  Vec                  x;           // Physical state
 } *Physics;
 
 struct BCCtx {

@@ -97,7 +97,6 @@ PetscErrorCode PhysicsDestroy(Physics *phys){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = VecDestroy(&(*phys)->x);          CHKERRQ(ierr);
   for (PetscInt i = 0; i < (*phys)->nbc; i++){
     ierr = PetscFree((*phys)->bc_ctx[i].name); CHKERRQ(ierr);
     ierr = PetscFree((*phys)->bc_ctx[i].val);  CHKERRQ(ierr);
@@ -231,13 +230,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
   ierr = ISDestroy(&is);                 CHKERRQ(ierr);
   ierr = PetscDSSetFromOptions(prob);    CHKERRQ(ierr);
 
-  { // Setting solution vector and initial condition
-    ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
-
-    ierr = MeshCreateGlobalVector(dm, &(*phys)->x);                       CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) (*phys)->x, "Solution");      CHKERRQ(ierr);
-    ierr = MeshApplyFunction(dm, 0, InitialCondition, *phys, (*phys)->x); CHKERRQ(ierr);
-  }
+  ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }
