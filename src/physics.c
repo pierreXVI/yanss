@@ -98,6 +98,7 @@ PetscErrorCode PhysicsDestroy(Physics *phys){
 
   PetscFunctionBeginUser;
   for (PetscInt i = 0; i < (*phys)->nbc; i++){
+    ierr = PetscFree((*phys)->bc_ctx[i].type); CHKERRQ(ierr);
     ierr = PetscFree((*phys)->bc_ctx[i].name); CHKERRQ(ierr);
     ierr = PetscFree((*phys)->bc_ctx[i].val);  CHKERRQ(ierr);
   }

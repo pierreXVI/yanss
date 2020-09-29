@@ -84,4 +84,10 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename);
 */
 PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX);
 
+
+/*
+  Compute the gradient (global vector) of the given vector (local vector) using the precomputed data
+*/
+PetscErrorCode MeshReconstructGradientsFVM(DM, Vec, Vec);
+
 #endif
