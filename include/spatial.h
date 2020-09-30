@@ -11,6 +11,13 @@
 typedef struct {
   PetscInt        n_perio; // Number of periodic BC
   struct PerioCtx *perio;  // Periodicity context
+
+  PetscInt n_cell;            // Number of "true" mesh cells
+  struct {
+    IS          neighborhood; // List of neighbors
+    PetscScalar *grad_coeff;  // Neighbor contributions to cell gradient
+  } *CellCtx;
+
 } *MeshCtx;
 
 struct PerioCtx {
