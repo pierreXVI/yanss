@@ -47,7 +47,7 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
   ierr = DMPlexGetPartitioner(*dm, &part);                     CHKERRQ(ierr);
   ierr = PetscPartitionerSetFromOptions(part);                 CHKERRQ(ierr);
 
-  ierr = DMPlexDistribute(*dm, 1, NULL, &foo_dm);              CHKERRQ(ierr);
+  ierr = DMPlexDistribute(*dm, 2, NULL, &foo_dm);              CHKERRQ(ierr);
   if (foo_dm) {
     ierr = DMDestroy(dm);                                      CHKERRQ(ierr);
     *dm = foo_dm;
@@ -480,8 +480,8 @@ static PetscErrorCode MeshSetUp_Gradient(DM dm){
         ierr = DMPlexGetSupportSize(dm, faces1[f1], &size); CHKERRQ(ierr);
         if (size != 2) continue;
         ierr = DMPlexGetSupport(dm, faces1[f1], &fcells); CHKERRQ(ierr);
-        // if (fcells[0] != c && fcells[0] != c1 && fcells[0] < cStartBoundary) neighbors[numNeighbors++] = fcells[0];
-        // if (fcells[1] != c && fcells[1] != c1 && fcells[1] < cStartBoundary) neighbors[numNeighbors++] = fcells[1];
+        if (fcells[0] != c && fcells[0] != c1 && fcells[0] < cStartBoundary) neighbors[numNeighbors++] = fcells[0];
+        if (fcells[1] != c && fcells[1] != c1 && fcells[1] < cStartBoundary) neighbors[numNeighbors++] = fcells[1];
       }
     }
 
