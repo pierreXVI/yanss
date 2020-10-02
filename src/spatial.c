@@ -696,7 +696,7 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
 
       if (!bcFunc) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", phys->bc_ctx[i].type);
       ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, phys->bc_ctx[i].name, "Face Sets", 0, 0,
-                                NULL, bcFunc, 1, indices + i, phys->bc_ctx + i); CHKERRQ(ierr);
+                                NULL, bcFunc, NULL, 1, indices + i, phys->bc_ctx + i); CHKERRQ(ierr);
     }
     ierr = PetscFunctionListDestroy(&bcList); CHKERRQ(ierr);
     ierr = ISRestoreIndices(is, &indices);    CHKERRQ(ierr);
