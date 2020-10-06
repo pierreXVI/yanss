@@ -665,20 +665,26 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
   ierr = MeshSetUp_Periodicity(dm, filename); CHKERRQ(ierr);
 
   { // Setting boundaries
-    PetscDS prob;
-    DMLabel label;
-    IS      is;
+    PetscDS        prob;
+    IS             is;
     const PetscInt *indices;
     ierr = DMCreateDS(dm);                                         CHKERRQ(ierr);
     ierr = DMGetDS(dm, &prob);                                     CHKERRQ(ierr);
     ierr = PetscDSSetRiemannSolver(prob, 0, phys->riemann_solver); CHKERRQ(ierr);
     ierr = PetscDSSetContext(prob, 0, phys);                       CHKERRQ(ierr);
-    ierr = DMGetLabel(dm, "Face Sets", &label);                    CHKERRQ(ierr);
-    ierr = DMLabelGetNumValues(label, &phys->nbc);                 CHKERRQ(ierr);
-    ierr = PetscMalloc1(phys->nbc, &phys->bc_ctx);                 CHKERRQ(ierr);
-    ierr = DMLabelGetValueIS(label, &is);                          CHKERRQ(ierr);
-    ierr = ISGetIndices(is, &indices);                             CHKERRQ(ierr);
     ierr = DMGetDS(dm, &prob);                                     CHKERRQ(ierr);
+    { // Getting boundary ids
+      IS bnd_is_mpi, bnd_is_loc;
+      ierr = DMGetLabelIdIS(dm, "Face Sets", &bnd_is_loc);                                             CHKERRQ(ierr);
+      ierr = ISOnComm(bnd_is_loc, PetscObjectComm((PetscObject) dm), PETSC_USE_POINTER , &bnd_is_mpi); CHKERRQ(ierr);
+      ierr = ISAllGather(bnd_is_mpi, &is);                                                             CHKERRQ(ierr);
+      ierr = ISDestroy(&bnd_is_loc);                                                                   CHKERRQ(ierr);
+      ierr = ISDestroy(&bnd_is_mpi);                                                                   CHKERRQ(ierr);
+      ierr = ISSortRemoveDups(is);                                                                     CHKERRQ(ierr);
+      ierr = ISGetSize(is, &phys->nbc);                                                                CHKERRQ(ierr);
+      ierr = ISGetIndices(is, &indices);                                                               CHKERRQ(ierr);
+    }
+    ierr = PetscMalloc1(phys->nbc, &phys->bc_ctx);                 CHKERRQ(ierr);
 
     PetscFunctionList bcList;
     ierr = BCRegister(&bcList); CHKERRQ(ierr);
@@ -694,7 +700,7 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
         PrimitiveToConservative(phys, phys->bc_ctx[i].val, phys->bc_ctx[i].val);
       }
 
-      if (!bcFunc) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", phys->bc_ctx[i].type);
+      if (!bcFunc) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", phys->bc_ctx[i].type);
       ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, phys->bc_ctx[i].name, "Face Sets", 0, 0,
                                 NULL, bcFunc, NULL, 1, indices + i, phys->bc_ctx + i); CHKERRQ(ierr);
     }
