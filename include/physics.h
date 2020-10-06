@@ -63,12 +63,10 @@ PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx)
     "hh1",  Harten-Hyman first entropy fix
     "hh2",  Harten-Hyman second entropy fix
 */
-PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm,
-                                            void (**)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[], PetscInt, const PetscScalar[], PetscScalar[], void*),
-                                            union RiemannCtx*);
+PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm, Physics);
 
 /*
-  Pointwise boundary condition functions, with the following calling sequence:
+  Register the pointwise boundary condition functions, with the following calling sequence:
 
   ```
   func(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscScalar *xI, PetscScalar *xG, void *ctx)
@@ -79,9 +77,12 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm,
     xG   - Value on the ghost cell
     ctx  - Context, to be casted to (struct BC_ctx*)
   ```
+
+  Available boudrary condition types are:
+    BC_DIRICHLET: the conservative field values
+    BC_OUTFLOW_P: the pressure value
+    BC_WALL:      no value
 */
-PetscErrorCode BCDirichlet(PetscReal, const PetscReal[], const PetscReal[], const PetscReal*, PetscReal*, void*);
-PetscErrorCode BCOutflow_P(PetscReal, const PetscReal[], const PetscReal[], const PetscReal*, PetscReal*, void*);
-PetscErrorCode BCWall     (PetscReal, const PetscReal[], const PetscReal[], const PetscReal*, PetscReal*, void*);
+PetscErrorCode BCRegister(PetscFunctionList*);
 
 #endif

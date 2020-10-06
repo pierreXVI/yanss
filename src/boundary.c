@@ -1,7 +1,7 @@
 #include "physics.h"
 
 
-PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
+static PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
@@ -9,7 +9,7 @@ PetscErrorCode BCDirichlet(PetscReal time, const PetscReal c[], const PetscReal 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
+static PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
@@ -31,7 +31,7 @@ PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[], const PetscReal 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode BCWall(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
+static PetscErrorCode BCWall(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
@@ -59,5 +59,16 @@ PetscErrorCode BCWall(PetscReal time, const PetscReal c[], const PetscReal n[], 
     SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_SUP, "Wall boundary condition not implemented for this model (%d)\n", bc_ctx->phys->type);
     break;
   }
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode BCRegister(PetscFunctionList *bc_list){
+  PetscErrorCode ierr;
+  PetscFunctionBeginUser;
+  *bc_list = NULL;
+  ierr = PetscFunctionListAdd(bc_list, "BC_DIRICHLET", BCDirichlet); CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(bc_list, "BC_OUTFLOW_P", BCOutflow_P); CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(bc_list, "BC_WALL",      BCWall);      CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

@@ -6,15 +6,6 @@
 #include <petscts.h>
 
 
-/*
-  The boudrary condition types. For each type correspond a value array:
-    BC_DIRICHLET: the conservative field values
-    BC_OUTFLOW_P: the pressure value
-    BC_WALL:      no value
-*/
-enum BCType {BC_DIRICHLET, BC_OUTFLOW_P, BC_WALL};
-
-
 enum ProblemType {TYPE_EULER, TYPE_NS};
 
 
@@ -58,14 +49,15 @@ typedef struct {
   PetscReal            *init;       // Initial conditions, in primitive variables
 
   union RiemannCtx     riemann_ctx; // Riemann solver context
-
-  Vec                  x;           // Physical state
+  void (*riemann_solver)(PetscInt, PetscInt,
+                         const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[],
+                         PetscInt, const PetscScalar[], PetscScalar[], void*);
 } *Physics;
 
 struct BCCtx {
   Physics     phys;  // Physical model
   const char  *name; // Boundary name
-  enum BCType type;  // Boundary type
+  const char  *type; // Boundary type
   PetscReal   *val;  // Additional numerical values
 };
 

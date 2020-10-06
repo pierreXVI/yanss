@@ -11,6 +11,13 @@
 typedef struct {
   PetscInt        n_perio; // Number of periodic BC
   struct PerioCtx *perio;  // Periodicity context
+
+  PetscInt n_cell;            // Number of "true" mesh cells
+  struct {
+    IS          neighborhood; // List of neighbors
+    PetscScalar *grad_coeff;  // Neighbor contributions to cell gradient
+  } *CellCtx;
+
 } *MeshCtx;
 
 struct PerioCtx {
@@ -74,10 +81,9 @@ PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, co
 
 
 /*
-  Reads the periodicity from the input file, and construct the `perio` context array
-  The periodicity contexts can only be created after some of the physical context is filled, as the number of components is needed
+  Sets up the mesh and the physical context (for the boundaries conditions)
 */
-PetscErrorCode MeshSetPeriodicity(DM, const char*);
+PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename);
 
 
 /*
@@ -87,9 +93,8 @@ PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX);
 
 
 /*
-  Compute the RHS
+  Compute the gradient (global vector) of the given vector (local vector) using the precomputed data
 */
-PetscErrorCode MeshComputeRHSFunctionFVM(DM, PetscReal, Vec, Vec, void*);
-
+PetscErrorCode MeshReconstructGradientsFVM(DM, Vec, Vec);
 
 #endif
