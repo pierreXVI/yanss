@@ -78,7 +78,7 @@ PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, 
   PetscFunctionBeginUser;
   if (steps % mctx->n_iter != 0) PetscFunctionReturn(0);
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "%3d  time %8.4g  ", steps, time); CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "%4d  time %12.4g  ", steps, time); CHKERRQ(ierr);
 
   Vec flux;
   ierr = VecDuplicate(u, &flux);                  CHKERRQ(ierr);

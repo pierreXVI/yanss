@@ -12,7 +12,7 @@ int main(int argc, char **argv){
 
   if (argc < 2) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "No input file was given: please use \"%s optionfile\"", argv[0]);
   char *input_filename = argv[1];
-  ierr = IOLoadPetscOptions(input_filename); CHKERRQ(ierr);
+  ierr = YAMLLoadPetscOptions(input_filename); CHKERRQ(ierr);
 
   PetscBool set;
   char mesh_filename[256];

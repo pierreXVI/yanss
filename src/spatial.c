@@ -381,7 +381,7 @@ static PetscErrorCode MeshSetUp_Periodicity(DM dm, const char *opt_filename){
     for (PetscInt i = 0; i < num; i++) {
       PetscInt master;
       PetscReal *disp;
-      ierr = IOLoadPeriodicity(opt_filename, bnd[i], dim, &master, &disp); CHKERRQ(ierr);
+      ierr = YAMLLoadPeriodicity(opt_filename, bnd[i], dim, &master, &disp); CHKERRQ(ierr);
       if (disp) {
         PetscInt i_master, i_slave;
         ierr = ISLocate(bnd_is_loc, master, &i_master); CHKERRQ(ierr);
@@ -693,8 +693,8 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
       void (*bcFunc)(void);
 
       phys->bc_ctx[i].phys = phys;
-      ierr = IOLoadBC(filename, indices[i], phys->dim, phys->bc_ctx + i);  CHKERRQ(ierr);
-      ierr = PetscFunctionListFind(bcList, phys->bc_ctx[i].type, &bcFunc); CHKERRQ(ierr);
+      ierr = YAMLLoadBC(filename, indices[i], phys->dim, phys->bc_ctx + i); CHKERRQ(ierr);
+      ierr = PetscFunctionListFind(bcList, phys->bc_ctx[i].type, &bcFunc);  CHKERRQ(ierr);
 
       if (!strcmp(phys->bc_ctx[i].type, "BC_DIRICHLET")) {
         PrimitiveToConservative(phys, phys->bc_ctx[i].val, phys->bc_ctx[i].val);
