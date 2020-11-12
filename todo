@@ -7,4 +7,4 @@ Of course the iteration coast more.
 
 View : pause only on last PetscDraw
 
-Spatial : get 2nd neighbour cells
+Evaluate boundaries on face, not in "ghost" cell

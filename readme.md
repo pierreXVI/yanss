@@ -9,6 +9,8 @@ This software use the following external libraries:
   - [PETSc](https://www.mcs.anl.gov/petsc), a suite of data structures and routines for the scalable solution of scientific applications modeled by partial differential equations,
   - [LibYAML](https://github.com/yaml/libyaml), a C library for parsing YAML.
 
+**Note:** To fix some memory error in PETSc, commit `736d4f42` is required, so release `3.14.1` or more recent is required.
+
 The C compiler must be c99 compliant. This is usually ensured with the compiler option `-std=c99`.
 
 ## Installation
