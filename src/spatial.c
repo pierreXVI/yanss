@@ -777,12 +777,12 @@ PetscErrorCode MeshReconstructGradientsFVM(DM dm, Vec locX, Vec grad){
   { // Getting mesh data
     PetscFV      fvm;
     ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);     CHKERRQ(ierr);
-    ierr = DMPlexGetDataFVM(dm, fvm, &cellgeom, NULL, NULL); CHKERRQ(ierr);
-    ierr = VecGetDM(cellgeom, &dmCell);                      CHKERRQ(ierr);
-    ierr = VecGetArrayRead(cellgeom, &cellgeom_a);           CHKERRQ(ierr);
     ierr = PetscFVGetLimiter(fvm, &lim);                     CHKERRQ(ierr);
     ierr = PetscLimiterGetType(lim, &limType);               CHKERRQ(ierr);
     if (!strcmp(limType, PETSCLIMITERZERO)) PetscFunctionReturn(0);
+    ierr = DMPlexGetDataFVM(dm, fvm, &cellgeom, NULL, NULL); CHKERRQ(ierr);
+    ierr = VecGetDM(cellgeom, &dmCell);                      CHKERRQ(ierr);
+    ierr = VecGetArrayRead(cellgeom, &cellgeom_a);           CHKERRQ(ierr);
     ierr = DMGetDimension(dm, &dim);                         CHKERRQ(ierr);
     ierr = PetscFVGetNumComponents(fvm, &Nc);                CHKERRQ(ierr);
     ierr = DMPlexGetHeightStratum(dm, 0, &cStart, NULL);     CHKERRQ(ierr);
