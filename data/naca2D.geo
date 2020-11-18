@@ -2,11 +2,12 @@ AIRFOIL = 0012;  // NACA airfoil name
 CHORD = 1;       // Cord length
 RESOLUTION = 20; // Half the number of points used to mesh the airfoil
 
-MSH_SIZE_INNER = 1 * (CHORD / RESOLUTION);  // Size of the mesh on the surface of the airfoil
+// MSH_SIZE_INNER = 1 * (CHORD / RESOLUTION);  // Size of the mesh on the surface of the airfoil
+MSH_SIZE_INNER = 0.015;  // Size of the mesh on the surface of the airfoil
 MSH_SIZE_OUTTER = 0.1;  // Size of the mesh on the outter border
 
-HEIGHT = 0.5 * CHORD; // Height of the outter bountary
-LENGTH = 1.2 * CHORD; // Length of the outter bountary
+HEIGHT = 2 * CHORD; // Height of the outter bountary
+LENGTH = 2 * CHORD; // Length of the outter bountary
 
 // ====================================
 
@@ -27,27 +28,24 @@ Macro y_naca
   a2 = -0.1260 * x;
   a3 = -0.3516 * x^2;
   a4 =  0.2843 * x^3;
-  a5 = -0.1015 * x^4;
-  /* a5 = -0.1036 * x^4; // for a closed trailing edge */
+  // a5 = -0.1015 * x^4;
+  a5 = -0.1036 * x^4; // for a closed trailing edge
   yt = (a1 + a2 + a3 + a4 + a5) * T / 20;
 Return
 
 pts[0] = newp; Point(pts[0]) = {0, 0, 0, MSH_SIZE_INNER};
 For k In {1:2*RESOLUTION - 1}
+  x = (1 + Cos(k * Pi / RESOLUTION)) / 2;
+  Call y_naca;
   If (k < RESOLUTION)
-    x = k / RESOLUTION;
-    Call y_naca;
     y = yc + yt;
   Else
-    x = 2 - k / RESOLUTION;
-    Call y_naca;
     y = yc - yt;
   EndIf
-  pts[k] = newp; Point(pts[k]) = {x * CHORD, y * CHORD, 0, MSH_SIZE_INNER};
-  lines[k - 1] = newl; Line(lines[k - 1]) = {pts[k - 1], pts[k]};
+  pts[k] = newp; Point(pts[k]) = {(x - 1) * CHORD, y * CHORD, 0, MSH_SIZE_INNER};
 EndFor
-lines[2*RESOLUTION - 1] = newl; Line(lines[2*RESOLUTION - 1]) = {pts[2 * RESOLUTION - 1], pts[0]};
-
+pts[2*RESOLUTION] = pts[0];
+naca = newl; BSpline(naca) = pts[];
 
 p1 = newp; Point(p1) = {0,       HEIGHT, 0, MSH_SIZE_OUTTER};
 p2 = newp; Point(p2) = {0,      -HEIGHT, 0, MSH_SIZE_OUTTER};
@@ -59,9 +57,9 @@ l3 = newl; Line(l3) = {p3, p4};
 l4 = newl; Line(l4) = {p4, p1};
 
 
-naca_ll = newll; Line Loop(naca_ll) = lines[];    Physical Curve(10) = lines[];      // WALL
-out_ll = newll; Line Loop(out_ll) = {l2, l3, l4}; Physical Curve(20) = {l2, l3, l4}; // OUTFLOW
-in_ll = newll; Line Loop(in_ll) = {c1};           Physical Curve(30) = {c1};         // INFLOW
+naca_ll = newll; Line Loop(naca_ll) = {naca};      Physical Curve(10) = {naca};       // WALL
+out_ll  = newll; Line Loop(out_ll) = {l2, l3, l4}; Physical Curve(20) = {l2, l3, l4}; // OUTFLOW
+in_ll   = newll; Line Loop(in_ll) = {c1};          Physical Curve(30) = {c1};         // INFLOW
 
 mesh_s = news; Plane Surface(mesh_s) = {naca_ll, in_ll, out_ll};
 Physical Surface("mesh") = {mesh_s};
