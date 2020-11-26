@@ -43,57 +43,57 @@
 
 
 /*
-  Look for the key `varname` in the file named `filename`
+  Look for the key `varname` in the YAML file `filename`
   The location of the key is specified in the array `loc`, of size `depth` :
     loc[0] > loc[1] > ... > loc[depth - 1] > varname : var
 */
-PetscErrorCode IOSeekVarFromLoc(const char*, const char*, PetscInt, const char**, PetscBool*);
+PetscErrorCode YAMLSeekVarFromLoc(const char*, const char*, PetscInt, const char**, PetscBool*);
 
 /*
-  Load the value associated to the key `varname` in the file named `filename`
+  Load the value associated to the key `varname` in the YAML file `filename`
   The location of the key is specified in the array `loc`, of size `depth` :
     loc[0] > loc[1] > ... > loc[depth - 1] > varname : var
     The output value must be freed with `PetscFree`
 */
-PetscErrorCode IOLoadVarFromLoc(const char*, const char*, PetscInt, const char**, const char**);
+PetscErrorCode YAMLLoadVarFromLoc(const char*, const char*, PetscInt, const char**, const char**);
 
 /*
-  Load the array of values associated to the key `varname` in the file named `filename`
+  Load the array of values associated to the key `varname` in the YAML file `filename`
   The location of the key is specified in the array `loc`, of size `depth` :
     loc[0] > loc[1] > ... > loc[depth - 1] > varname : [array of length `len`]
   If the pointer `PetscInt *len` is set to a size > 0, read the asked size, and if it is set to 0, its output value is the actual read size
   The output values must be freed with `PetscFree`
 */
-PetscErrorCode IOLoadVarArrayFromLoc(const char*, const char*, PetscInt, const char**, PetscInt*, const char***);
+PetscErrorCode YAMLLoadVarArrayFromLoc(const char*, const char*, PetscInt, const char**, PetscInt*, const char***);
 
 
 /*
   Load the boundary condition with the right id from the input file
   The boundary condition `name` and `val` are allocated and must be freed with `PetscFree`
 */
-PetscErrorCode IOLoadBC(const char*, const PetscInt, PetscInt, struct BCCtx*);
+PetscErrorCode YAMLLoadBC(const char*, const PetscInt, PetscInt, struct BCCtx*);
 
 /*
   Load the periodicity data assiciated with slave
   If no periodicity can be found, disp = NULL, else it is allocated and must be freed with `PetscFree`
 */
-PetscErrorCode IOLoadPeriodicity(const char*, const PetscInt, PetscInt, PetscInt*, PetscReal**);
+PetscErrorCode YAMLLoadPeriodicity(const char*, const PetscInt, PetscInt, PetscInt*, PetscReal**);
 
 /*
   Load the initial condition from the input file
   The output array is allocated and must be freed with `PetscFree`
 */
-PetscErrorCode IOLoadInitialCondition(const char*, PetscInt, PetscReal**);
+PetscErrorCode YAMLLoadInitialCondition(const char*, PetscInt, PetscReal**);
 
 /*
   Load the list of string options and register them into the database
 */
-PetscErrorCode IOLoadPetscOptions(const char*);
+PetscErrorCode YAMLLoadPetscOptions(const char*);
 
 /*
   Load the parameters for each available monitor
   If the monitor with the desired `name` is found, then `set` is `PETSC_TRUE`, else `PETSC_FALSE`
 */
-PetscErrorCode IOLoadMonitorOptions(const char*, const char*, PetscBool*, PetscInt*);
+PetscErrorCode YAMLLoadMonitorOptions(const char*, const char*, PetscBool*, PetscInt*);
 
 #endif

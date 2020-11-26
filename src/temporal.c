@@ -40,7 +40,7 @@ PetscErrorCode TsCreate_User(MPI_Comm comm, TS *ts, const char *filename, DM dm,
   for (PetscInt i = 0; MonitorList[i].name; i++) {
     PetscBool set;
     PetscInt  n_iter;
-    ierr = IOLoadMonitorOptions(filename, MonitorList[i].name, &set, &n_iter); CHKERRQ(ierr);
+    ierr = YAMLLoadMonitorOptions(filename, MonitorList[i].name, &set, &n_iter); CHKERRQ(ierr);
     if (set && n_iter > 0) {
       struct MonitorCtx *ctx;
       ierr = PetscNew(&ctx); CHKERRQ(ierr);

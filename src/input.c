@@ -8,13 +8,13 @@
 
 static char ERR_HEADER[256] = "";
 
-typedef yaml_parser_t *IOParser;
+typedef yaml_parser_t *YAMLParser;
 
 
 /*
-  Destroy the given IOParser and close the input file
+  Destroy the given YAMLParser and close the input file
 */
-static PetscErrorCode IOParserDestroy(IOParser *parser) {
+static PetscErrorCode YAMLParserDestroy(YAMLParser *parser) {
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -30,7 +30,7 @@ static PetscErrorCode IOParserDestroy(IOParser *parser) {
 /*
   Error handler wrapper for parsing errors:
     Replace `mess` with : `PARSER_ERROR_HIGHLIGHT` + `ERR_HEADER` + `mess` + "\e[0;39m"
-    Delete the IOParser
+    Delete the YAMLParser
 */
 static PetscErrorCode ParserErrorHandler(MPI_Comm comm, int line, const char *func, const char *file, PetscErrorCode n, PetscErrorType p, const char *mess, void *ctx){
   PetscFunctionBeginUser;
@@ -48,9 +48,9 @@ static PetscErrorCode ParserErrorHandler(MPI_Comm comm, int line, const char *fu
     PetscTraceBackErrorHandler(comm, line, func, file, n, p, error_msg, ctx);
     PetscFree(error_msg);
 
-    IOParser *parser = (IOParser*) ctx;
+    YAMLParser *parser = (YAMLParser*) ctx;
     if (*parser) {
-      IOParserDestroy(parser);
+      YAMLParserDestroy(parser);
     } else {
       PetscPopErrorHandler();
     }
@@ -61,9 +61,9 @@ static PetscErrorCode ParserErrorHandler(MPI_Comm comm, int line, const char *fu
 
 /*
   Create a parser with the given input file.
-  The parser must be destroyed with `IOParserDestroy`
+  The parser must be destroyed with `YAMLParserDestroy`
 */
-static PetscErrorCode IOParserCreate(IOParser *parser, const char *filename) {
+static PetscErrorCode YAMLParserCreate(YAMLParser *parser, const char *filename) {
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -80,9 +80,9 @@ static PetscErrorCode IOParserCreate(IOParser *parser, const char *filename) {
 }
 
 /*
-  Get the next event from the IOParser
+  Get the next event from the YAMLParser
 */
-static PetscErrorCode IOParserParse(IOParser parser, yaml_event_t *event) {
+static PetscErrorCode YAMLParserParse(YAMLParser parser, yaml_event_t *event) {
   PetscFunctionBeginUser;
   if (!yaml_parser_parse(parser, event)) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED, "Failed to parse: %s", parser->problem);
   PetscFunctionReturn(0);
@@ -92,7 +92,7 @@ static PetscErrorCode IOParserParse(IOParser parser, yaml_event_t *event) {
   Seek for the scalar `scalarname` at the current level, following anchors if needed
   If event_p is not NULL, parse and return the next event
 */
-static PetscErrorCode IOParserMoveToScalar(IOParser *parser, const char *filename, const char *scalarname, yaml_event_t *event_p){
+static PetscErrorCode YAMLParserMoveToScalar(YAMLParser *parser, const char *filename, const char *scalarname, yaml_event_t *event_p){
   PetscErrorCode ierr;
   PetscInt       level = -1;
   PetscBool      flg, isAnchor = PETSC_FALSE;
@@ -103,7 +103,7 @@ static PetscErrorCode IOParserMoveToScalar(IOParser *parser, const char *filenam
 
   while (PETSC_TRUE) {
     yaml_event_t event;
-    ierr = IOParserParse(*parser, &event); CHKERRQ(ierr);
+    ierr = YAMLParserParse(*parser, &event); CHKERRQ(ierr);
     yaml_event_type_t event_type = event.type;
 
     if (isAnchor) {
@@ -116,15 +116,15 @@ static PetscErrorCode IOParserMoveToScalar(IOParser *parser, const char *filenam
 
     if (flg) {
       if (event_p) {
-        ierr = IOParserParse(*parser, event_p);                                          CHKERRQ(ierr);
+        ierr = YAMLParserParse(*parser, event_p); CHKERRQ(ierr);
         if (event_p->type == YAML_ALIAS_EVENT) {
           if (isAnchor) {
-            ierr = PetscFree(anchorname);                                                CHKERRQ(ierr);
+            ierr = PetscFree(anchorname); CHKERRQ(ierr);
           }
           ierr = PetscStrallocpy((const char*) event_p->data.alias.anchor, &anchorname); CHKERRQ(ierr);
           yaml_event_delete(event_p);
-          ierr = IOParserDestroy(parser);                                                CHKERRQ(ierr);
-          ierr = IOParserCreate(parser, filename);                                       CHKERRQ(ierr);
+          ierr = YAMLParserDestroy(parser);          CHKERRQ(ierr);
+          ierr = YAMLParserCreate(parser, filename); CHKERRQ(ierr);
           isAnchor = PETSC_TRUE;
           continue;
         }
@@ -154,62 +154,62 @@ static PetscErrorCode IOParserMoveToScalar(IOParser *parser, const char *filenam
 
 
 
-PetscErrorCode IOSeekVarFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, PetscBool *found){
+PetscErrorCode YAMLSeekVarFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, PetscBool *found){
   PetscErrorCode ierr;
-  IOParser       parser;
+  YAMLParser     parser;
 
   PetscFunctionBeginUser;
-  ierr = IOParserCreate(&parser, filename);                       CHKERRQ(ierr);
+  ierr = YAMLParserCreate(&parser, filename);                       CHKERRQ(ierr);
   while (depth > 0) {
-    ierr = IOParserMoveToScalar(&parser, filename, loc[0], NULL); CHKERRQ(ierr);
+    ierr = YAMLParserMoveToScalar(&parser, filename, loc[0], NULL); CHKERRQ(ierr);
     depth--;
     loc++;
   }
-  ierr = PetscPushErrorHandler(PetscReturnErrorHandler, NULL);    CHKERRQ(ierr);
-  ierr = IOParserMoveToScalar(&parser, filename, varname, NULL);
+  ierr = PetscPushErrorHandler(PetscReturnErrorHandler, NULL);      CHKERRQ(ierr);
+  ierr = YAMLParserMoveToScalar(&parser, filename, varname, NULL);
 
   *found = (ierr) ? PETSC_FALSE : PETSC_TRUE;
-  ierr = PetscPopErrorHandler();   CHKERRQ(ierr);
-  ierr = IOParserDestroy(&parser); CHKERRQ(ierr);
+  ierr = PetscPopErrorHandler();     CHKERRQ(ierr);
+  ierr = YAMLParserDestroy(&parser); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode IOLoadVarFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, const char **var){
+PetscErrorCode YAMLLoadVarFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, const char **var){
   PetscErrorCode ierr;
-  IOParser       parser;
+  YAMLParser     parser;
   yaml_event_t   event;
 
   PetscFunctionBeginUser;
-  ierr = IOParserCreate(&parser, filename); CHKERRQ(ierr);
+  ierr = YAMLParserCreate(&parser, filename); CHKERRQ(ierr);
 
   while (depth > 0) {
-    ierr = IOParserMoveToScalar(&parser, filename, loc[0], NULL); CHKERRQ(ierr);
+    ierr = YAMLParserMoveToScalar(&parser, filename, loc[0], NULL); CHKERRQ(ierr);
     depth--;
     loc++;
   }
-  ierr = IOParserMoveToScalar(&parser, filename, varname, &event);             CHKERRQ(ierr);
+  ierr = YAMLParserMoveToScalar(&parser, filename, varname, &event); CHKERRQ(ierr);
   if (event.type != YAML_SCALAR_EVENT) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read %s in %s", varname, filename);
   ierr = PetscStrallocpy((const char*) event.data.scalar.value, (char**) var); CHKERRQ(ierr);
   yaml_event_delete(&event);
 
-  ierr = IOParserDestroy(&parser); CHKERRQ(ierr);
+  ierr = YAMLParserDestroy(&parser); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, PetscInt *len, const char ***var){
+PetscErrorCode YAMLLoadVarArrayFromLoc(const char *filename, const char *varname, PetscInt depth, const char **loc, PetscInt *len, const char ***var){
   PetscErrorCode ierr;
-  IOParser       parser;
+  YAMLParser     parser;
   yaml_event_t   event;
 
   PetscFunctionBeginUser;
-  ierr = IOParserCreate(&parser, filename); CHKERRQ(ierr);
+  ierr = YAMLParserCreate(&parser, filename); CHKERRQ(ierr);
 
   while (depth > 0) {
-    ierr = IOParserMoveToScalar(&parser, filename, loc[0], NULL); CHKERRQ(ierr);
+    ierr = YAMLParserMoveToScalar(&parser, filename, loc[0], NULL); CHKERRQ(ierr);
     depth--;
     loc++;
   }
-  ierr = IOParserMoveToScalar(&parser, filename, varname, &event);      CHKERRQ(ierr);
+  ierr = YAMLParserMoveToScalar(&parser, filename, varname, &event); CHKERRQ(ierr);
 
   struct yaml_event_list {yaml_event_t event; struct yaml_event_list *next;} *root = NULL, *current, *node;
   PetscInt done = -1, i = 0;
@@ -218,7 +218,7 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
     if (done == -1) {
       node->event = event;
     } else {
-      ierr = IOParserParse(parser, &node->event); CHKERRQ(ierr);
+      ierr = YAMLParserParse(parser, &node->event); CHKERRQ(ierr);
     }
     node->next = NULL;
 
@@ -288,13 +288,13 @@ PetscErrorCode IOLoadVarArrayFromLoc(const char *filename, const char *varname, 
     node = root->next;
     ierr = PetscFree(root); CHKERRQ(ierr);
   }
-  ierr = IOParserDestroy(&parser); CHKERRQ(ierr);
+  ierr = YAMLParserDestroy(&parser); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
 
 
-PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, struct BCCtx *bc){
+PetscErrorCode YAMLLoadBC(const char *filename, const PetscInt id, PetscInt dim, struct BCCtx *bc){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -305,36 +305,36 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
 
   const char* loc[] = {"BoundaryConditions", id_str};
 
-  ierr = IOLoadVarFromLoc(filename, "name", 2, loc, &bc->name); CHKERRQ(ierr);
-  ierr = IOLoadVarFromLoc(filename, "type", 2, loc, &bc->type); CHKERRQ(ierr);
+  ierr = YAMLLoadVarFromLoc(filename, "name", 2, loc, &bc->name); CHKERRQ(ierr);
+  ierr = YAMLLoadVarFromLoc(filename, "type", 2, loc, &bc->type); CHKERRQ(ierr);
   if (!strcmp(bc->type, "BC_DIRICHLET")) {
     ierr = PetscMalloc1(dim + 2, &bc->val); CHKERRQ(ierr);
 
     const char *buffer_val;
     const char **buffer_vals;
 
-    ierr = IOLoadVarFromLoc(filename, "rho", 2, loc, &buffer_val); CHKERRQ(ierr);
+    ierr = YAMLLoadVarFromLoc(filename, "rho", 2, loc, &buffer_val); CHKERRQ(ierr);
     bc->val[0] = atof(buffer_val);
-    ierr = PetscFree(buffer_val);                                  CHKERRQ(ierr);
+    ierr = PetscFree(buffer_val); CHKERRQ(ierr);
 
-    ierr = IOLoadVarArrayFromLoc(filename, "u", 2, loc, &dim, &buffer_vals); CHKERRQ(ierr);
+    ierr = YAMLLoadVarArrayFromLoc(filename, "u", 2, loc, &dim, &buffer_vals); CHKERRQ(ierr);
     for (PetscInt i = 0; i < dim; i++) {
       bc->val[1 + i] = atof(buffer_vals[i]);
-      ierr = PetscFree(buffer_vals[i]);                                      CHKERRQ(ierr);
+      ierr = PetscFree(buffer_vals[i]); CHKERRQ(ierr);
     }
-    ierr = PetscFree(buffer_vals);                                           CHKERRQ(ierr);
+    ierr = PetscFree(buffer_vals); CHKERRQ(ierr);
 
-    ierr = IOLoadVarFromLoc(filename, "p", 2, loc, &buffer_val); CHKERRQ(ierr);
+    ierr = YAMLLoadVarFromLoc(filename, "p", 2, loc, &buffer_val); CHKERRQ(ierr);
     bc->val[dim + 1] = atof(buffer_val);
-    ierr = PetscFree(buffer_val);                                CHKERRQ(ierr);
+    ierr = PetscFree(buffer_val); CHKERRQ(ierr);
 
   } else if (!strcmp(bc->type, "BC_OUTFLOW_P")) {
     ierr = PetscMalloc1(1, &bc->val); CHKERRQ(ierr);
 
     const char *buffer_val;
-    ierr = IOLoadVarFromLoc(filename, "p", 2, loc, &buffer_val); CHKERRQ(ierr);
+    ierr = YAMLLoadVarFromLoc(filename, "p", 2, loc, &buffer_val); CHKERRQ(ierr);
     bc->val[0] = atof(buffer_val);
-    ierr = PetscFree(buffer_val);                                CHKERRQ(ierr);
+    ierr = PetscFree(buffer_val); CHKERRQ(ierr);
 
   } else if (!strcmp(bc->type, "BC_WALL")) {
     bc->val = NULL;
@@ -345,42 +345,42 @@ PetscErrorCode IOLoadBC(const char *filename, const PetscInt id, PetscInt dim, s
 }
 
 
-PetscErrorCode IOLoadPeriodicity(const char *filename, const PetscInt slave, PetscInt dim, PetscInt *master, PetscReal **disp){
+PetscErrorCode YAMLLoadPeriodicity(const char *filename, const PetscInt slave, PetscInt dim, PetscInt *master, PetscReal **disp){
   PetscErrorCode ierr;
   PetscBool      found;
   const char     *buffer_master, **buffer_disp;
 
   PetscFunctionBeginUser;
   *disp = NULL;
-  ierr = IOSeekVarFromLoc(filename, "Periodicity", 0, NULL, &found); CHKERRQ(ierr);
+  ierr = YAMLSeekVarFromLoc(filename, "Periodicity", 0, NULL, &found); CHKERRQ(ierr);
   if (!found) PetscFunctionReturn(0);
 
   char id_str[8];
   ierr = PetscSNPrintf(id_str, sizeof(id_str), "%d", slave); CHKERRQ(ierr);
   const char* loc[] = {"Periodicity", id_str};
-  ierr = IOSeekVarFromLoc(filename, id_str, 1, loc, &found); CHKERRQ(ierr);
+  ierr = YAMLSeekVarFromLoc(filename, id_str, 1, loc, &found); CHKERRQ(ierr);
   if (!found) PetscFunctionReturn(0);
 
   ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read Periodicity > %d: ", slave); CHKERRQ(ierr);
 
-  ierr = IOLoadVarFromLoc(filename, "master", 2, loc, &buffer_master); CHKERRQ(ierr);
+  ierr = YAMLLoadVarFromLoc(filename, "master", 2, loc, &buffer_master); CHKERRQ(ierr);
   *master = atoi(buffer_master);
-  ierr = PetscFree(buffer_master);                                     CHKERRQ(ierr);
+  ierr = PetscFree(buffer_master); CHKERRQ(ierr);
 
-  ierr = PetscMalloc1(dim, disp);                                             CHKERRQ(ierr);
-  ierr = IOLoadVarArrayFromLoc(filename, "disp", 2, loc, &dim, &buffer_disp); CHKERRQ(ierr);
+  ierr = PetscMalloc1(dim, disp); CHKERRQ(ierr);
+  ierr = YAMLLoadVarArrayFromLoc(filename, "disp", 2, loc, &dim, &buffer_disp); CHKERRQ(ierr);
   for (PetscInt i = 0; i < dim; i++) {
     (*disp)[i] = atof(buffer_disp[i]);
-    ierr = PetscFree(buffer_disp[i]);                                         CHKERRQ(ierr);
+    ierr = PetscFree(buffer_disp[i]); CHKERRQ(ierr);
   }
-  ierr = PetscFree(buffer_disp);                                              CHKERRQ(ierr);
+  ierr = PetscFree(buffer_disp); CHKERRQ(ierr);
 
   ERR_HEADER[0] = '\0';
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode IOLoadInitialCondition(const char *filename, PetscInt dim, PetscReal **initialConditions){
+PetscErrorCode YAMLLoadInitialCondition(const char *filename, PetscInt dim, PetscReal **initialConditions){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -391,27 +391,27 @@ PetscErrorCode IOLoadInitialCondition(const char *filename, PetscInt dim, PetscR
   const char *buffer_val;
   const char **buffer_vals;
 
-  ierr = IOLoadVarFromLoc(filename, "rho", 1, &loc, &buffer_val); CHKERRQ(ierr);
+  ierr = YAMLLoadVarFromLoc(filename, "rho", 1, &loc, &buffer_val); CHKERRQ(ierr);
   (*initialConditions)[0] = atof(buffer_val);
-  ierr = PetscFree(buffer_val);                                   CHKERRQ(ierr);
+  ierr = PetscFree(buffer_val); CHKERRQ(ierr);
 
-  ierr = IOLoadVarArrayFromLoc(filename, "u", 1, &loc, &dim, &buffer_vals); CHKERRQ(ierr);
+  ierr = YAMLLoadVarArrayFromLoc(filename, "u", 1, &loc, &dim, &buffer_vals); CHKERRQ(ierr);
   for (PetscInt i = 0; i < dim; i++) {
     (*initialConditions)[1 + i] = atof(buffer_vals[i]);
-    ierr = PetscFree(buffer_vals[i]);                                       CHKERRQ(ierr);
+    ierr = PetscFree(buffer_vals[i]); CHKERRQ(ierr);
   }
-  ierr = PetscFree(buffer_vals);                                            CHKERRQ(ierr);
+  ierr = PetscFree(buffer_vals); CHKERRQ(ierr);
 
-  ierr = IOLoadVarFromLoc(filename, "p", 1, &loc, &buffer_val); CHKERRQ(ierr);
+  ierr = YAMLLoadVarFromLoc(filename, "p", 1, &loc, &buffer_val); CHKERRQ(ierr);
   (*initialConditions)[dim + 1] = atof(buffer_val);
-  ierr = PetscFree(buffer_val);                                 CHKERRQ(ierr);
+  ierr = PetscFree(buffer_val); CHKERRQ(ierr);
 
   ERR_HEADER[0] = '\0';
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode IOLoadPetscOptions(const char *filename){
+PetscErrorCode YAMLLoadPetscOptions(const char *filename){
   PetscErrorCode ierr;
   const char     **buffer_vals;
   PetscInt       len = 0;
@@ -419,25 +419,25 @@ PetscErrorCode IOLoadPetscOptions(const char *filename){
   char           *copts;
 
   PetscFunctionBeginUser;
-  ierr = IOSeekVarFromLoc(filename, "Options", 0, NULL, &found);                  CHKERRQ(ierr);
+  ierr = YAMLSeekVarFromLoc(filename, "Options", 0, NULL, &found);                  CHKERRQ(ierr);
   if (!found) PetscFunctionReturn(0);
-  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read Options: ");  CHKERRQ(ierr);
-  ierr = IOLoadVarArrayFromLoc(filename, "Options", 0, NULL, &len, &buffer_vals); CHKERRQ(ierr);
-  ierr = PetscOptionsGetAll(NULL, &copts);                                        CHKERRQ(ierr);
-  ierr = PetscOptionsClear(NULL);                                                 CHKERRQ(ierr);
+  ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read Options: ");    CHKERRQ(ierr);
+  ierr = YAMLLoadVarArrayFromLoc(filename, "Options", 0, NULL, &len, &buffer_vals); CHKERRQ(ierr);
+  ierr = PetscOptionsGetAll(NULL, &copts);                                          CHKERRQ(ierr);
+  ierr = PetscOptionsClear(NULL);                                                   CHKERRQ(ierr);
   for (PetscInt i = 0; i < len; i++){
-    ierr = PetscOptionsInsertString(NULL, buffer_vals[i]);                        CHKERRQ(ierr);
-    ierr = PetscFree(buffer_vals[i]);                                             CHKERRQ(ierr);
+    ierr = PetscOptionsInsertString(NULL, buffer_vals[i]);                          CHKERRQ(ierr);
+    ierr = PetscFree(buffer_vals[i]);                                               CHKERRQ(ierr);
   }
-  ierr = PetscOptionsInsertString(NULL, copts);                                   CHKERRQ(ierr);
-  ierr = PetscFree(buffer_vals);                                                  CHKERRQ(ierr);
-  ierr = PetscFree(copts);                                                        CHKERRQ(ierr);
+  ierr = PetscOptionsInsertString(NULL, copts);                                     CHKERRQ(ierr);
+  ierr = PetscFree(buffer_vals);                                                    CHKERRQ(ierr);
+  ierr = PetscFree(copts);                                                          CHKERRQ(ierr);
   ERR_HEADER[0] = '\0';
   PetscFunctionReturn(0);
 }
 
 
-PetscErrorCode IOLoadMonitorOptions(const char *filename, const char *name, PetscBool *set, PetscInt *n_iter){
+PetscErrorCode YAMLLoadMonitorOptions(const char *filename, const char *name, PetscBool *set, PetscInt *n_iter){
   PetscErrorCode ierr;
   PetscBool      found;
   const char     *buffer_val;
@@ -445,14 +445,14 @@ PetscErrorCode IOLoadMonitorOptions(const char *filename, const char *name, Pets
   PetscFunctionBeginUser;
   *set = PETSC_FALSE;
   const char* loc[] = {"MonitorOptions", name};
-  ierr = IOSeekVarFromLoc(filename, loc[0], 0, NULL, &found); CHKERRQ(ierr);
+  ierr = YAMLSeekVarFromLoc(filename, loc[0], 0, NULL, &found); CHKERRQ(ierr);
   if (!found) PetscFunctionReturn(0);
-  ierr = IOSeekVarFromLoc(filename, loc[1], 1, loc, &found);  CHKERRQ(ierr);
+  ierr = YAMLSeekVarFromLoc(filename, loc[1], 1, loc, &found);  CHKERRQ(ierr);
   if (!found) PetscFunctionReturn(0);
   *set = PETSC_TRUE;
 
   ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read MonitorOptions: "); CHKERRQ(ierr);
-  ierr = IOLoadVarFromLoc(filename, "n_iter", 2, loc, &buffer_val);                     CHKERRQ(ierr);
+  ierr = YAMLLoadVarFromLoc(filename, "n_iter", 2, loc, &buffer_val);                   CHKERRQ(ierr);
   *n_iter = atof(buffer_val);
   ierr = PetscFree(buffer_val);                                                         CHKERRQ(ierr);
 

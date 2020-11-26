@@ -117,11 +117,11 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
 
   { // Read values from input file
     const char *buffer, *loc = "Physics";
-    ierr = IOLoadVarFromLoc(filename, "gamma", 1, &loc, &buffer); CHKERRQ(ierr);
+    ierr = YAMLLoadVarFromLoc(filename, "gamma", 1, &loc, &buffer); CHKERRQ(ierr);
     (*phys)->gamma = atof(buffer);
-    ierr = PetscFree(buffer);                                     CHKERRQ(ierr);
+    ierr = PetscFree(buffer); CHKERRQ(ierr);
 
-    ierr = IOLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
+    ierr = YAMLLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
   }
 
   { // Setting fields
