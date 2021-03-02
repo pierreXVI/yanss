@@ -60,7 +60,6 @@ PetscErrorCode TsCreate_User(MPI_Comm comm, TS *ts, const char *filename, DM dm,
   dt = cfl * minRadius / (PetscSqrtReal(phys->gamma * phys->init[phys->dim + 1] / phys->init[0]) + PetscSqrtReal(norm2));
   ierr = TSSetTimeStep(*ts, dt); CHKERRQ(ierr);
 
-  ierr = TSSetFromOptions(*ts);                    CHKERRQ(ierr);
-  ierr = TSViewFromOptions(*ts, NULL, "-ts_view"); CHKERRQ(ierr);
+  ierr = TSSetFromOptions(*ts); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

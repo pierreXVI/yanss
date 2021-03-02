@@ -165,9 +165,10 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
   ierr = VecSetFromOptions(*y);                          CHKERRQ(ierr);
 
   const PetscScalar *val_x;
-  PetscScalar       val_y[size]; // TODO: use PetscMalloc1
-  PetscInt          ix[size];
+  PetscScalar       *val_y;
+  PetscInt          *ix;
 
+  ierr = PetscMalloc2(size, &val_y, size, &ix);      CHKERRQ(ierr);
   ierr = VecGetArrayRead(x, &val_x);                 CHKERRQ(ierr);
   for (PetscInt i = 0; i < size; i++) {
     ierr = func(Nc, &val_x[Nc * i], &val_y[i], ctx); CHKERRQ(ierr);
@@ -177,6 +178,7 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
   ierr = VecSetValues(*y, size, ix, val_y, INSERT_VALUES); CHKERRQ(ierr);
   ierr = VecAssemblyBegin(*y);                             CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*y);                               CHKERRQ(ierr);
+  ierr = PetscFree2(val_y, ix);                            CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
 }

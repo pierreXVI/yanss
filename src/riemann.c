@@ -15,7 +15,7 @@
     flux         - Output array of flux through the interface
     numConstants - Number of constant parameters
     constants    - Constant parameters
-    ctx          - Context, to be casted to (Physics)
+    ctx          - Context, to be cast to (Physics)
   ```
 */
 

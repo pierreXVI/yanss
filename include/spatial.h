@@ -17,7 +17,6 @@ typedef struct {
     IS          neighborhood; // List of neighbors
     PetscScalar *grad_coeff;  // Neighbor contributions to cell gradient
   } *CellCtx;
-
 } *MeshCtx;
 
 struct PerioCtx {

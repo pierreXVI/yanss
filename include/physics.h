@@ -10,7 +10,6 @@ PetscErrorCode PhysicsDestroy(Physics*);
 
 /*
   Create the physical model
-  The output must be freed with `PhysicsDestroy`
 */
 PetscErrorCode PhysicsCreate(Physics*, const char*, DM);
 
@@ -22,7 +21,7 @@ PetscErrorCode InitialCondition(PetscInt, PetscReal, const PetscReal*, PetscInt,
 
 /*
   Convert the variable between primitive and conservative.
-  It is safe to call it with `in` == `out`
+  May be used in place, with `in == out`
 */
 void PrimitiveToConservative(Physics, const PetscReal*, PetscReal*);
 void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
@@ -30,7 +29,7 @@ void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
 
 /*
   Compute physical value from components
-  ctx is to be casted to (Physics)
+  ctx is to be cast to (Physics)
 */
 PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
 PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
@@ -75,7 +74,7 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm, Physics);
     n    - Area-scaled normals
     xI   - Value on the limit cell
     xG   - Value on the ghost cell
-    ctx  - Context, to be casted to (struct BC_ctx*)
+    ctx  - Context, to be cast to (struct BC_ctx*)
   ```
 
   Available boudrary condition types are:

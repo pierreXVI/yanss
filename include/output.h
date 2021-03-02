@@ -5,7 +5,7 @@
 
 
 struct MonitorCtx {
-  PetscInt    n_iter; // Monitor evry `n_iter` iteration
+  PetscInt    n_iter; // Monitor every `n_iter` iteration
   PetscViewer viewer; // PetscViewer used by the monitor
   Physics     phys;   // Physical model
 };
@@ -20,7 +20,7 @@ struct MonitorCtx {
     steps - Iteration number
     time  - Current time
     u     - Current iterate
-    ctx   - Monitoring context, to be casted to (struct Monitor_ctx*)
+    ctx   - Monitoring context, to be cast to (struct Monitor_ctx*)
   ```
 */
 
@@ -30,7 +30,7 @@ struct MonitorCtx {
 PetscErrorCode IOMonitorAscii_MinMax(TS, PetscInt, PetscReal, Vec, void*);
 
 /*
-  Print for each field "field_name : min_flux_value, max_fluxvalue"
+  Print for each field "field_name : min_flux_value, max_flux_value"
 */
 PetscErrorCode IOMonitorAscii_Res(TS, PetscInt, PetscReal, Vec, void*);
 
