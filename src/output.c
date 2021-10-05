@@ -149,6 +149,7 @@ PetscErrorCode IOMonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, v
   ierr = DMGetLocalVector(dm, &locX);                                      CHKERRQ(ierr);
   ierr = DMGlobalToLocalBegin(dm, u, INSERT_VALUES, locX);                 CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(dm, u, INSERT_VALUES, locX);                   CHKERRQ(ierr);
+  // TODO: is this necessary ?
   ierr = MeshInsertPeriodicValues(dm, locX);                               CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dmGrad, &grad);                                 CHKERRQ(ierr);
   ierr = VecSetOperation(grad, VECOP_VIEW, (void (*)(void)) VecView_Mesh); CHKERRQ(ierr);
