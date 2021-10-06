@@ -537,20 +537,20 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
   PetscInt Nc;
   PetscFV  fvm;
   ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVGetNumComponents(fvm, &Nc); CHKERRQ(ierr);
+  ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
 
   DM  dmGrad;
   Vec locGrad, cellgeom, facegeom;
   { // Computes the gradient, fills Neumann boundaries
     Vec grad;
-    ierr = DMPlexGetDataFVM(dm, fvm, &cellgeom, &facegeom, &dmGrad);                                   CHKERRQ(ierr);
-    ierr = DMGetGlobalVector(dmGrad, &grad);                                                           CHKERRQ(ierr);
-    ierr = MeshReconstructGradientsFVM(dm, locX, grad);                                                CHKERRQ(ierr);
-    ierr = DMGetLocalVector(dmGrad, &locGrad);                                                         CHKERRQ(ierr);
-    ierr = DMGlobalToLocalBegin(dmGrad, grad, INSERT_VALUES, locGrad);                                 CHKERRQ(ierr);
-    ierr = DMGlobalToLocalEnd(dmGrad, grad, INSERT_VALUES, locGrad);                                   CHKERRQ(ierr);
-    ierr = DMRestoreGlobalVector(dmGrad, &grad);                                                       CHKERRQ(ierr);
-    ierr = DMPlexInsertBoundaryValues(dm, PETSC_FALSE, locX, time, facegeom, cellgeom, locGrad);       CHKERRQ(ierr);
+    ierr = DMPlexGetDataFVM(dm, fvm, &cellgeom, &facegeom, &dmGrad);                             CHKERRQ(ierr);
+    ierr = DMGetGlobalVector(dmGrad, &grad);                                                     CHKERRQ(ierr);
+    ierr = MeshReconstructGradientsFVM(dm, locX, grad);                                          CHKERRQ(ierr);
+    ierr = DMGetLocalVector(dmGrad, &locGrad);                                                   CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(dmGrad, grad, INSERT_VALUES, locGrad);                           CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(dmGrad, grad, INSERT_VALUES, locGrad);                             CHKERRQ(ierr);
+    ierr = DMRestoreGlobalVector(dmGrad, &grad);                                                 CHKERRQ(ierr);
+    ierr = DMPlexInsertBoundaryValues(dm, PETSC_FALSE, locX, time, facegeom, cellgeom, locGrad); CHKERRQ(ierr);
   }
 
   PetscFVFaceGeom *fgeom;
@@ -668,6 +668,7 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
 
   { // Setting boundaries
     PetscDS        prob;
+    DMLabel        label;
     IS             is;
     const PetscInt *indices;
     ierr = DMCreateDS(dm);                                         CHKERRQ(ierr);
@@ -675,9 +676,10 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
     ierr = PetscDSSetRiemannSolver(prob, 0, phys->riemann_solver); CHKERRQ(ierr);
     ierr = PetscDSSetContext(prob, 0, phys);                       CHKERRQ(ierr);
     ierr = DMGetDS(dm, &prob);                                     CHKERRQ(ierr);
+    ierr = DMGetLabel(dm, "Face Sets", &label);                    CHKERRQ(ierr);
     { // Getting boundary ids
       IS bnd_is_mpi, bnd_is_loc;
-      ierr = DMGetLabelIdIS(dm, "Face Sets", &bnd_is_loc);                                             CHKERRQ(ierr);
+      ierr = DMLabelGetValueIS(label, &bnd_is_loc);                                                    CHKERRQ(ierr);
       ierr = ISOnComm(bnd_is_loc, PetscObjectComm((PetscObject) dm), PETSC_USE_POINTER , &bnd_is_mpi); CHKERRQ(ierr);
       ierr = ISAllGather(bnd_is_mpi, &is);                                                             CHKERRQ(ierr);
       ierr = ISDestroy(&bnd_is_loc);                                                                   CHKERRQ(ierr);
@@ -703,8 +705,8 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
       }
 
       if (!bcFunc) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", phys->bc_ctx[i].type);
-      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, phys->bc_ctx[i].name, "Face Sets", 0, 0,
-                                NULL, bcFunc, NULL, 1, indices + i, phys->bc_ctx + i); CHKERRQ(ierr);
+      ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, phys->bc_ctx[i].name, label, 1, indices + i, 0, 0, NULL,
+                                bcFunc, NULL, phys->bc_ctx + i, NULL); CHKERRQ(ierr);
     }
     ierr = PetscFunctionListDestroy(&bcList); CHKERRQ(ierr);
     ierr = ISRestoreIndices(is, &indices);    CHKERRQ(ierr);
