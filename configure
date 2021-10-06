@@ -2,7 +2,9 @@
 
 import argparse
 import os
+import re
 import subprocess
+import sys
 
 MAKEFILE = """SHELL = /bin/bash
 
@@ -48,31 +50,31 @@ distclean: clean_all
 """
 
 
-def check(name, cmd, pipe='', err_head='', err_msg='', exit_on_error=True):
+def check(name, cmd, pipe='', err_head='', err_msg='', exit_on_error=True, file=None):
     """
     Check the command `cmd`, on input `pipe`
     """
 
-    print("Checking {0:40s} ".format(name), end='', flush=True)
+    print("Checking {0:40s} ".format(name), end='', flush=True, file=file)
     p = subprocess.Popen(cmd, shell=True,
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate(pipe.encode())
     if p.returncode:
-        print()
+        print(file=file)
         if err_head:
-            print('\033[31m' + err_head + '\033[39m')
+            print('\033[31m' + err_head + '\033[39m', file=file)
         if err_msg:
-            print(err_msg)
-        if (exit_on_error):
-            print(err.decode())
+            print(err_msg, file=file)
+        if exit_on_error:
+            print(err.decode(), file=file)
             exit()
         else:
             raise SystemError
     else:
-        print('\033[32mOK\033[39m')
+        print('\033[32mOK\033[39m', file=file)
 
 
-def check_lib(cc, comp_opts, link_opts, name, header, library, test):
+def check_lib(cc, comp_opts, link_opts, name, header, library, test, file=None):
     """
     Check include and linking for an external library
     """
@@ -80,15 +82,34 @@ def check_lib(cc, comp_opts, link_opts, name, header, library, test):
     check('include {0}'.format(name), '{0} -x c -o /dev/null {1} -'.format(cc, comp_opts),
           pipe="#include <{0}>\nint main(int argc, char **argv){{return 0;}}".format(header),
           err_head="Cannot include <{0}> with the current options:".format(header),
-          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n".format(cc, comp_opts))
+          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n".format(cc, comp_opts), file=file)
     check('linking {0}'.format(name), '{0} -x c -o /dev/null {1} - {2} {3}'.format(cc, comp_opts, link_opts, library),
           pipe="#include <{0}>\nint main(int argc, char **argv){{{1}; return 0;}}".format(header, test),
           err_head="Cannot use {0} with the current options:".format(name),
-          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(cc, comp_opts, link_opts))
+          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(cc, comp_opts, link_opts), file=file)
+
+
+class Logger:
+    def __init__(self, filename, console=sys.stdout, color=True):
+        self.logfile = open(filename, 'w')
+        self.console = console
+        self.ansi_escape = re.compile('' if color else r'\033\[\d+m')
+
+    def __del__(self):
+        self.logfile.close()
+
+    def flush(self):
+        self.logfile.flush()
+        self.console.flush()
+
+    def write(self, string):
+        string = self.ansi_escape.sub('', string)
+        self.console.write(string)
+        self.logfile.write(string)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Configure YANNS")
+    parser = argparse.ArgumentParser(description="Configure YANSS")
     parser.add_argument('--CC', help="Specify the C compiler")
     parser.add_argument('--with-mpi-dir', dest='MPI_DIR',
                         help="Indicate the root directory of the MPI installation")
@@ -97,7 +118,10 @@ if __name__ == "__main__":
     parser.add_argument('--with-yaml-dir', dest='YAML_DIR',
                         help="Indicate the root directory of the LibYAML installation")
     parser.add_argument('--make-verbose', dest='v', help="Specify the verbosity of the makefile", type=int, default=2)
+    parser.add_argument('--no-color', help="Disable color in configuration log", action='store_false')
     args = parser.parse_args()
+
+    logger = Logger('configure.log', color=args.no_color)
 
     CC = args.CC if args.CC else os.environ.get('CC', 'cc')
     COMP_OPTS, LINK_OPTS = [], []
@@ -126,26 +150,26 @@ if __name__ == "__main__":
     CC = CC.split()[0]
 
     check('compiler', '{0} --version'.format(CC),
-          err_head="Cannot find C compiler:", err_msg="\tCC = {0}\n".format(CC))
+          err_head="Cannot find C compiler:", err_msg="\tCC = {0}\n".format(CC), file=logger)
     check('compiler options', '{0} -x c -o /dev/null {1} -'.format(CC, ' '.join(COMP_OPTS)),
           pipe="int main(int argc, char **argv){{return 0;}}",
           err_head="Wrong compiler options:",
-          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}".format(CC, ' '.join(COMP_OPTS)))
+          err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}".format(CC, ' '.join(COMP_OPTS)), file=logger)
     check('linker options', '{0} -x c -o /dev/null {1} -'.format(CC, ' '.join(LINK_OPTS)),
           pipe="int main(int argc, char **argv){{return 0;}}",
           err_head="Wrong linker options:",
-          err_msg="\tCC = {0}\n\tLINK_OPTS = {1}".format(CC, ' '.join(LINK_OPTS)))
+          err_msg="\tCC = {0}\n\tLINK_OPTS = {1}".format(CC, ' '.join(LINK_OPTS)), file=logger)
     try:
         check('c99 standard', '{0} -x c -o /dev/null {1} -'.format(CC, ' '.join(COMP_OPTS)),
               pipe="int main(int argc, char **argv){{for(int i = 0; i < 10; i++){{}} return 0;}}",
               err_head="The C compiler is not c99 compliant",
-              exit_on_error=False)
+              exit_on_error=False, file=logger)
     except SystemError:
         COMP_OPTS.append('-std=c99')
         check('again with -std=c99', '{0} -x c -o /dev/null {1} -'.format(CC, ' '.join(COMP_OPTS)),
               pipe="int main(int argc, char **argv){{for(int i = 0; i < 10; i++){{}} return 0;}}",
               err_head="Failure to make the C compiler c99 compliant",
-              err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}".format(CC, ' '.join(COMP_OPTS)))
+              err_msg="\tCC = {0}\n\tCOMP_OPTS = {1}".format(CC, ' '.join(COMP_OPTS)), file=logger)
 
     passed_dir = []
     for soft_dir in (args.MPI_DIR, args.PETSC_DIR, args.YAML_DIR):
@@ -159,9 +183,10 @@ if __name__ == "__main__":
     COMP_OPTS = ' '.join(COMP_OPTS)
     LINK_OPTS = ' '.join(LINK_OPTS)
 
-    check_lib(CC, COMP_OPTS, LINK_OPTS, "MPI", "mpi.h", "-lmpi", "MPI_Init(&argc, &argv)")
-    check_lib(CC, COMP_OPTS, LINK_OPTS, "PETSc", "petscsys.h", "-lpetsc", "PetscInitialize(&argc, &argv, NULL, NULL)")
-    check_lib(CC, COMP_OPTS, LINK_OPTS, "LibYAML", "yaml.h", "-lyaml", "yaml_parser_initialize(NULL)")
+    check_lib(CC, COMP_OPTS, LINK_OPTS, "MPI", "mpi.h", "-lmpi", "MPI_Init(&argc, &argv)", file=logger)
+    check_lib(CC, COMP_OPTS, LINK_OPTS, "PETSc", "petscsys.h", "-lpetsc", "PetscInitialize(&argc, &argv, NULL, NULL)",
+              file=logger)
+    check_lib(CC, COMP_OPTS, LINK_OPTS, "LibYAML", "yaml.h", "-lyaml", "yaml_parser_initialize(NULL)", file=logger)
 
     LINK_OPTS = ' '.join((LINK_OPTS, '-lmpi', '-lpetsc', '-lyaml', '-lm'))
 
@@ -172,5 +197,5 @@ if __name__ == "__main__":
         makefile.write(MAKEFILE.format(CC=CC, COMP_OPTS=COMP_OPTS, LINK_OPTS=LINK_OPTS,
                                        verb_name=verb_name, verb_cmd=verb_cmd))
 
-    print("Configuration done with options:")
-    print("\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS))
+    print("Configuration done with options:", file=logger)
+    print("\tCC = {0}\n\tCOMP_OPTS = {1}\n\tLINK_OPTS = {2}\n".format(CC, COMP_OPTS, LINK_OPTS), file=logger)

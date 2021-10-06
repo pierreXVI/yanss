@@ -35,7 +35,7 @@ int main(int argc, char **argv){
   PetscReal cfl = 0.9; // TODO
 
   TS ts;
-  ierr = TsCreate_User(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
+  ierr = TSCreate_User(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
   ierr = TSSolve(ts, x);                                                        CHKERRQ(ierr);
 
   PetscReal         ftime;

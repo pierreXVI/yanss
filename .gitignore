@@ -1,6 +1,8 @@
 build/
 .tags*
 data/*.msh
-data/input.yaml
+data/*.yaml
+!data/example.yaml
 makefile
-.idea/*
+.idea/
+configure.log

@@ -29,7 +29,7 @@ static PetscErrorCode MonitorCtxDestroy(void **ctx) {
 }
 
 
-PetscErrorCode TsCreate_User(MPI_Comm comm, TS *ts, const char *filename, DM dm, Physics phys, PetscReal cfl){
+PetscErrorCode TSCreate_User(MPI_Comm comm, TS *ts, const char *filename, DM dm, Physics phys, PetscReal cfl){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;

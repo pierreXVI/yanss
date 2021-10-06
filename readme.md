@@ -1,6 +1,6 @@
-# YANNS
+# YANSS
 
-<!-- YANNS is a software designed to solve Fluid Dynamics simulations -->
+<!-- YANSS is a software designed to solve Fluid Dynamics simulations -->
 
 ## Dependencies
 
@@ -17,7 +17,7 @@ The C compiler must be c99 compliant. This is usually ensured with the compiler 
 
 To install the software, run the usual `./configure; make`:
 
-    $ cd yanns
+    $ cd yanss
     $ ./configure --help  # To view configure options
     $ ./configure
     $ make
@@ -28,7 +28,7 @@ To specify external libraries locations, use the configure option `--with-librar
 
 To use the software, run:
 
-    $ ./build/bin/yanns input_file.yaml
+    $ ./build/bin/yanss input_file.yaml
 
 where `input_file.yaml` is the YAML input file. An example is given in `data/example.yaml`.
 
