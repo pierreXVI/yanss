@@ -492,7 +492,7 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
   HH1 and HH2 are introduced in Harten and Hyman, "Self adjusting grid methods for one-dimensional hyperbolic conservation laws",
   but an easier explanation can be found in Pelanti et al., "A review of entropy fixes as applied to Roe’s linearization"
 */
-static void RiemannSolver_RoePike_EntropyFix_None(PetscReal *a_k, PetscReal a_kL, PetscReal a_kR){PetscFunctionReturnVoid();}
+static void RiemannSolver_RoePike_EntropyFix_None(PetscReal *a_k, PetscReal a_kL, PetscReal a_kR){}
 static void RiemannSolver_RoePike_EntropyFix_HH1(PetscReal *a_k, PetscReal a_kL, PetscReal a_kR){
   PetscReal delta_k = PetscMax(*a_k - a_kL, a_kR - *a_k); if (PetscAbs(*a_k) < delta_k) *a_k = delta_k;
 }
