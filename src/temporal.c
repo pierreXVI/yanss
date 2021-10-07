@@ -29,13 +29,12 @@ static PetscErrorCode MonitorCtxDestroy(void **ctx) {
 }
 
 
-PetscErrorCode TSCreate_User(MPI_Comm comm, TS *ts, const char *filename, DM dm, Physics phys, PetscReal cfl){
+PetscErrorCode TSCreate_User(MPI_Comm comm, TS *ts, const char *filename, DM dm, Physics phys){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  ierr = TSCreate(comm, ts);                                   CHKERRQ(ierr);
-  ierr = TSSetDM(*ts, dm);                                     CHKERRQ(ierr);
-  ierr = TSSetExactFinalTime(*ts, TS_EXACTFINALTIME_STEPOVER); CHKERRQ(ierr);
+  ierr = TSCreate(comm, ts); CHKERRQ(ierr);
+  ierr = TSSetDM(*ts, dm);   CHKERRQ(ierr);
 
   for (PetscInt i = 0; MonitorList[i].name; i++) {
     PetscBool set;
@@ -53,6 +52,11 @@ PetscErrorCode TSCreate_User(MPI_Comm comm, TS *ts, const char *filename, DM dm,
       ierr = TSMonitorSet(*ts, MonitorList[i].func, ctx, MonitorCtxDestroy);   CHKERRQ(ierr);
     }
   }
+
+  const char *buffer, *loc = "Temporal";
+  ierr = YAMLLoadVarFromLoc(filename, "cfl", 1, &loc, &buffer); CHKERRQ(ierr);
+  PetscReal cfl = atof(buffer);
+  ierr = PetscFree(buffer); CHKERRQ(ierr);
 
   PetscReal dt, minRadius, norm2 = 0;
   ierr = DMPlexGetGeometryFVM(dm, NULL, NULL, &minRadius); CHKERRQ(ierr);

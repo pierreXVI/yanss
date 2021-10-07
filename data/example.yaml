@@ -7,6 +7,8 @@ Ref: # YAML anchors/aliases are supported
 Physics:
   gamma: ...
 
+Temporal:
+  cfl: ...
 
 InitialConditions:
   rho: *rho0

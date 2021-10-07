@@ -11,6 +11,9 @@
   Physics:
     gamma: value
 
+  Temporal:
+    cfl: value
+
   InitialConditions:
     field1D: value
     fieldND: array

@@ -32,11 +32,9 @@ int main(int argc, char **argv){
   ierr = PetscObjectSetName((PetscObject) x, "Solution");       CHKERRQ(ierr);
   ierr = MeshApplyFunction(mesh, 0, InitialCondition, phys, x); CHKERRQ(ierr);
 
-  PetscReal cfl = 0.9; // TODO
-
   TS ts;
-  ierr = TSCreate_User(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys, cfl); CHKERRQ(ierr);
-  ierr = TSSolve(ts, x);                                                        CHKERRQ(ierr);
+  ierr = TSCreate_User(PETSC_COMM_WORLD, &ts, input_filename, mesh, phys); CHKERRQ(ierr);
+  ierr = TSSolve(ts, x);                                                   CHKERRQ(ierr);
 
   PetscReal         ftime;
   PetscInt          nsteps;
