@@ -86,9 +86,9 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename);
 
 
 /*
-  Puts coefficients which represent periodic values into the local solution vector
+  Puts coefficients which represent periodic values into the local solution and gradient vectors
 */
-PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX);
+PetscErrorCode MeshInsertPeriodicValues(DM, Vec, Vec);
 
 
 /*
