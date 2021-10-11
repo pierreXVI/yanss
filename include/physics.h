@@ -77,10 +77,11 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm, Physics);
     ctx  - Context, to be cast to (struct BC_ctx*)
   ```
 
-  Available boudrary condition types are:
+  Available boudrary condition types are (with their additional values found in the context):
     BC_DIRICHLET: the conservative field values
     BC_OUTFLOW_P: the pressure value
     BC_WALL:      no value
+    BC_COPY:      no value
 */
 PetscErrorCode BCRegister(PetscFunctionList*);
 

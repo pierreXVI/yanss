@@ -630,8 +630,8 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
   }
 
   { // Setting gradient
-    PetscFV  fvmGrad;
-    char     buffer[64];
+    PetscFV fvmGrad;
+    char    buffer[64];
     ierr = PetscFVCreate(PetscObjectComm((PetscObject) dm), &fvmGrad); CHKERRQ(ierr);
     ierr = PetscFVSetSpatialDimension(fvmGrad, phys->dim);             CHKERRQ(ierr);
     ierr = PetscFVSetNumComponents(fvmGrad, phys->dim * phys->dof);    CHKERRQ(ierr);
@@ -666,7 +666,7 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
 
   ierr = MeshSetUp_Periodicity(dm, filename); CHKERRQ(ierr);
 
-  { // Setting boundaries
+  { // Setting discrete system (Riemann solver, boundaries)
     PetscDS        prob;
     DMLabel        label;
     IS             is;
@@ -675,7 +675,6 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
     ierr = DMGetDS(dm, &prob);                                     CHKERRQ(ierr);
     ierr = PetscDSSetRiemannSolver(prob, 0, phys->riemann_solver); CHKERRQ(ierr);
     ierr = PetscDSSetContext(prob, 0, phys);                       CHKERRQ(ierr);
-    ierr = DMGetDS(dm, &prob);                                     CHKERRQ(ierr);
     ierr = DMGetLabel(dm, "Face Sets", &label);                    CHKERRQ(ierr);
     { // Getting boundary ids
       IS bnd_is_mpi, bnd_is_loc;
@@ -780,20 +779,19 @@ PetscErrorCode MeshReconstructGradientsFVM(DM dm, Vec locX, Vec grad){
   PetscLimiterType  limType;
   { // Getting mesh data
     PetscFV      fvm;
-    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);     CHKERRQ(ierr);
-    ierr = PetscFVGetLimiter(fvm, &lim);                     CHKERRQ(ierr);
-    ierr = PetscLimiterGetType(lim, &limType);               CHKERRQ(ierr);
+    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);        CHKERRQ(ierr);
+    ierr = PetscFVGetLimiter(fvm, &lim);                        CHKERRQ(ierr);
+    ierr = PetscLimiterGetType(lim, &limType);                  CHKERRQ(ierr);
     if (!strcmp(limType, PETSCLIMITERZERO)) PetscFunctionReturn(0);
-    ierr = DMPlexGetDataFVM(dm, fvm, &cellgeom, NULL, NULL); CHKERRQ(ierr);
-    ierr = VecGetDM(cellgeom, &dmCell);                      CHKERRQ(ierr);
-    ierr = VecGetArrayRead(cellgeom, &cellgeom_a);           CHKERRQ(ierr);
-    ierr = DMGetDimension(dm, &dim);                         CHKERRQ(ierr);
-    ierr = PetscFVGetNumComponents(fvm, &Nc);                CHKERRQ(ierr);
-    ierr = DMPlexGetHeightStratum(dm, 0, &cStart, NULL);     CHKERRQ(ierr);
-    ierr = DMGetApplicationContext(dm, &ctx);                CHKERRQ(ierr);
-    ierr = VecGetArrayRead(locX, &x);                        CHKERRQ(ierr);
-    ierr = VecGetDM(grad, &dmGrad);                          CHKERRQ(ierr);
-    ierr = VecGetArray(grad, &gr);                           CHKERRQ(ierr);
+    ierr = DMPlexGetDataFVM(dm, fvm, &cellgeom, NULL, &dmGrad); CHKERRQ(ierr);
+    ierr = VecGetDM(cellgeom, &dmCell);                         CHKERRQ(ierr);
+    ierr = VecGetArrayRead(cellgeom, &cellgeom_a);              CHKERRQ(ierr);
+    ierr = DMGetDimension(dm, &dim);                            CHKERRQ(ierr);
+    ierr = PetscFVGetNumComponents(fvm, &Nc);                   CHKERRQ(ierr);
+    ierr = DMPlexGetHeightStratum(dm, 0, &cStart, NULL);        CHKERRQ(ierr);
+    ierr = DMGetApplicationContext(dm, &ctx);                   CHKERRQ(ierr);
+    ierr = VecGetArrayRead(locX, &x);                           CHKERRQ(ierr);
+    ierr = VecGetArray(grad, &gr);                              CHKERRQ(ierr);
   }
 
   for (PetscInt n = 0; n < ctx->n_cell; n++) { // Computing cell gradient

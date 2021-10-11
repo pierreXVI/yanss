@@ -62,6 +62,14 @@ static PetscErrorCode BCWall(PetscReal time, const PetscReal c[], const PetscRea
   PetscFunctionReturn(0);
 }
 
+static PetscErrorCode BCCopy(PetscReal time, const PetscReal c[], const PetscReal n[], const PetscReal *xI, PetscReal *xG, void *ctx){
+  struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
+
+  PetscFunctionBeginUser;
+  for (PetscInt i = 0; i < bc_ctx->phys->dof; i++) xG[i] = xI[i];
+  PetscFunctionReturn(0);
+}
+
 
 PetscErrorCode BCRegister(PetscFunctionList *bc_list){
   PetscErrorCode ierr;
@@ -70,5 +78,6 @@ PetscErrorCode BCRegister(PetscFunctionList *bc_list){
   ierr = PetscFunctionListAdd(bc_list, "BC_DIRICHLET", BCDirichlet); CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(bc_list, "BC_OUTFLOW_P", BCOutflow_P); CHKERRQ(ierr);
   ierr = PetscFunctionListAdd(bc_list, "BC_WALL",      BCWall);      CHKERRQ(ierr);
+  ierr = PetscFunctionListAdd(bc_list, "BC_COPY",      BCCopy);      CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

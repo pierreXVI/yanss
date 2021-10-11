@@ -159,7 +159,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
 
     const char *prefix;
-    ierr = PetscObjectGetOptionsPrefix((PetscObject) v, &prefix); CHKERRQ(ierr);
+    ierr = VecGetOptionsPrefix(v, &prefix); CHKERRQ(ierr);
 
     ierr = PetscMalloc1(Nc, &comp); CHKERRQ(ierr);
     for (PetscInt k = 0; k < Nc; k++) comp[k] = k;
