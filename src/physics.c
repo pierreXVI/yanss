@@ -69,7 +69,7 @@ void ConservativeToPrimitive(Physics phys, const PetscReal in[], PetscReal out[]
 }
 
 
-PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx){
+PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscReal *y, void *ctx){
   Physics   phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
@@ -79,7 +79,7 @@ PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx)
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode mach(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx){
+PetscErrorCode mach(PetscInt Nc, const PetscReal *x, PetscReal *y, void *ctx){
   Physics   phys = (Physics) ctx;
   PetscReal w[phys->dof];
 
@@ -97,7 +97,7 @@ PetscErrorCode PhysicsDestroy(Physics *phys){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
-  for (PetscInt i = 0; i < (*phys)->nbc; i++){
+  for (PetscInt i = 0; i < (*phys)->nbc; i++) {
     ierr = PetscFree((*phys)->bc_ctx[i].type); CHKERRQ(ierr);
     ierr = PetscFree((*phys)->bc_ctx[i].name); CHKERRQ(ierr);
     ierr = PetscFree((*phys)->bc_ctx[i].val);  CHKERRQ(ierr);
@@ -145,12 +145,12 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
     char buffer[64];
     ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);                           CHKERRQ(ierr);
     ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                             CHKERRQ(ierr);
-    for (PetscInt i = 0, dof = 0; i < nfields; i++){
+    for (PetscInt i = 0, dof = 0; i < nfields; i++) {
       if (fields[i].dof == 1) {
         ierr = PetscFVSetComponentName(fvm, dof, fields[i].name);                  CHKERRQ(ierr);
       }
       else {
-        for (PetscInt j = 0; j < fields[i].dof; j++){
+        for (PetscInt j = 0; j < fields[i].dof; j++) {
           ierr = PetscSNPrintf(buffer, sizeof(buffer),"%s_%d", fields[i].name, j); CHKERRQ(ierr);
           ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                    CHKERRQ(ierr);
         }

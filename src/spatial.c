@@ -95,7 +95,7 @@ PetscErrorCode MeshGetCellStratum(DM dm, PetscInt *cStartCell, PetscInt *cStartO
 
 
 PetscErrorCode MeshApplyFunction(DM dm, PetscReal time,
-                                 PetscErrorCode (*func)(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*),
+                                 PetscErrorCode (*func)(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscReal*, void*),
                                  void *ctx, Vec x){
   PetscErrorCode ierr;
 
@@ -166,7 +166,7 @@ PetscErrorCode VecDestroyComponentVectors(Vec x, Vec **comps){
 
 
 PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
-                                          PetscErrorCode (*func)(PetscInt, const PetscScalar*, PetscScalar*, void*),
+                                          PetscErrorCode (*func)(PetscInt, const PetscReal*, PetscReal*, void*),
                                           void *ctx){
   PetscErrorCode ierr;
   PetscInt       Nc, start, end, size;
@@ -184,9 +184,9 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
   ierr = VecSetSizes(*y, size, PETSC_DECIDE);            CHKERRQ(ierr);
   ierr = VecSetFromOptions(*y);                          CHKERRQ(ierr);
 
-  const PetscScalar *val_x;
-  PetscScalar       *val_y;
-  PetscInt          *ix;
+  const PetscReal *val_x;
+  PetscReal       *val_y;
+  PetscInt        *ix;
 
   ierr = PetscMalloc2(size, &val_y, size, &ix);      CHKERRQ(ierr);
   ierr = VecGetArrayRead(x, &val_x);                 CHKERRQ(ierr);
@@ -515,7 +515,7 @@ static PetscErrorCode MeshSetUp_Gradient(DM dm){
     ierr = ISGetIndices(ctx->CellCtx[n].neighborhood, &neighborhood);          CHKERRQ(ierr);
     ierr = DMPlexPointLocalRead(dmCell, ctx->cStartCell + n, cellgeom_a, &cg); CHKERRQ(ierr);
 
-    for (PetscInt i = 0; i < numNeighbors; i++){
+    for (PetscInt i = 0; i < numNeighbors; i++) {
       ierr = DMPlexPointLocalRead(dmCell, neighborhood[i], cellgeom_a, &ncg); CHKERRQ(ierr);
       for (PetscInt j = 0; j < dim; j++) dx[i * dim + j] = ncg->centroid[j] - cg->centroid[j];
     }
@@ -569,29 +569,28 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
   }
 
   PetscFVFaceGeom *fgeom;
-  PetscReal       *vol;
-  PetscScalar     *uL, *uR, *fluxL, *fluxR;
+  PetscReal       *vol, *uL, *uR, *fluxL, *fluxR;
   { // Extracting fields, Riemann solve
     PetscDS  prob;
     PetscInt numFaces;
     ierr = DMGetDS(dm, &prob);                                                                                  CHKERRQ(ierr);
     ierr = DMPlexGetFaceFields(dm, fStart, fEnd, locX, NULL, facegeom, cellgeom, locGrad, &numFaces, &uL, &uR); CHKERRQ(ierr);
     ierr = DMPlexGetFaceGeometry(dm, fStart, fEnd, facegeom, cellgeom, &numFaces, &fgeom, &vol);                CHKERRQ(ierr);
-    ierr = DMGetWorkArray(dm, numFaces * Nc, MPIU_SCALAR, &fluxL);                                              CHKERRQ(ierr);
-    ierr = DMGetWorkArray(dm, numFaces * Nc, MPIU_SCALAR, &fluxR);                                              CHKERRQ(ierr);
+    ierr = DMGetWorkArray(dm, numFaces * Nc, MPIU_REAL, &fluxL);                                                CHKERRQ(ierr);
+    ierr = DMGetWorkArray(dm, numFaces * Nc, MPIU_REAL, &fluxR);                                                CHKERRQ(ierr);
     ierr = PetscArrayzero(fluxL, numFaces * Nc);                                                                CHKERRQ(ierr);
     ierr = PetscArrayzero(fluxR, numFaces * Nc);                                                                CHKERRQ(ierr);
     ierr = PetscFVIntegrateRHSFunction(fvm, prob, 0, numFaces, fgeom, vol, uL, uR, fluxL, fluxR);               CHKERRQ(ierr);
   }
 
   { // Filling flux vector
-    PetscScalar *fa;
+    PetscReal *fa;
     ierr = VecGetArray(locF, &fa); CHKERRQ(ierr);
 
     for (PetscInt f = fStart, iface = 0; f < fEnd; f++) {
       const PetscInt *cells;
       PetscInt       ghost;
-      PetscScalar    *fL = NULL, *fR = NULL;
+      PetscReal      *fL = NULL, *fR = NULL;
 
       ierr = DMGetLabelValue(dm, "ghost", f, &ghost); CHKERRQ(ierr);
       if (ghost >= 0) continue;
@@ -611,8 +610,8 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
   { // Cleanup
     ierr = DMPlexRestoreFaceFields(dm, fStart, fEnd, locX, NULL, facegeom, cellgeom, locGrad, NULL, &uL, &uR); CHKERRQ(ierr);
     ierr = DMPlexRestoreFaceGeometry(dm, fStart, fEnd, facegeom, cellgeom, NULL, &fgeom, &vol);                CHKERRQ(ierr);
-    ierr = DMRestoreWorkArray(dm, 0, MPIU_SCALAR, &fluxL);                                                     CHKERRQ(ierr);
-    ierr = DMRestoreWorkArray(dm, 0, MPIU_SCALAR, &fluxR);                                                     CHKERRQ(ierr);
+    ierr = DMRestoreWorkArray(dm, 0, MPIU_REAL, &fluxL);                                                       CHKERRQ(ierr);
+    ierr = DMRestoreWorkArray(dm, 0, MPIU_REAL, &fluxR);                                                       CHKERRQ(ierr);
     ierr = DMRestoreLocalVector(dmGrad, &locGrad);                                                             CHKERRQ(ierr);
 
     ierr = DMLocalToGlobalBegin(dm, locF, ADD_VALUES, F); CHKERRQ(ierr);
@@ -649,7 +648,7 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
     ierr = PetscFVCreate(PetscObjectComm((PetscObject) dm), &fvmGrad); CHKERRQ(ierr);
     ierr = PetscFVSetSpatialDimension(fvmGrad, phys->dim);             CHKERRQ(ierr);
     ierr = PetscFVSetNumComponents(fvmGrad, phys->dim * phys->dof);    CHKERRQ(ierr);
-    for (PetscInt i = 0; i < phys->dof; i++){
+    for (PetscInt i = 0; i < phys->dof; i++) {
       const char *cname;
       ierr = PetscFVGetComponentName(fvm, i, &cname); CHKERRQ(ierr);
       for (PetscInt k = 0; k < phys->dim; k++) {
@@ -792,14 +791,14 @@ PetscErrorCode MeshReconstructGradientsFVM(DM dm, Vec locX, Vec grad){
   PetscFunctionBegin;
   ierr = VecZeroEntries(grad); CHKERRQ(ierr);
 
-  MeshCtx           ctx;
-  Vec               cellgeom;
-  DM                dmGrad, dmCell;
-  const PetscScalar *x, *cellgeom_a;
-  PetscScalar       *gr;
-  PetscInt          dim, Nc, n_cell;
-  PetscLimiter      lim;
-  PetscLimiterType  limType;
+  MeshCtx          ctx;
+  Vec              cellgeom;
+  DM               dmGrad, dmCell;
+  const PetscReal  *x, *cellgeom_a;
+  PetscReal        *gr;
+  PetscInt         dim, Nc, n_cell;
+  PetscLimiter     lim;
+  PetscLimiterType limType;
   { // Getting mesh data
     PetscFV      fvm;
     ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);        CHKERRQ(ierr);
@@ -820,16 +819,16 @@ PetscErrorCode MeshReconstructGradientsFVM(DM dm, Vec locX, Vec grad){
   for (PetscInt n = 0; n < n_cell; n++) { // Computing cell gradient
     PetscInt       numNeighbors, c = ctx->cStartCell + n;
     const PetscInt *neighborhood;
-    PetscScalar    *cx, *ncx, *cgrad;
+    PetscReal      *cx, *ncx, *cgrad;
 
     ierr = ISGetSize(ctx->CellCtx[n].neighborhood, &numNeighbors);    CHKERRQ(ierr);
     ierr = ISGetIndices(ctx->CellCtx[n].neighborhood, &neighborhood); CHKERRQ(ierr);
     ierr = DMPlexPointLocalRead(dm, c, x, &cx);                       CHKERRQ(ierr);
     ierr = DMPlexPointGlobalRef(dmGrad, c, gr, &cgrad);               CHKERRQ(ierr);
-    for (PetscInt i = 0; i < numNeighbors; i++){
+    for (PetscInt i = 0; i < numNeighbors; i++) {
         ierr = DMPlexPointLocalRead(dm, neighborhood[i], x, &ncx); CHKERRQ(ierr);
         for (PetscInt j = 0; j < Nc; j++) {
-          PetscScalar delta = ncx[j] - cx[j];
+          PetscReal delta = ncx[j] - cx[j];
           for (PetscInt k = 0; k < dim; k++) cgrad[j * dim + k] += delta * ctx->CellCtx[n].grad_coeff[dim * i + k];
         }
     }
@@ -838,7 +837,7 @@ PetscErrorCode MeshReconstructGradientsFVM(DM dm, Vec locX, Vec grad){
   for (PetscInt n = (!strcmp(limType, PETSCLIMITERNONE)) ? n_cell : 0; n < n_cell; n++) { // Limit cell gradient
     const PetscInt  *faces, *fcells;
     PetscInt        nface, c = ctx->cStartCell + n, nc;
-    PetscScalar     *cx, *ncx, *cgrad;
+    PetscReal       *cx, *ncx, *cgrad;
     PetscFVCellGeom *cg, *ncg;
     PetscReal cellPhi[Nc];
     ierr = DMPlexGetConeSize(dm, c, &nface);                 CHKERRQ(ierr);
@@ -862,7 +861,7 @@ PetscErrorCode MeshReconstructGradientsFVM(DM dm, Vec locX, Vec grad){
         cellPhi[i] = PetscMin(cellPhi[i], phi);
       }
     }
-    for (PetscInt i = 0; i < Nc; i++){
+    for (PetscInt i = 0; i < Nc; i++) {
       for (PetscInt j = 0; j < dim; j++) cgrad[i * dim + j] *= cellPhi[i];
     }
   }

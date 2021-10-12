@@ -31,8 +31,8 @@ void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
   Compute physical value from components
   ctx is to be cast to (Physics)
 */
-PetscErrorCode normU(PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
-PetscErrorCode mach (PetscInt Nc, const PetscReal *x, PetscScalar *y, void *ctx);
+PetscErrorCode normU(PetscInt, const PetscReal*, PetscReal*, void*);
+PetscErrorCode mach (PetscInt, const PetscReal*, PetscReal*, void*);
 
 
 /*
@@ -68,7 +68,7 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm, Physics);
   Register the pointwise boundary condition functions, with the following calling sequence:
 
   ```
-  func(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscScalar *xI, PetscScalar *xG, void *ctx)
+  func(PetscReal time, const PetscReal c[3], const PetscReal n[3], const PetscReal *xI, PetscReal *xG, void *ctx)
     time - Current time
     c    - Location of centroid (quadrature point)
     n    - Area-scaled normals

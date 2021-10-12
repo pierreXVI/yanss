@@ -28,8 +28,8 @@ typedef struct {
   PetscInt cEnd; // The upper bound on cells
 
   struct {
-    IS          neighborhood; // List of neighbors
-    PetscScalar *grad_coeff;  // Neighbor contributions to cell gradient
+    IS        neighborhood; // List of neighbors
+    PetscReal *grad_coeff;  // Neighbor contributions to cell gradient
   } *CellCtx;
 } *MeshCtx;
 
@@ -62,7 +62,7 @@ PetscErrorCode MeshGetCellStratum(DM, PetscInt*, PetscInt*, PetscInt*, PetscInt*
 /*
   Apply a function on a mesh
 */
-PetscErrorCode MeshApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscScalar*, void*), void*, Vec);
+PetscErrorCode MeshApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscReal*, void*), void*, Vec);
 
 
 /*
@@ -88,14 +88,14 @@ PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
   The Vec is linked to a mesh, so that the number of field components is read from the DM's PetscFV
   The pointwise function calling sequence is
   ```
-  func(PetscInt Nc, const PetscScalar x[], PetscScalar *y, void *ctx)
+  func(PetscInt Nc, const PetscReal x[], PetscReal *y, void *ctx)
     Nc           - Number of field components
     x            - Field value
     y            - Output scalar value
     ctx          - Optional context
   ```
 */
-PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, const PetscScalar*, PetscScalar*, void*), void*);
+PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, const PetscReal*, PetscReal*, void*), void*);
 
 
 /*

@@ -50,8 +50,8 @@ typedef struct {
 
   union RiemannCtx     riemann_ctx; // Riemann solver context
   void (*riemann_solver)(PetscInt, PetscInt,
-                         const PetscReal[], const PetscReal[], const PetscScalar[], const PetscScalar[],
-                         PetscInt, const PetscScalar[], PetscScalar[], void*);
+                         const PetscReal[], const PetscReal[], const PetscReal[], const PetscReal[],
+                         PetscInt, const PetscReal[], PetscReal[], void*);
 } *Physics;
 
 struct BCCtx {

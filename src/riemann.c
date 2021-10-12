@@ -4,8 +4,8 @@
   Pointwise Riemann solver functions, with the following calling sequence:
 
   ```
-  func(PetscInt dim, PetscInt Nf, const PetscReal x[], const PetscReal n[], const PetscScalar uL[],
-       const PetscScalar uR[], PetscInt numConstants, const PetscScalar constants[], PetscScalar flux[], void *ctx)
+  func(PetscInt dim, PetscInt Nf, const PetscReal x[], const PetscReal n[], const PetscReal uL[],
+       const PetscReal uR[], PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx)
     dim          - Spatial dimension
     Nf           - Number of fields
     x            - Coordinates at a point on the interface
@@ -25,7 +25,7 @@
 */
 static void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
                               const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
-                              PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+                              PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
@@ -150,7 +150,7 @@ static void RiemannSolver_Exact_PressureSolver_Newton(PetscInt dim, Physics phys
 */
 static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
                                 const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
-                                PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+                                PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
@@ -177,11 +177,11 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
   { // Normal and tangent speeds
     unL = 0;
     unR = 0;
-    for (PetscInt i = 0; i < dim; i++){
+    for (PetscInt i = 0; i < dim; i++) {
       unL += wL[1 + i] * nn[i];
       unR += wR[1 + i] * nn[i];
     }
-    for (PetscInt i = 0; i < dim; i++){
+    for (PetscInt i = 0; i < dim; i++) {
       utL[i] = wL[1 + i] - unL * nn[i];
       utR[i] = wR[1 + i] - unR * nn[i];
     }
@@ -285,7 +285,7 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
 */
 static void RiemannSolver_LaxFriedrichs(PetscInt dim, PetscInt Nc,
                                         const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
-                                        PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+                                        PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
@@ -317,7 +317,7 @@ static void RiemannSolver_LaxFriedrichs(PetscInt dim, PetscInt Nc,
 */
 static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
                                const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
-                               PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+                               PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
@@ -343,11 +343,11 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
   { // Normal and tangent speeds
     unL = 0;
     unR = 0;
-    for (PetscInt i = 0; i < dim; i++){
+    for (PetscInt i = 0; i < dim; i++) {
       unL += wL[1 + i] * nn[i];
       unR += wR[1 + i] * nn[i];
     }
-    for (PetscInt i = 0; i < dim; i++){
+    for (PetscInt i = 0; i < dim; i++) {
       utL[i] = wL[1 + i] - unL * nn[i];
       utR[i] = wR[1 + i] - unR * nn[i];
     }
@@ -506,7 +506,7 @@ static void RiemannSolver_RoePike_EntropyFix_HH2(PetscReal *a_k, PetscReal a_kL,
 */
 static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
                                const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
-                               PetscInt numConstants, const PetscScalar constants[], PetscReal flux[], void *ctx){
+                               PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
@@ -529,11 +529,11 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
   { // Normal and tangent speeds
     unL = 0;
     unR = 0;
-    for (PetscInt i = 0; i < dim; i++){
+    for (PetscInt i = 0; i < dim; i++) {
       unL += wL[1 + i] * nn[i];
       unR += wR[1 + i] * nn[i];
     }
-    for (PetscInt i = 0; i < dim; i++){
+    for (PetscInt i = 0; i < dim; i++) {
       utL[i] = wL[1 + i] - unL * nn[i];
       utR[i] = wR[1 + i] - unR * nn[i];
     }

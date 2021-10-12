@@ -6,14 +6,14 @@
 */
 #include "spatial.h"
 PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
-  PetscErrorCode    ierr;
-  Vec               v_dm;
-  const PetscScalar *v_data;
-  PetscScalar       *v_dm_data;
-  PetscInt          n1, n2, Nc;
-  PetscBool         flg;
-  char              val[64];
-  const char        *name;
+  PetscErrorCode  ierr;
+  Vec             v_dm;
+  const PetscReal *v_data;
+  PetscReal       *v_dm_data;
+  PetscInt        n1, n2, Nc;
+  PetscBool       flg;
+  char            val[64];
+  const char      *name;
 
   PetscFunctionBeginUser;
   ierr = PetscOptionsGetString(NULL, NULL, "-draw_comp", val, sizeof(val), &flg); CHKERRQ(ierr);

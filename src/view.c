@@ -19,7 +19,7 @@ static PetscErrorCode PetscDraw_Mesh_Cells(PetscDraw draw, DM dm){
   ierr = MeshGetCellStratum(dm, &cStart, &cEnd, NULL, NULL); CHKERRQ(ierr);
 
   for (PetscInt c = cStart; c < cEnd; c++) {
-    PetscScalar    *coords = NULL;
+    PetscReal      *coords = NULL;
     DMPolytopeType ct;
     ierr = DMPlexGetCellType(dm, c, &ct);                                        CHKERRQ(ierr);
     ierr = DMPlexVecGetClosure(dm, coordSection, coordinates, c, NULL, &coords); CHKERRQ(ierr);
@@ -66,12 +66,12 @@ static PetscErrorCode PetscDraw_Mesh_Partition(PetscDraw draw, DM dm){
 
     ierr = DMPlexGetConeSize(dm, c, &cone_size); CHKERRQ(ierr);
     ierr = DMPlexGetCone(dm, c, &cone);          CHKERRQ(ierr);
-    for (PetscInt i = 0; i < cone_size; i++){
+    for (PetscInt i = 0; i < cone_size; i++) {
       PetscInt ghost;
       ierr = DMGetLabelValue(dm, "ghost", cone[i], &ghost); CHKERRQ(ierr);
       if (ghost > 0) continue;
 
-      PetscScalar *coords = NULL;
+      PetscReal *coords = NULL;
       ierr = DMPlexVecGetClosure(dm, coordSection, coordinates, cone[i], NULL, &coords); CHKERRQ(ierr);
       ierr = PetscDrawLine(draw, PetscRealPart(coords[0]), PetscRealPart(coords[1]), PetscRealPart(coords[2]), PetscRealPart(coords[3]), PETSC_DRAW_BLACK); CHKERRQ(ierr);
       ierr = DMPlexVecRestoreClosure(dm, coordSection, coordinates, cone[i], NULL, &coords); CHKERRQ(ierr);
@@ -99,11 +99,11 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     if (dim != 2) SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Cannot draw meshes of dimension %D.", dim);
   }
 
-  Vec               coordinates;
-  PetscSection      coordSection;
-  PetscInt          cStart, cEnd, step;
-  PetscReal         time;
-  const PetscScalar *array;
+  Vec             coordinates;
+  PetscSection    coordSection;
+  PetscInt        cStart, cEnd, step;
+  PetscReal       time;
+  const PetscReal *array;
   { // Reading data
     DM cdm;
     ierr = DMGetCoordinateDM(dm, &cdm);                  CHKERRQ(ierr);
@@ -119,8 +119,8 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
 
   PetscReal bound[4] = {PETSC_MAX_REAL, PETSC_MAX_REAL, PETSC_MIN_REAL, PETSC_MIN_REAL};
   { // Mesh bounds (min for each dimension, max for each dimension)
-    PetscInt          size;
-    const PetscScalar *coords;
+    PetscInt        size;
+    const PetscReal *coords;
 
     ierr = VecGetLocalSize(coordinates, &size);   CHKERRQ(ierr);
     ierr = VecGetArrayRead(coordinates, &coords); CHKERRQ(ierr);
@@ -190,7 +190,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     ierr = PetscDrawSetCoordinates(draw, bound[0], bound[1], bound[2], bound[3]); CHKERRQ(ierr);
 
     for (PetscInt c = cStart; c < cEnd; c++) {
-      PetscScalar    *coords = NULL, *a = NULL;
+      PetscReal      *coords = NULL, *a = NULL;
       PetscInt       color[4];
       DMPolytopeType ct;
 
@@ -198,8 +198,8 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
       if (a) {
         color[1] = color[2] = color[3] = color[0] = PetscDrawRealToColor(PetscRealPart(a[comp[i]]), vbound[0], vbound[1]);
       } else {
-        PetscScalar *vals = NULL;
-        PetscInt     numVals, va;
+        PetscReal *vals = NULL;
+        PetscInt   numVals, va;
 
         ierr = DMPlexVecGetClosure(dm, NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
         if (numVals % Nc) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "The number of components %D does not divide the number of values in the closure %D", Nc, numVals);
@@ -335,9 +335,9 @@ static PetscErrorCode MeshView_Draw(DM dm, PetscViewer viewer){
 
 
   { // Mesh bounds (min for each dimension, max for each dimension)
-    PetscReal         bound[4] = {PETSC_MAX_REAL, PETSC_MAX_REAL, PETSC_MIN_REAL, PETSC_MIN_REAL};
-    PetscInt          size;
-    const PetscScalar *coords;
+    PetscReal       bound[4] = {PETSC_MAX_REAL, PETSC_MAX_REAL, PETSC_MIN_REAL, PETSC_MIN_REAL};
+    PetscInt        size;
+    const PetscReal *coords;
 
     ierr = VecGetLocalSize(coordinates, &size);   CHKERRQ(ierr);
     ierr = VecGetArrayRead(coordinates, &coords); CHKERRQ(ierr);
@@ -353,7 +353,7 @@ static PetscErrorCode MeshView_Draw(DM dm, PetscViewer viewer){
 
 
   for (PetscInt c = cStart; c < cEnd; c++) {
-    PetscScalar    *coords = NULL;
+    PetscReal      *coords = NULL;
     DMPolytopeType ct;
     ierr = DMPlexGetCellType(dm, c, &ct);                                        CHKERRQ(ierr);
     ierr = DMPlexVecGetClosure(dm, coordSection, coordinates, c, NULL, &coords); CHKERRQ(ierr);

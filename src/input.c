@@ -276,7 +276,7 @@ PetscErrorCode YAMLLoadVarArrayFromLoc(const char *filename, const char *varname
   ierr = PetscMalloc1(*len, var); CHKERRQ(ierr);
 
   node = root;
-  for (PetscInt i = 0; i < *len; i++){
+  for (PetscInt i = 0; i < *len; i++) {
     ierr = PetscStrallocpy((const char*) node->event.data.scalar.value, (char**) (*var) + i); CHKERRQ(ierr);
     node = node->next;
   }
@@ -424,7 +424,7 @@ PetscErrorCode YAMLLoadPetscOptions(const char *filename){
   ierr = PetscSNPrintf(ERR_HEADER, sizeof(ERR_HEADER), "Cannot read Options: ");    CHKERRQ(ierr);
   ierr = YAMLLoadVarArrayFromLoc(filename, "Options", 0, NULL, &len, &buffer_vals); CHKERRQ(ierr);
   ierr = PetscOptionsGetAll(NULL, &copts);                                          CHKERRQ(ierr);
-  for (PetscInt i = 0; i < len; i++){
+  for (PetscInt i = 0; i < len; i++) {
     ierr = PetscOptionsInsertString(NULL, buffer_vals[i]);                          CHKERRQ(ierr);
     ierr = PetscFree(buffer_vals[i]);                                               CHKERRQ(ierr);
   }
