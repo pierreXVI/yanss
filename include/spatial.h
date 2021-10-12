@@ -6,13 +6,27 @@
 
 /*
   A mesh is a `DMPlex` instance, with FV adjacency and a single `PetscFV` field
+
+  The mesh viewer is replaced when viewed from options: PetscObjectView uses MeshView but DMView is the same.
+  The global vector viewer is also replaced with VecView_Mesh.
+
+  The mesh contains three cell types:
+    - the "true" mesh cells, in [cStartCell, cStartOverlap[
+    - the overlapping cells in [cStartOverlap, cStartBoundary[, due to partitionning
+    - the boundary cells in [cStartBoundary, cEnd[
+  Be carefull with the PETSc ambiguation:
+  `DMPlexGetGhostCellStratum` corresponds to the boundary cells, and the "ghost" `DMLabel` to the partition cells.
 */
 
 typedef struct {
   PetscInt        n_perio; // Number of periodic BC
   struct PerioCtx *perio;  // Periodicity context
 
-  PetscInt n_cell;            // Number of "true" mesh cells
+  PetscInt cStartCell; // The first "true" cell
+  PetscInt cStartOverlap; // The first partition cell
+  PetscInt cStartBoundary; // The first boundary cell
+  PetscInt cEnd; // The upper bound on cells
+
   struct {
     IS          neighborhood; // List of neighbors
     PetscScalar *grad_coeff;  // Neighbor contributions to cell gradient
@@ -31,13 +45,18 @@ struct PerioCtx {
 PetscErrorCode MeshDestroy(DM*);
 
 /*
-  Setup the mesh.
+  Setup the mesh
   The output must be freed with `MeshDestroy`.
   The mesh can be viewed with the options:
    -mesh_view_orig - To view the raw mesh from the input file
    -mesh_view      - To view the mesh produced by this function
 */
 PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, const char*, DM*);
+
+/*
+  Get the bounds cStartCell, cStartOverlap, cStartBoundary and cEnd that describe the mesh cells.
+*/
+PetscErrorCode MeshGetCellStratum(DM, PetscInt*, PetscInt*, PetscInt*, PetscInt*);
 
 
 /*

@@ -1,4 +1,5 @@
 #include "view.h"
+#include "spatial.h"
 
 
 /*
@@ -8,23 +9,16 @@ static PetscErrorCode PetscDraw_Mesh_Cells(PetscDraw draw, DM dm){
   PetscErrorCode ierr;
   PetscInt       cStart, cEnd;
   DM             cdm;
-  DMLabel        ghostLabel;
   PetscSection   coordSection;
   Vec            coordinates;
 
   PetscFunctionBeginUser;
-  ierr = DMGetCoordinateDM(dm, &cdm);                  CHKERRQ(ierr);
-  ierr = DMGetLocalSection(cdm, &coordSection);        CHKERRQ(ierr);
-  ierr = DMGetCoordinatesLocal(dm, &coordinates);      CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(dm, 0, &cStart, NULL); CHKERRQ(ierr);
-  ierr = DMPlexGetGhostCellStratum(dm, &cEnd, NULL);   CHKERRQ(ierr);
-  ierr = DMGetLabel(dm, "ghost", &ghostLabel);         CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(dm, &cdm);                        CHKERRQ(ierr);
+  ierr = DMGetLocalSection(cdm, &coordSection);              CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(dm, &coordinates);            CHKERRQ(ierr);
+  ierr = MeshGetCellStratum(dm, &cStart, &cEnd, NULL, NULL); CHKERRQ(ierr);
 
   for (PetscInt c = cStart; c < cEnd; c++) {
-    PetscInt ghostVal;
-    ierr = DMLabelGetValue(ghostLabel, c, &ghostVal); CHKERRQ(ierr);
-    if (ghostVal > 0) continue;
-
     PetscScalar    *coords = NULL;
     DMPolytopeType ct;
     ierr = DMPlexGetCellType(dm, c, &ct);                                        CHKERRQ(ierr);
@@ -55,34 +49,27 @@ static PetscErrorCode PetscDraw_Mesh_Cells(PetscDraw draw, DM dm){
 */
 static PetscErrorCode PetscDraw_Mesh_Partition(PetscDraw draw, DM dm){
   PetscErrorCode ierr;
-  PetscInt       cStart, cEnd;
+  PetscInt       cStartOverlap, cEndOverlap;
   DM             cdm;
-  DMLabel        ghostLabel;
   PetscSection   coordSection;
   Vec            coordinates;
 
   PetscFunctionBeginUser;
-  ierr = DMGetCoordinateDM(dm, &cdm);                  CHKERRQ(ierr);
-  ierr = DMGetLocalSection(cdm, &coordSection);        CHKERRQ(ierr);
-  ierr = DMGetCoordinatesLocal(dm, &coordinates);      CHKERRQ(ierr);
-  ierr = DMPlexGetHeightStratum(dm, 0, &cStart, NULL); CHKERRQ(ierr);
-  ierr = DMPlexGetGhostCellStratum(dm, &cEnd, NULL);   CHKERRQ(ierr);
-  ierr = DMGetLabel(dm, "ghost", &ghostLabel);         CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(dm, &cdm);                                      CHKERRQ(ierr);
+  ierr = DMGetLocalSection(cdm, &coordSection);                            CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(dm, &coordinates);                          CHKERRQ(ierr);
+  ierr = MeshGetCellStratum(dm, NULL, &cStartOverlap, &cEndOverlap, NULL); CHKERRQ(ierr);
 
-  for (PetscInt c = cStart; c < cEnd; c++) {
-    PetscInt ghostVal;
-    ierr = DMLabelGetValue(ghostLabel, c, &ghostVal); CHKERRQ(ierr);
-    if (ghostVal == -1) continue;
-
+  for (PetscInt c = cStartOverlap; c < cEndOverlap; c++) {
     PetscInt cone_size;
     const PetscInt *cone;
 
     ierr = DMPlexGetConeSize(dm, c, &cone_size); CHKERRQ(ierr);
     ierr = DMPlexGetCone(dm, c, &cone);          CHKERRQ(ierr);
     for (PetscInt i = 0; i < cone_size; i++){
-      PetscInt ghostVal;
-      ierr = DMLabelGetValue(ghostLabel, cone[i], &ghostVal); CHKERRQ(ierr);
-      if (ghostVal > 0) continue;
+      PetscInt ghost;
+      ierr = DMGetLabelValue(dm, "ghost", cone[i], &ghost); CHKERRQ(ierr);
+      if (ghost > 0) continue;
 
       PetscScalar *coords = NULL;
       ierr = DMPlexVecGetClosure(dm, coordSection, coordinates, cone[i], NULL, &coords); CHKERRQ(ierr);
@@ -116,7 +103,6 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
   PetscSection      coordSection;
   PetscInt          cStart, cEnd, step;
   PetscReal         time;
-  DMLabel           ghostLabel;
   const PetscScalar *array;
   { // Reading data
     DM cdm;
@@ -124,10 +110,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     ierr = DMGetLocalSection(cdm, &coordSection);        CHKERRQ(ierr);
     ierr = DMGetCoordinatesLocal(dm, &coordinates);      CHKERRQ(ierr);
 
-    ierr = DMPlexGetHeightStratum(dm, 0, &cStart, NULL); CHKERRQ(ierr);
-    ierr = DMPlexGetGhostCellStratum(dm, &cEnd, NULL);   CHKERRQ(ierr);
-
-    ierr = DMGetLabel(dm, "ghost", &ghostLabel);         CHKERRQ(ierr);
+    ierr = MeshGetCellStratum(dm, &cStart, &cEnd, NULL, NULL); CHKERRQ(ierr);
 
     ierr = DMGetOutputSequenceNumber(dm, &step, &time);  CHKERRQ(ierr);
 
@@ -207,10 +190,6 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     ierr = PetscDrawSetCoordinates(draw, bound[0], bound[1], bound[2], bound[3]); CHKERRQ(ierr);
 
     for (PetscInt c = cStart; c < cEnd; c++) {
-      PetscInt ghostVal;
-      ierr = DMLabelGetValue(ghostLabel, c, &ghostVal); CHKERRQ(ierr);
-      if (ghostVal > 0) continue;
-
       PetscScalar    *coords = NULL, *a = NULL;
       PetscInt       color[4];
       DMPolytopeType ct;
@@ -335,22 +314,17 @@ static PetscErrorCode MeshView_Draw(DM dm, PetscViewer viewer){
     if (dim != 2) SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Cannot draw meshes of dimension %D.", dim);
   }
 
-  Vec               coordinates;
-  PetscSection      coordSection;
-  PetscInt          cStart, cEnd;
-  DMLabel           ghostLabel;
-  PetscMPIInt       rank;
+  Vec          coordinates;
+  PetscSection coordSection;
+  PetscInt     cStart, cEnd;
+  PetscMPIInt  rank;
 
   { // Reading data
     DM cdm;
-    ierr = DMGetCoordinateDM(dm, &cdm);                             CHKERRQ(ierr);
-    ierr = DMGetLocalSection(cdm, &coordSection);                   CHKERRQ(ierr);
-    ierr = DMGetCoordinatesLocal(dm, &coordinates);                 CHKERRQ(ierr);
-
-    ierr = DMPlexGetHeightStratum(dm, 0, &cStart, NULL);            CHKERRQ(ierr);
-    ierr = DMPlexGetGhostCellStratum(dm, &cEnd, NULL);              CHKERRQ(ierr);
-
-    ierr = DMGetLabel(dm, "ghost", &ghostLabel);                    CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(dm, &cdm);                        CHKERRQ(ierr);
+    ierr = DMGetLocalSection(cdm, &coordSection);              CHKERRQ(ierr);
+    ierr = DMGetCoordinatesLocal(dm, &coordinates);            CHKERRQ(ierr);
+    ierr = MeshGetCellStratum(dm, &cStart, &cEnd, NULL, NULL); CHKERRQ(ierr);
 
     const char *name;
     ierr = PetscObjectGetName((PetscObject) dm, &name);             CHKERRQ(ierr);
@@ -379,10 +353,6 @@ static PetscErrorCode MeshView_Draw(DM dm, PetscViewer viewer){
 
 
   for (PetscInt c = cStart; c < cEnd; c++) {
-    PetscInt ghostVal;
-    ierr = DMLabelGetValue(ghostLabel, c, &ghostVal); CHKERRQ(ierr);
-    if (ghostVal > 0) continue;
-
     PetscScalar    *coords = NULL;
     DMPolytopeType ct;
     ierr = DMPlexGetCellType(dm, c, &ct);                                        CHKERRQ(ierr);
