@@ -525,17 +525,13 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
     ConservativeToPrimitive(phys, uR, wR);
   }
 
-  PetscReal unL, unR, utL[dim], utR[dim];
-  { // Normal and tangent speeds
+  PetscReal unL, unR;
+  { // Normal speeds
     unL = 0;
     unR = 0;
     for (PetscInt i = 0; i < dim; i++) {
       unL += wL[1 + i] * nn[i];
       unR += wR[1 + i] * nn[i];
-    }
-    for (PetscInt i = 0; i < dim; i++) {
-      utL[i] = wL[1 + i] - unL * nn[i];
-      utR[i] = wR[1 + i] - unR * nn[i];
     }
   }
 
@@ -545,55 +541,39 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
     aR = PetscSqrtReal(phys->gamma * wR[dim + 1] / wR[0]);
   }
 
-  PetscReal rROE, uROE, utROE[dim], hROE, aROE, unorm2ROE;
+  PetscReal rROE, unROE, uROE[dim], hROE, aROE;
   { // Roe averages
-    PetscReal ratioLR = PetscSqrtReal(wL[0] * wR[0]);
+    PetscReal ratioLR = PetscSqrtReal(wL[0] / wR[0]);
 
-    rROE = PetscSqrtReal(wL[0] * wR[0]);
-    uROE = (ratioLR * unL + unR) / (ratioLR + 1);
-    for (PetscInt i = 0; i < dim; i++) utROE[i] = (ratioLR * utL[i] + utR[i]) / (ratioLR + 1);
+    rROE = ratioLR * wR[0];
+    unROE = (ratioLR * unL + unR) / (ratioLR + 1);
+    for (PetscInt i = 0; i < dim; i++) uROE[i] = (ratioLR * uL[i] + uR[i]) / (ratioLR + 1);
 
-    unorm2ROE = 0;
-    for (PetscInt i = 0; i < dim; i++) unorm2ROE += PetscSqr(uROE * nn[i] + utROE[i]);
+    PetscReal unorm2ROE = 0;
+    for (PetscInt i = 0; i < dim; i++) unorm2ROE += PetscSqr(uROE[i]);
 
-    hROE = (uL[dim + 1] + wL[dim + 1] + ratioLR * (uR[dim + 1] + wR[dim + 1])) / (wL[0] + ratioLR);
-    aROE = PetscSqrtReal((phys->gamma - 1) * (hROE - unorm2ROE/ 2));
+    hROE = (ratioLR * (uL[dim + 1] + wL[dim + 1]) / wL[0] + (uR[dim + 1] + wR[dim + 1]) / wR[0]) / (ratioLR + 1);
+    aROE = PetscSqrtReal((phys->gamma - 1) * (hROE - unorm2ROE / 2));
   }
 
-  PetscReal lambda_p, lambda_m, lambda_u;
-  { // Eigenvalues
-    lambda_p = uROE + aROE;
-    lambda_u = uROE;
-    lambda_m = uROE - aROE;
+  if (unROE > 0) { // Left of the contact wave
+    PetscReal lambda = unROE - aROE;
+    phys->riemann_ctx.entropy_fix(&lambda, unL - aL, unR - aR);
+    PetscReal alpha_lambda = PetscMin(lambda, 0) * (wR[dim + 1] - wL[dim + 1] - rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
+
+    flux[0] = wL[0] * unL + alpha_lambda;
+    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = uL[1 + i] * unL + wL[dim + 1] * nn[i] + alpha_lambda * (uROE[i] - aROE * nn[i]);
+    flux[dim + 1] = (uL[dim + 1] + wL[dim + 1]) * unL + alpha_lambda * (hROE - aROE * unROE);
+  } else { // Right of the contact wave
+    PetscReal lambda = unROE + aROE;
+    phys->riemann_ctx.entropy_fix(&lambda, unL + aL, unR + aR);
+    PetscReal alpha_lambda = PetscMax(lambda, 0) * (wR[dim + 1] - wL[dim + 1] + rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
+
+    flux[0] = wR[0] * unR - alpha_lambda;
+    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = uR[1 + i] * unR + wR[dim + 1] * nn[i] - alpha_lambda * (uROE[i] + aROE * nn[i]);
+    flux[dim + 1] = (uR[dim + 1] + wR[dim + 1]) * unR - alpha_lambda * (hROE + aROE * unROE);
   }
-
-  { // Entropy fix
-    phys->riemann_ctx.entropy_fix(&lambda_p, unL + aL, unR + aR);
-    phys->riemann_ctx.entropy_fix(&lambda_u, unL, unR);
-    phys->riemann_ctx.entropy_fix(&lambda_m, unL - aL, unR - aR);
-  }
-
-  PetscReal coeff_p, coeff_m, coeff_u;
-  { // Wave strengths * |eigenvalue|
-    coeff_p = PetscAbs(lambda_p) * (wR[dim + 1] - wL[dim + 1] + rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
-    coeff_u = PetscAbs(lambda_u) * (wR[0] - wL[0] - (wR[dim + 1] - wL[dim + 1]) / PetscSqr(aROE));
-    coeff_m = PetscAbs(lambda_m) * (wR[dim + 1] - wL[dim + 1] - rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
-  }
-
-  { // Evaluating flux
-    flux[0] = wL[0] * unL + wR[0] * unR;
-    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = uL[1 + i] * unL + uR[1 + i] * unR + (wL[dim + 1] + wR[dim + 1]) * nn[i];
-    flux[dim + 1] = (uL[dim + 1] + wL[dim + 1]) * unL + (uR[dim + 1] + wR[dim + 1]) * unR;
-
-    PetscReal coeff_rE = 0;
-    for (PetscInt i = 0; i < dim; i++) coeff_rE = utROE[i] * (wR[1 + i] - wL[1 + i] - (unR - unL) * nn[i]);
-
-    flux[0] -= coeff_p + coeff_u + coeff_m;
-    for (PetscInt i = 0; i < dim; i++) flux[1 + i] -= (coeff_p + coeff_m) * (uROE * n[i] + utROE[i]) + rROE * PetscAbs(uROE) * (utR[i] - utL[i]) + (coeff_p - coeff_m) * aROE * nn[i];
-    flux[dim + 1] -= coeff_m * (hROE - uROE * aROE) + coeff_u * unorm2ROE / 2 + coeff_p * (hROE + uROE * aROE) + rROE * PetscAbs(uROE) * coeff_rE;
-
-    for (PetscInt i = 0; i < Nc; i++) flux[i] *= area / 2;
-  }
+  for (PetscInt i = 0; i < Nc; i++) flux[i] *= area;
 
   PetscFunctionReturnVoid();
 }
