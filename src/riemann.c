@@ -227,7 +227,7 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
         } else { // In the rarefaction fan
           un = aL / (alpha * phys->gamma) + delta * unL;
           p = wL[dim + 1] * PetscPowReal(un / aL, 1 / beta);
-          rho = wL[0] * PetscPowReal(un / aL, 1 / phys->gamma);
+          rho = wL[0] * PetscPowReal(un / aL, phys->gamma / beta);
         }
       }
     } else { // Right side of the contact
@@ -256,8 +256,8 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
           rho = rstarR;
         } else { // In the rarefaction fan
           un = -aR / (alpha * phys->gamma) + delta * unR;
-          p = wR[dim + 1] * PetscPowReal(un / aR, 1 / beta);
-          rho = wR[0] * PetscPowReal(un / aR, 1 / phys->gamma);
+          p = wR[dim + 1] * PetscPowReal(-un / aR, 1 / beta);
+          rho = wR[0] * PetscPowReal(-un / aR, phys->gamma / beta);
         }
       }
     }
@@ -435,7 +435,7 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
         } else { // In the rarefaction fan
           un = aL / ((1 - beta) * phys->gamma) + delta * unL;
           p = wL[dim + 1] * PetscPowReal(un / aL, 1 / beta);
-          rho = wL[0] * PetscPowReal(un / aL, 1 / phys->gamma);
+          rho = wL[0] * PetscPowReal(un / aL, phys->gamma / beta);
         }
       }
     } else { // Right side of the contact
@@ -463,8 +463,8 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
           rho = rstarR;
         } else { // In the rarefaction fan
           un = -aR / ((1 - beta) * phys->gamma) + delta * unR;
-          p = wR[dim + 1] * PetscPowReal(un / aR, 1 / beta);
-          rho = wR[0] * PetscPowReal(un / aR, 1 / phys->gamma);
+          p = wR[dim + 1] * PetscPowReal(-un / aR, 1 / beta);
+          rho = wR[0] * PetscPowReal(-un / aR, phys->gamma / beta);
         }
       }
     }
