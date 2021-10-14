@@ -286,8 +286,8 @@ static void RiemannSolver_LaxFriedrichs(PetscInt dim, PetscInt Nc,
   SETERRABORT(PETSC_COMM_WORLD, PETSC_ERR_MAX_VALUE, "LaxFriedrichs Riemann solver not implemented yet");
 
   PetscReal uL[Nc], uR[Nc];
-  PrimitiveToConservative(phys, wL, uL);
-  PrimitiveToConservative(phys, wR, uR);
+  PrimitiveToConservative(wL, uL, phys);
+  PrimitiveToConservative(wR, uR, phys);
 
   PetscReal coeff = 0;
   // PetscReal coeff = c / (2 * phys->cfl);

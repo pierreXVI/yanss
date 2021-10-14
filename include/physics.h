@@ -23,8 +23,8 @@ PetscErrorCode InitialCondition(PetscInt, PetscReal, const PetscReal*, PetscInt,
   Convert the variable between primitive and conservative.
   May be used in place, with `in == out`
 */
-void PrimitiveToConservative(Physics, const PetscReal*, PetscReal*);
-void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
+void PrimitiveToConservative(const PetscReal*, PetscReal*, Physics);
+void ConservativeToPrimitive(const PetscReal*, PetscReal*, Physics);
 
 
 /*

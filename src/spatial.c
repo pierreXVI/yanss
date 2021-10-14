@@ -597,7 +597,7 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
     for (PetscInt c = cStart; c < cEnd; c++) {
       PetscReal *valX;
       ierr = DMPlexPointLocalFieldRef(dm, c, 0, locX_array, &valX); CHKERRQ(ierr);
-      ConservativeToPrimitive(ctx, valX, valX);
+      ConservativeToPrimitive(valX, valX, ctx);
     }
   }
 
@@ -661,7 +661,7 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
     for (PetscInt c = cStart; c < cEndCell; c++) {
       PetscReal *valX;
       ierr = DMPlexPointLocalFieldRef(dm, c, 0, locX_array, &valX); CHKERRQ(ierr);
-      PrimitiveToConservative(ctx, valX, valX);
+      PrimitiveToConservative(valX, valX, ctx);
     }
   }
 
