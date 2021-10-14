@@ -5,7 +5,7 @@
   Takes a single componant vector, casts it to the first component of a mesh based vector, and views it
 */
 #include "spatial.h"
-PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
+static PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer, const char *name){
   PetscErrorCode  ierr;
   Vec             v_dm;
   const PetscReal *v_data;
@@ -13,7 +13,10 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
   PetscInt        n1, n2, Nc;
   PetscBool       flg;
   char            val[64];
-  const char      *name;
+  PetscFV         fvm;
+
+  char       *compNameSave;
+  const char *compName;
 
   PetscFunctionBeginUser;
   ierr = PetscOptionsGetString(NULL, NULL, "-draw_comp", val, sizeof(val), &flg); CHKERRQ(ierr);
@@ -29,11 +32,16 @@ PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer){
   ierr = VecRestoreArray(v_dm, &v_dm_data); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(v, &v_data);   CHKERRQ(ierr);
 
-  ierr = PetscObjectGetName((PetscObject) v, &name);   CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) v_dm, name); CHKERRQ(ierr);
+  ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
+  ierr = PetscFVGetComponentName(fvm, 0, &compName);   CHKERRQ(ierr);
+  ierr = PetscStrallocpy(compName, &compNameSave);     CHKERRQ(ierr);
+  ierr = PetscFVSetComponentName(fvm, 0, name);        CHKERRQ(ierr);
 
   ierr = VecView(v_dm, viewer); CHKERRQ(ierr);
   ierr = VecDestroy(&v_dm);     CHKERRQ(ierr);
+
+  ierr = PetscFVSetComponentName(fvm, 0, compNameSave); CHKERRQ(ierr);
+  ierr = PetscFree(compNameSave);                       CHKERRQ(ierr);
 
   if (flg) {
     ierr = PetscOptionsSetValue(NULL, "-draw_comp", val); CHKERRQ(ierr);
@@ -125,7 +133,7 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
 
   ierr = VecGetDM(u, &dm);                                    CHKERRQ(ierr);
   ierr = VecApplyFunctionComponents(u, &y, mach, mctx->phys); CHKERRQ(ierr);
-  ierr = DrawVecOnDM(y, dm, mctx->viewer);                    CHKERRQ(ierr);
+  ierr = DrawVecOnDM(y, dm, mctx->viewer, "|| u ||");         CHKERRQ(ierr);
   ierr = VecDestroy(&y);                                      CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
