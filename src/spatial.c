@@ -181,7 +181,7 @@ PetscErrorCode VecDestroyComponentVectors(Vec x, Vec **comps){
 
 
 PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
-                                          PetscErrorCode (*func)(PetscInt, const PetscReal*, PetscReal*, void*),
+                                          void (*func)(const PetscReal*, PetscReal*, void*),
                                           void *ctx){
   PetscErrorCode ierr;
   PetscInt       Nc, start, end, size;
@@ -203,10 +203,10 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
   PetscReal       *val_y;
   PetscInt        *ix;
 
-  ierr = PetscMalloc2(size, &val_y, size, &ix);      CHKERRQ(ierr);
-  ierr = VecGetArrayRead(x, &val_x);                 CHKERRQ(ierr);
+  ierr = PetscMalloc2(size, &val_y, size, &ix);  CHKERRQ(ierr);
+  ierr = VecGetArrayRead(x, &val_x);             CHKERRQ(ierr);
   for (PetscInt i = 0; i < size; i++) {
-    ierr = func(Nc, &val_x[Nc * i], &val_y[i], ctx); CHKERRQ(ierr);
+    func(&val_x[Nc * i], &val_y[i], ctx);
     ix[i] = i + start / Nc;
   }
   ierr = VecRestoreArrayRead(x, &val_x);                   CHKERRQ(ierr);
@@ -783,7 +783,6 @@ PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX, Vec locGrad){
     ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad); CHKERRQ(ierr);
     ierr = DMGetApplicationContext(dm, &ctx);              CHKERRQ(ierr);
   }
-
 
   PetscReal *locX_array, *locGrad_array, *valX, *valGrad, val[Nc * (dim + 1)];
   ierr = VecGetArray(locX, &locX_array);                     CHKERRQ(ierr);

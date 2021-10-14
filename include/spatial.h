@@ -98,7 +98,7 @@ PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
     ctx          - Optional context
   ```
 */
-PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, PetscErrorCode(PetscInt, const PetscReal*, PetscReal*, void*), void*);
+PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, void(const PetscReal*, PetscReal*, void*), void*);
 
 
 /*

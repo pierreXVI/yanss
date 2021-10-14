@@ -31,8 +31,8 @@ void ConservativeToPrimitive(Physics, const PetscReal*, PetscReal*);
   Compute physical value from components
   ctx is to be cast to (Physics)
 */
-PetscErrorCode normU(PetscInt, const PetscReal*, PetscReal*, void*);
-PetscErrorCode mach (PetscInt, const PetscReal*, PetscReal*, void*);
+void normU(const PetscReal*, PetscReal*, void*);
+void mach (const PetscReal*, PetscReal*, void*);
 
 
 /*

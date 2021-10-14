@@ -106,15 +106,12 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
   const PetscReal *array;
   { // Reading data
     DM cdm;
-    ierr = DMGetCoordinateDM(dm, &cdm);                  CHKERRQ(ierr);
-    ierr = DMGetLocalSection(cdm, &coordSection);        CHKERRQ(ierr);
-    ierr = DMGetCoordinatesLocal(dm, &coordinates);      CHKERRQ(ierr);
-
+    ierr = DMGetCoordinateDM(dm, &cdm);                        CHKERRQ(ierr);
+    ierr = DMGetLocalSection(cdm, &coordSection);              CHKERRQ(ierr);
+    ierr = DMGetCoordinatesLocal(dm, &coordinates);            CHKERRQ(ierr);
     ierr = MeshGetCellStratum(dm, &cStart, &cEnd, NULL, NULL); CHKERRQ(ierr);
-
-    ierr = DMGetOutputSequenceNumber(dm, &step, &time);  CHKERRQ(ierr);
-
-    ierr = VecGetArrayRead(v, &array); CHKERRQ(ierr);
+    ierr = DMGetOutputSequenceNumber(dm, &step, &time);        CHKERRQ(ierr);
+    ierr = VecGetArrayRead(v, &array);                         CHKERRQ(ierr);
   }
 
   PetscReal bound[4] = {PETSC_MAX_REAL, PETSC_MAX_REAL, PETSC_MIN_REAL, PETSC_MIN_REAL};
@@ -421,6 +418,6 @@ static PetscErrorCode MeshView(DM dm, PetscViewer viewer){
 
 PetscErrorCode MeshSetViewer(DM dm){
   PetscFunctionBeginUser;
-  ((PetscObject) dm)->bops->view =  (PetscErrorCode (*)(PetscObject, PetscViewer)) MeshView;
+  ((PetscObject) dm)->bops->view =  (PetscObjectViewFunction) MeshView;
   PetscFunctionReturn(0);
 }
