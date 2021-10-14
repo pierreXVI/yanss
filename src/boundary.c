@@ -17,16 +17,12 @@ static PetscErrorCode BCOutflow_P(PetscReal time, const PetscReal c[], const Pet
   for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) area += PetscSqr(n[i]);
   area = PetscSqrtReal(area);
 
-  PetscReal wI[bc_ctx->phys->dof];
-  ConservativeToPrimitive(bc_ctx->phys, xI, wI);
-  PetscReal ci = PetscSqrtReal(bc_ctx->phys->gamma * wI[bc_ctx->phys->dim + 1] / wI[0]);
-  PetscReal alpha = bc_ctx->val[0] / wI[bc_ctx->phys->dim + 1] - 1; // p / pi - 1
+  PetscReal ci = PetscSqrtReal(bc_ctx->phys->gamma * xI[bc_ctx->phys->dim + 1] / xI[0]);
+  PetscReal alpha = bc_ctx->val[0] / xI[bc_ctx->phys->dim + 1] - 1; // p / pi - 1
 
-  PetscReal wG[bc_ctx->phys->dof];
-  wG[0] = (1 + alpha / bc_ctx->phys->gamma) * wI[0];
-  for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) wG[1 + i] = wI[1 + i] - (alpha / bc_ctx->phys->gamma) * ci * n[i] / area; // u <- u - (alpha/gamma)*c n
-  wG[bc_ctx->phys->dim + 1] = bc_ctx->val[0];
-  PrimitiveToConservative(bc_ctx->phys, wG, xG);
+  xG[0] = (1 + alpha / bc_ctx->phys->gamma) * xI[0];
+  for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) xG[1 + i] = xI[1 + i] - (alpha / bc_ctx->phys->gamma) * ci * n[i] / area; // u <- u - (alpha/gamma)*c n
+  xG[bc_ctx->phys->dim + 1] = bc_ctx->val[0];
 
   PetscFunctionReturn(0);
 }

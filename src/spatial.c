@@ -581,14 +581,25 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
   ierr = DMGetLocalVector(dm, &locF); CHKERRQ(ierr);
   ierr = VecZeroEntries(locF);        CHKERRQ(ierr);
 
-  PetscInt fStart, fEnd, cEndCell;
-  ierr = DMPlexGetHeightStratum(dm, 1, &fStart, &fEnd);       CHKERRQ(ierr);
-  ierr = MeshGetCellStratum(dm, NULL, &cEndCell, NULL, NULL); CHKERRQ(ierr);
+  PetscFV   fvm;
+  PetscInt  fStart, fEnd, cStart, cEndCell, cEnd, Nc;
+  PetscReal *locX_array;
+  { // Getting mesh data
+    ierr = DMPlexGetHeightStratum(dm, 1, &fStart, &fEnd);           CHKERRQ(ierr);
+    ierr = MeshGetCellStratum(dm, &cStart, &cEndCell, &cEnd, NULL); CHKERRQ(ierr);
+    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);            CHKERRQ(ierr);
+    ierr = PetscFVGetNumComponents(fvm, &Nc);                       CHKERRQ(ierr);
+    ierr = VecGetArray(locX, &locX_array);                          CHKERRQ(ierr);
+  }
 
-  PetscInt Nc;
-  PetscFV  fvm;
-  ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm); CHKERRQ(ierr);
-  ierr = PetscFVGetNumComponents(fvm, &Nc);            CHKERRQ(ierr);
+  { // Convertion conservative to primitive
+    // For each "true" cell and each overlapping cell (the MPI exchanges are done before, on conservative variables)
+    for (PetscInt c = cStart; c < cEnd; c++) {
+      PetscReal *valX;
+      ierr = DMPlexPointLocalFieldRef(dm, c, 0, locX_array, &valX); CHKERRQ(ierr);
+      ConservativeToPrimitive(ctx, valX, valX);
+    }
+  }
 
   DM  dmGrad;
   Vec locGrad, cellgeom, facegeom;
@@ -645,7 +656,17 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
     ierr = VecRestoreArray(locF, &fa); CHKERRQ(ierr);
   }
 
+  { // Convertion primitive to conservative
+    // For each "true" cell and each overlapping cell (the MPI exchanges are done before, on conservative variables)
+    for (PetscInt c = cStart; c < cEndCell; c++) {
+      PetscReal *valX;
+      ierr = DMPlexPointLocalFieldRef(dm, c, 0, locX_array, &valX); CHKERRQ(ierr);
+      PrimitiveToConservative(ctx, valX, valX);
+    }
+  }
+
   { // Cleanup
+    ierr = VecRestoreArray(locX, &locX_array);                                                                 CHKERRQ(ierr);
     ierr = DMPlexRestoreFaceFields(dm, fStart, fEnd, locX, NULL, facegeom, cellgeom, locGrad, NULL, &uL, &uR); CHKERRQ(ierr);
     ierr = DMPlexRestoreFaceGeometry(dm, fStart, fEnd, facegeom, cellgeom, NULL, &fgeom, &vol);                CHKERRQ(ierr);
     ierr = DMRestoreWorkArray(dm, 0, MPIU_REAL, &fluxL);                                                       CHKERRQ(ierr);
@@ -666,7 +687,7 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
 
   PetscFunctionBeginUser;
 
-  ierr = DMTSSetRHSFunctionLocal(dm, MeshComputeRHSFunctionFVM, NULL); CHKERRQ(ierr);
+  ierr = DMTSSetRHSFunctionLocal(dm, MeshComputeRHSFunctionFVM, phys); CHKERRQ(ierr);
 
   PetscFV fvm;
   { // Setting PetscFV
@@ -744,10 +765,6 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
       phys->bc_ctx[i].phys = phys;
       ierr = YAMLLoadBC(filename, indices[i], phys->dim, phys->bc_ctx + i); CHKERRQ(ierr);
       ierr = PetscFunctionListFind(bcList, phys->bc_ctx[i].type, &bcFunc);  CHKERRQ(ierr);
-
-      if (!strcmp(phys->bc_ctx[i].type, "BC_DIRICHLET")) {
-        PrimitiveToConservative(phys, phys->bc_ctx[i].val, phys->bc_ctx[i].val);
-      }
 
       if (!bcFunc) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", phys->bc_ctx[i].type);
       ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, phys->bc_ctx[i].name, label, 1, indices + i, 0, 0, NULL,

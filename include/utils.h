@@ -18,7 +18,7 @@ union RiemannCtx{
   }; // RiemannSolver_AdvectionX
 
   struct {
-    void (*pressure_solver)(PetscInt, void*, PetscReal*, PetscReal*,                            // Dimension, physical context, primitive states
+    void (*pressure_solver)(PetscInt, void*, const PetscReal*, const PetscReal*,                // Dimension, physical context, primitive states
                             PetscReal, PetscReal, PetscReal*, PetscReal*, PetscReal, PetscReal, // Normal and tangential speeds, sound speeds
                             PetscReal*, PetscReal*);                                            // Output: intermediate pressure and speed
     PetscReal pressure_solver_eps;   // Epsilon on the pressure solver, triggers linearisation of the rarefaction formula

@@ -24,15 +24,15 @@
   Constant advection at speed 1 in the first direction, for debugging purposes
 */
 static void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
-                              const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                              const PetscReal x[], const PetscReal n[], const PetscReal wL[], const PetscReal wR[],
                               PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
 
   const PetscReal un = phys->riemann_ctx.advection_speed * n[0];
-  const PetscReal *u0 = (un < 0) ? uR : uL;
-  for (PetscInt i = 0; i < Nc; i++) flux[i] = u0[i] * un;
+  const PetscReal *w0 = (un < 0) ? wR : wL;
+  for (PetscInt i = 0; i < Nc; i++) flux[i] = w0[i] * un;
   PetscFunctionReturnVoid();
 }
 
@@ -40,7 +40,7 @@ static void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
 /*
   From "I do like CFD", Katate Masatsuka
 */
-static void RiemannSolver_Exact_PressureSolver_FP(PetscInt dim, Physics phys, PetscReal *wL, PetscReal *wR,
+static void RiemannSolver_Exact_PressureSolver_FP(PetscInt dim, Physics phys, const PetscReal *wL, const PetscReal *wR,
                                      PetscReal unL, PetscReal unR, PetscReal *utL, PetscReal *utR, PetscReal aL, PetscReal aR,
                                      PetscReal *pstar, PetscReal *ustar){
   PetscFunctionBeginUser;
@@ -91,7 +91,7 @@ static void RiemannSolver_Exact_PressureSolver_FP(PetscInt dim, Physics phys, Pe
 /*
   From "Riemann Solvers and Numerical Methods for Fluid Dynamics", Euleterio F. Toro
 */
-static void RiemannSolver_Exact_PressureSolver_Newton(PetscInt dim, Physics phys, PetscReal *wL, PetscReal *wR,
+static void RiemannSolver_Exact_PressureSolver_Newton(PetscInt dim, Physics phys, const PetscReal *wL, const PetscReal *wR,
                                                PetscReal unL, PetscReal unR, PetscReal *utL, PetscReal *utR, PetscReal aL, PetscReal aR,
                                                PetscReal *pstar, PetscReal *ustar){
   PetscFunctionBeginUser;
@@ -149,7 +149,7 @@ static void RiemannSolver_Exact_PressureSolver_Newton(PetscInt dim, Physics phys
   Exact Riemann solver
 */
 static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
-                                const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                                const PetscReal x[], const PetscReal n[], const PetscReal wL[], const PetscReal wR[],
                                 PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
@@ -165,12 +165,6 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
     for (PetscInt i = 0; i < dim; i++) area += PetscSqr(n[i]);
     area = PetscSqrtReal(area);
     for (PetscInt i = 0; i < dim; i++) nn[i] = n[i] / area;
-  }
-
-  PetscReal wL[Nc], wR[Nc];
-  { // Primitive variables (rho, u_1, ..., u_dim, p)
-    ConservativeToPrimitive(phys, uL, wL);
-    ConservativeToPrimitive(phys, uR, wR);
   }
 
   PetscReal unL, unR, utL[dim], utR[dim];
@@ -284,16 +278,16 @@ static void RiemannSolver_Exact(PetscInt dim, PetscInt Nc,
 
 */
 static void RiemannSolver_LaxFriedrichs(PetscInt dim, PetscInt Nc,
-                                        const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                                        const PetscReal x[], const PetscReal n[], const PetscReal wL[], const PetscReal wR[],
                                         PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
   PetscFunctionBeginUser;
   SETERRABORT(PETSC_COMM_WORLD, PETSC_ERR_MAX_VALUE, "LaxFriedrichs Riemann solver not implemented yet");
 
-  PetscReal wL[Nc], wR[Nc];
-  ConservativeToPrimitive(phys, uL, wL);
-  ConservativeToPrimitive(phys, uR, wR);
+  PetscReal uL[Nc], uR[Nc];
+  PrimitiveToConservative(phys, wL, uL);
+  PrimitiveToConservative(phys, wR, uR);
 
   PetscReal coeff = 0;
   // PetscReal coeff = c / (2 * phys->cfl);
@@ -304,7 +298,7 @@ static void RiemannSolver_LaxFriedrichs(PetscInt dim, PetscInt Nc,
     dotr += wR[1 + i] * n[i];
   }
 
-  flux[0] = (uL[0] * dotl + uR[0] * dotr) / 2 - coeff * (uR[0] - uL[0]);
+  flux[0] = (wL[0] * dotl + wR[0] * dotr) / 2 - coeff * (wR[0] - wL[0]);
   for (PetscInt i = 0; i < dim; i++) flux[1 + i] = (uL[1 + i] * dotl + uR[1 + i] * dotr + (wL[dim + 1] + wR[dim + 1]) * n[i]) / 2 - coeff * (uR[1 + i] - uL[1 + i]);
   flux[dim + 1] = ((uL[dim + 1] + wL[dim + 1]) * dotl + (uR[dim + 1] + wR[dim + 1]) * dotr) / 2 - coeff * (uR[dim + 1] - uL[dim + 1]);
 
@@ -316,7 +310,7 @@ static void RiemannSolver_LaxFriedrichs(PetscInt dim, PetscInt Nc,
   Adaptive Noniterative Riemann Solver (Toro, "Riemann Solvers and Numerical Methods for Fluid Dynamics")
 */
 static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
-                               const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                               const PetscReal x[], const PetscReal n[], const PetscReal wL[], const PetscReal wR[],
                                PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
@@ -331,12 +325,6 @@ static void RiemannSolver_ANRS(PetscInt dim, PetscInt Nc,
     for (PetscInt i = 0; i < dim; i++) area += PetscSqr(n[i]);
     area = PetscSqrtReal(area);
     for (PetscInt i = 0; i < dim; i++) nn[i] = n[i] / area;
-  }
-
-  PetscReal wL[Nc], wR[Nc];
-  { // Primitive variables (rho, u_1, ..., u_dim, p)
-    ConservativeToPrimitive(phys, uL, wL);
-    ConservativeToPrimitive(phys, uR, wR);
   }
 
   PetscReal unL, unR, utL[dim], utR[dim];
@@ -505,7 +493,7 @@ static void RiemannSolver_RoePike_EntropyFix_HH2(PetscReal *a_k, PetscReal a_kL,
   For details see Toro, "Riemann Solvers and Numerical Methods for Fluid Dynamics"
 */
 static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
-                               const PetscReal x[], const PetscReal n[], const PetscReal uL[], const PetscReal uR[],
+                               const PetscReal x[], const PetscReal n[], const PetscReal wL[], const PetscReal wR[],
                                PetscInt numConstants, const PetscReal constants[], PetscReal flux[], void *ctx){
   Physics phys = (Physics) ctx;
 
@@ -517,12 +505,6 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
     for (PetscInt i = 0; i < dim; i++) area += PetscSqr(n[i]);
     area = PetscSqrtReal(area);
     for (PetscInt i = 0; i < dim; i++) nn[i] = n[i] / area;
-  }
-
-  PetscReal wL[Nc], wR[Nc];
-  { // Primitive variables (rho, u_1, ..., u_dim, p)
-    ConservativeToPrimitive(phys, uL, wL);
-    ConservativeToPrimitive(phys, uR, wR);
   }
 
   PetscReal unL, unR;
@@ -541,18 +523,31 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
     aR = PetscSqrtReal(phys->gamma * wR[dim + 1] / wR[0]);
   }
 
+  PetscReal hL, hR;
+  { // Enthalpies
+    hL = 0;
+    hR = 0;
+    for (PetscInt i = 0; i < dim; i++) {
+      hL += PetscSqr(wL[1 + i]);
+      hR += PetscSqr(wR[1 + i]);
+    }
+    PetscReal coeff = phys->gamma / (phys->gamma - 1);
+    hL = hL / 2 + coeff * (wL[dim + 1] / wL[0]);
+    hR = hR / 2 + coeff * (wR[dim + 1] / wR[0]);
+  }
+
   PetscReal rROE, unROE, uROE[dim], hROE, aROE;
   { // Roe averages
     PetscReal ratioLR = PetscSqrtReal(wL[0] / wR[0]);
 
     rROE = ratioLR * wR[0];
     unROE = (ratioLR * unL + unR) / (ratioLR + 1);
-    for (PetscInt i = 0; i < dim; i++) uROE[i] = (ratioLR * uL[i] + uR[i]) / (ratioLR + 1);
+    for (PetscInt i = 0; i < dim; i++) uROE[i] = (ratioLR * wL[1 + i] + wR[1 + i]) / (ratioLR + 1);
 
     PetscReal unorm2ROE = 0;
     for (PetscInt i = 0; i < dim; i++) unorm2ROE += PetscSqr(uROE[i]);
 
-    hROE = (ratioLR * (uL[dim + 1] + wL[dim + 1]) / wL[0] + (uR[dim + 1] + wR[dim + 1]) / wR[0]) / (ratioLR + 1);
+    hROE = (ratioLR * hL + hR) / (ratioLR + 1);
     aROE = PetscSqrtReal((phys->gamma - 1) * (hROE - unorm2ROE / 2));
   }
 
@@ -562,16 +557,16 @@ static void RiemannSolver_RoePike(PetscInt dim, PetscInt Nc,
     PetscReal alpha_lambda = PetscMin(lambda, 0) * (wR[dim + 1] - wL[dim + 1] - rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
 
     flux[0] = wL[0] * unL + alpha_lambda;
-    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = uL[1 + i] * unL + wL[dim + 1] * nn[i] + alpha_lambda * (uROE[i] - aROE * nn[i]);
-    flux[dim + 1] = (uL[dim + 1] + wL[dim + 1]) * unL + alpha_lambda * (hROE - aROE * unROE);
+    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = wL[0] * wL[1 + i] * unL + wL[dim + 1] * nn[i] + alpha_lambda * (uROE[i] - aROE * nn[i]);
+    flux[dim + 1] = wL[0] * hL * unL + alpha_lambda * (hROE - aROE * unROE);
   } else { // Right of the contact wave
     PetscReal lambda = unROE + aROE;
     phys->riemann_ctx.entropy_fix(&lambda, unL + aL, unR + aR);
     PetscReal alpha_lambda = PetscMax(lambda, 0) * (wR[dim + 1] - wL[dim + 1] + rROE * aROE * (unR - unL)) / (2 * PetscSqr(aROE));
 
     flux[0] = wR[0] * unR - alpha_lambda;
-    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = uR[1 + i] * unR + wR[dim + 1] * nn[i] - alpha_lambda * (uROE[i] + aROE * nn[i]);
-    flux[dim + 1] = (uR[dim + 1] + wR[dim + 1]) * unR - alpha_lambda * (hROE + aROE * unROE);
+    for (PetscInt i = 0; i < dim; i++) flux[1 + i] = wR[0] * wR[1 + i] * unR + wR[dim + 1] * nn[i] - alpha_lambda * (uROE[i] + aROE * nn[i]);
+    flux[dim + 1] = wR[0] * hR * unR - alpha_lambda * (hROE + aROE * unROE);
   }
   for (PetscInt i = 0; i < Nc; i++) flux[i] *= area;
 
