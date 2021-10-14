@@ -12,7 +12,7 @@
 
   The mesh contains three cell types:
     - the "true" mesh cells, in [cStartCell, cStartOverlap[
-    - the overlapping cells in [cStartOverlap, cStartBoundary[, due to partitionning
+    - the overlapping cells in [cStartOverlap, cStartBoundary[, due to partitioning
     - the boundary cells in [cStartBoundary, cEnd[
   Be carefull with the PETSc ambiguation:
   `DMPlexGetGhostCellStratum` corresponds to the boundary cells, and the "ghost" `DMLabel` to the partition cells.
@@ -56,66 +56,62 @@ PetscErrorCode MeshDestroy(DM*);
 */
 PetscErrorCode MeshLoadFromFile(MPI_Comm, const char*, const char*, DM*);
 
+
 /*
   Get the bounds cStartCell, cStartOverlap, cStartBoundary and cEnd that describe the mesh cells.
 */
 PetscErrorCode MeshGetCellStratum(DM, PetscInt*, PetscInt*, PetscInt*, PetscInt*);
-
 
 /*
   Apply a function on a mesh
 */
 PetscErrorCode MeshApplyFunction(DM, PetscReal, PetscErrorCode(PetscInt, PetscReal, const PetscReal*, PetscInt, PetscReal*, void*), void*, Vec);
 
-
 /*
-  Create a global vector, and set the user's Viewer
+  Create a global vector, and set the correct viewer
 */
 PetscErrorCode MeshCreateGlobalVector(DM, Vec*);
-
-
-/*
-  Get the component vectors of x
-  If Nc is not NULL, returns the number of fields
-*/
-PetscErrorCode VecGetComponentVectors(Vec, PetscInt*, Vec**);
-
-/*
-  Destroys the component vectors
-*/
-PetscErrorCode VecDestroyComponentVectors(Vec, Vec**);
-
-
-/*
-  Apply a pointwise function to a Vec
-  The Vec is linked to a mesh, so that the number of field components is read from the DM's PetscFV
-  The pointwise function calling sequence is
-  ```
-  func(PetscInt Nc, const PetscReal x[], PetscReal *y, void *ctx)
-    Nc           - Number of field components
-    x            - Field value
-    y            - Output scalar value
-    ctx          - Optional context
-  ```
-*/
-PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, void(const PetscReal*, PetscReal*, void*), void*);
-
 
 /*
   Sets up the mesh and the physical context (for the boundaries conditions)
 */
 PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename);
 
-
 /*
   Puts coefficients which represent periodic values into the local solution and gradient vectors
 */
 PetscErrorCode MeshInsertPeriodicValues(DM, Vec, Vec);
 
-
 /*
   Compute the gradient (global vector) of the given vector (local vector) using the precomputed data
 */
 PetscErrorCode MeshReconstructGradientsFVM(DM, Vec, Vec);
+
+
+/*
+  Apply an function to a Vec
+  The number of field components is read from the block size
+  The pointwise function calling sequence is
+  ```
+  func(const PetscReal x[], PetscReal y[], void *ctx)
+    x            - Field value
+    y            - Output scalar value
+    ctx          - Optional context
+  ```
+*/
+PetscErrorCode VecApplyFunctionInPlace(Vec, void(const PetscReal*, PetscReal*, void*), void*);
+
+/*
+  Create a Vec as the image of a pointwise function
+  The number of field components is read from the block size
+  The pointwise function calling sequence is
+  ```
+  func(const PetscReal x[], PetscReal *y, void *ctx)
+    x            - Field value
+    y            - Output scalar value
+    ctx          - Optional context
+  ```
+*/
+PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, void(const PetscReal*, PetscReal*, void*), void*);
 
 #endif

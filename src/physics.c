@@ -6,36 +6,36 @@
 /*____________________________________________________________________________________________________________________*/
 static const enum ProblemType problem_type = TYPE_EULER;
 static struct FieldDescription {
-  const char *name;
+  const char *name_c;
+  const char *name_p;
   PetscInt   dof;
-} fields_euler[] = {{"rho", DOF_1},
-                    {"rho * U", DOF_DIM},
-                    {"rho * E", DOF_1},
-                    {NULL, 0}};
+} fields_euler[] = {{"rho",     "rho", DOF_1},
+                    {"rho * U", "U",   DOF_DIM},
+                    {"rho * E", "p",   DOF_1},
+                    {NULL,      NULL,  0}};
 
 
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nc, PetscReal *u, void *ctx){
   Physics phys = (Physics) ctx;
   PetscFunctionBeginUser;
 
-  PetscReal M = 0.5, beta = 0.2, R = 0.005;
-  PetscReal Xc = 0.05, Yc = 0.05;
-  PetscReal Pinf = 1.0e+05, Tinf = 300, Rgas = 287.15;
+  PetscReal M = 0.8, beta = 1.3860642817598832, R = 1;
+  PetscReal Xc = 0, Yc = 0;
+  PetscReal Pinf = 1, Tinf = 1, Rgas = 1;
+  PetscReal rhoinf = Pinf / (Rgas * Tinf);
 
   PetscReal Uinf = M * PetscSqrtReal(phys->gamma * Rgas * Tinf);
 
   PetscReal dx = (x[0] - Xc) / R, dy = (x[1] - Yc) / R;
-  PetscReal r2 =  PetscSqr(dx) + PetscSqr(dy);
-  PetscReal e = PetscExpReal(-r2 / 2);
+  PetscReal alpha = beta * PetscExpReal(-(PetscSqr(dx) + PetscSqr(dy)) / 2);
 
-  PetscReal T0 = Tinf - PetscSqr(Uinf * beta * e) * (phys->gamma - 1) / (2 * phys->gamma * Rgas);
-  PetscReal rhoinf = Pinf / (Rgas * Tinf);
+  PetscReal T0 = Tinf - PetscSqr(Uinf * alpha) * (phys->gamma - 1) / (2 * phys->gamma * Rgas);
   PetscReal rho0 = rhoinf * PetscPowReal(T0 / Tinf, 1 / (phys->gamma - 1));
 
   u[0] = rho0;
-  u[1] = Uinf * (1 - beta * e * dy);
-  u[2] = Uinf * beta * e * dx;
-  u[3] = Rgas * rho0 * T0;
+  u[1] = Uinf * (1 - alpha * dy);
+  u[2] = Uinf * alpha * dx;
+  u[3] = rho0 * Rgas * T0;
 
   PrimitiveToConservative(u, u, phys);
   // PrimitiveToConservative(phys->init, u, phys);
@@ -128,7 +128,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
     (*phys)->type = problem_type;
     struct FieldDescription *fields = fields_euler;
     PetscInt nfields;
-    for (nfields = 0, (*phys)->dof = 0; fields[nfields].name; nfields++) {
+    for (nfields = 0, (*phys)->dof = 0; fields[nfields].name_c; nfields++) {
       switch (fields[nfields].dof) {
         case DOF_1:
         fields[nfields].dof = 1;
@@ -141,18 +141,30 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
       (*phys)->dof += fields[nfields].dof;
     }
 
-    PetscFV fvm;
-    char buffer[64];
-    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);                           CHKERRQ(ierr);
-    ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                             CHKERRQ(ierr);
+    DM      dmGrad;
+    char    buffer[64];
+    PetscFV fvm, fvmGrad;
+    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);                                       CHKERRQ(ierr);
+    ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad);                                     CHKERRQ(ierr);
+    ierr = DMGetField(dmGrad, 0, NULL, (PetscObject*) &fvmGrad);                               CHKERRQ(ierr);
+    ierr = PetscFVSetNumComponents(fvm, (*phys)->dof);                                         CHKERRQ(ierr);
+    ierr = PetscFVSetNumComponents(fvmGrad, (*phys)->dim * (*phys)->dof);                      CHKERRQ(ierr);
     for (PetscInt i = 0, dof = 0; i < nfields; i++) {
       if (fields[i].dof == 1) {
-        ierr = PetscFVSetComponentName(fvm, dof, fields[i].name);                  CHKERRQ(ierr);
+        ierr = PetscFVSetComponentName(fvm, dof, fields[i].name_c);                            CHKERRQ(ierr);
+        for (PetscInt k = 0; k < (*phys)->dim; k++) {
+          ierr = PetscSNPrintf(buffer, sizeof(buffer),"d_%d %s", k, fields[i].name_p);         CHKERRQ(ierr);
+          ierr = PetscFVSetComponentName(fvmGrad, (*phys)->dim * dof + k, buffer);             CHKERRQ(ierr);
+        }
       }
       else {
         for (PetscInt j = 0; j < fields[i].dof; j++) {
-          ierr = PetscSNPrintf(buffer, sizeof(buffer),"%s_%d", fields[i].name, j); CHKERRQ(ierr);
-          ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                    CHKERRQ(ierr);
+          ierr = PetscSNPrintf(buffer, sizeof(buffer),"%s_%d", fields[i].name_c, j);           CHKERRQ(ierr);
+          ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                                CHKERRQ(ierr);
+          for (PetscInt k = 0; k < (*phys)->dim; k++) {
+            ierr = PetscSNPrintf(buffer, sizeof(buffer),"d_%d %s_%d", k, fields[i].name_p, j); CHKERRQ(ierr);
+            ierr = PetscFVSetComponentName(fvmGrad, (*phys)->dim * (dof + j) + k, buffer);     CHKERRQ(ierr);
+          }
         }
       }
       dof += fields[i].dof;
