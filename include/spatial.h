@@ -14,6 +14,7 @@
     - the "true" mesh cells, in [cStartCell, cStartOverlap[
     - the overlapping cells in [cStartOverlap, cStartBoundary[, due to partitioning
     - the boundary cells in [cStartBoundary, cEnd[
+  This numbering corresponds to the local vectors, the global vectors local cells are the "true" mesh cells only.
   Be carefull with the PETSc ambiguation:
   `DMPlexGetGhostCellStratum` corresponds to the boundary cells, and the "ghost" `DMLabel` to the partition cells.
 */
