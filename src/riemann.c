@@ -31,8 +31,9 @@ static void RiemannSolver_AdvectionX(PetscInt dim, PetscInt Nc,
   PetscFunctionBeginUser;
 
   const PetscReal un = phys->riemann_ctx.advection_speed * n[0];
-  const PetscReal *w0 = (un < 0) ? wR : wL;
-  for (PetscInt i = 0; i < Nc; i++) flux[i] = w0[i] * un;
+  PetscReal u0[phys->dof];
+  PrimitiveToConservative((un < 0) ? wR : wL, u0, phys);
+  for (PetscInt i = 0; i < Nc; i++) flux[i] = u0[i] * un;
   PetscFunctionReturnVoid();
 }
 
