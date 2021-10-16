@@ -5,10 +5,10 @@
 
 
 /*
-  Fills the periodicity context
+  Update the DM Star Forest
   disp is the displacement from bc_1 to bc_2
 */
-static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2, PetscReal *disp, struct PerioCtx *ctx){
+static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2, PetscReal *disp){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -51,12 +51,11 @@ static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2
   PetscInt        block_start;
   Vec             coord_vec;
   const PetscReal *coord;
-  PetscInt  *master_array, *slave_array;
+  PetscInt        *roots, *leaves;
   { // Get face coordinates and support
     Vec        coord_mpi;
     VecScatter scatter;
-    ierr = PetscMalloc1(nface_loc, &master_array);                   CHKERRQ(ierr);
-    ierr = PetscMalloc1(nface_loc, &slave_array);                    CHKERRQ(ierr);
+    ierr = PetscMalloc2(nface_loc, &roots, nface_loc, &leaves);      CHKERRQ(ierr);
     ierr = VecCreate(PetscObjectComm((PetscObject) dm), &coord_mpi); CHKERRQ(ierr);
     ierr = VecSetType(coord_mpi, VECMPI);                            CHKERRQ(ierr);
     ierr = VecSetSizes(coord_mpi, nface_loc * dim, PETSC_DECIDE);    CHKERRQ(ierr);
@@ -71,13 +70,13 @@ static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2
       ierr = VecSetValuesBlocked(coord_mpi, 1, &loc, val, INSERT_VALUES); CHKERRQ(ierr);
 
       const PetscInt *support;
-      ierr = DMPlexGetSupport(dm, face1[i], &support);                    CHKERRQ(ierr);
+      ierr = DMPlexGetSupport(dm, face1[i], &support); CHKERRQ(ierr);
       if (bcStart <= support[0] && support[0] < bcEnd) {
-        master_array[i] = support[1];
-        slave_array[i] = support[0];
+        roots[i] = support[1];
+        leaves[i] = support[0];
       } else {
-        master_array[i] = support[0];
-        slave_array[i] = support[1];
+        roots[i] = support[0];
+        leaves[i] = support[1];
       }
     }
     for (PetscInt j = 0; j < nface2_loc; j++) {
@@ -88,23 +87,23 @@ static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2
       ierr = VecSetValuesBlocked(coord_mpi, 1, &loc, val, INSERT_VALUES); CHKERRQ(ierr);
 
       const PetscInt *support;
-      ierr = DMPlexGetSupport(dm, face2[j], &support);                    CHKERRQ(ierr);
+      ierr = DMPlexGetSupport(dm, face2[j], &support); CHKERRQ(ierr);
       if (bcStart <= support[0] && support[0] < bcEnd) {
-        master_array[nface1_loc + j] = support[1];
-        slave_array[nface1_loc + j] = support[0];
+        roots[nface1_loc + j] = support[1];
+        leaves[nface1_loc + j] = support[0];
       } else {
-        master_array[nface1_loc + j] = support[0];
-        slave_array[nface1_loc + j] = support[1];
+        roots[nface1_loc + j] = support[0];
+        leaves[nface1_loc + j] = support[1];
       }
     }
-    ierr = VecAssemblyBegin(coord_mpi);                                                     CHKERRQ(ierr);
-    ierr = VecAssemblyEnd(coord_mpi);                                                       CHKERRQ(ierr);
-    ierr = VecScatterCreateToAll(coord_mpi, &scatter, &coord_vec);                          CHKERRQ(ierr);
-    ierr = VecScatterBegin(scatter, coord_mpi, coord_vec, INSERT_VALUES, SCATTER_FORWARD);  CHKERRQ(ierr);
-    ierr = VecScatterEnd(scatter, coord_mpi, coord_vec, INSERT_VALUES, SCATTER_FORWARD);    CHKERRQ(ierr);
-    ierr = VecScatterDestroy(&scatter);                                                     CHKERRQ(ierr);
-    ierr = VecDestroy(&coord_mpi);                                                          CHKERRQ(ierr);
-    ierr = VecGetArrayRead(coord_vec, &coord);                                              CHKERRQ(ierr);
+    ierr = VecAssemblyBegin(coord_mpi);                                                    CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(coord_mpi);                                                      CHKERRQ(ierr);
+    ierr = VecScatterCreateToAll(coord_mpi, &scatter, &coord_vec);                         CHKERRQ(ierr);
+    ierr = VecScatterBegin(scatter, coord_mpi, coord_vec, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    ierr = VecScatterEnd(scatter, coord_mpi, coord_vec, INSERT_VALUES, SCATTER_FORWARD);   CHKERRQ(ierr);
+    ierr = VecScatterDestroy(&scatter);                                                    CHKERRQ(ierr);
+    ierr = VecDestroy(&coord_mpi);                                                         CHKERRQ(ierr);
+    ierr = VecGetArrayRead(coord_vec, &coord);                                             CHKERRQ(ierr);
   }
 
   PetscInt nface_tot;
@@ -152,16 +151,45 @@ static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2
   ierr = VecRestoreArrayRead(coord_vec, &coord); CHKERRQ(ierr);
   ierr = VecDestroy(&coord_vec);                 CHKERRQ(ierr);
 
-  ISLocalToGlobalMapping mapping;
-  ierr = ISCreateGeneral(PETSC_COMM_SELF, nface_loc, master_array, PETSC_OWN_POINTER, &ctx->master); CHKERRQ(ierr);
-  ierr = ISCreateGeneral(PETSC_COMM_SELF, nface_loc, slave_array, PETSC_OWN_POINTER, &ctx->slave);   CHKERRQ(ierr);
-  ierr = ISLocalToGlobalMappingCreate(PETSC_COMM_SELF, Nc * (dim + 1), nface_loc, localToGlobal, PETSC_OWN_POINTER, &mapping); CHKERRQ(ierr);
-  ierr = VecCreate(PetscObjectComm((PetscObject) dm), &ctx->buffer);                                 CHKERRQ(ierr);
-  ierr = VecSetType(ctx->buffer, VECMPI);                                                            CHKERRQ(ierr);
-  ierr = VecSetSizes(ctx->buffer, nface_loc * Nc * (dim + 1), PETSC_DECIDE);                         CHKERRQ(ierr);
-  ierr = VecSetBlockSize(ctx->buffer, Nc * (dim + 1));                                               CHKERRQ(ierr);
-  ierr = VecSetLocalToGlobalMapping(ctx->buffer, mapping);                                           CHKERRQ(ierr);
-  ierr = ISLocalToGlobalMappingDestroy(&mapping);                                                    CHKERRQ(ierr);
+  { // Update DM Star Forest
+    PetscSF           sf;
+    PetscInt          nroots, nleaves;
+    const PetscInt    *ilocal_save;
+    const PetscSFNode *iremote_save;
+    ierr = DMGetSectionSF(dm, &sf); CHKERRQ(ierr);
+    ierr = PetscSFGetGraph(sf, &nroots, &nleaves, &ilocal_save, &iremote_save); CHKERRQ(ierr);
+
+    IS             roots_is, roots_global_is;
+    PetscLayout    map;
+    const PetscInt *roots_global;
+    ierr = ISCreateGeneral(PetscObjectComm((PetscObject) dm), nface_loc, roots, PETSC_USE_POINTER, &roots_is); CHKERRQ(ierr);
+    ierr = ISGetLayout(roots_is, &map);                                                                        CHKERRQ(ierr);
+    ierr = ISAllGather(roots_is, &roots_global_is);                                                            CHKERRQ(ierr);
+    ierr = ISGetIndices(roots_global_is, &roots_global);                                                       CHKERRQ(ierr);
+
+    PetscInt    *ilocal;
+    PetscSFNode *iremote;
+    ierr = PetscMalloc2(nleaves + Nc * nface_loc, &ilocal, nleaves + Nc * nface_loc, &iremote); CHKERRQ(ierr);
+    for (PetscInt i = 0; i < nleaves; i++) { // Copy previous graph
+      iremote[i] = iremote_save[i];
+      ilocal[i] = (ilocal_save) ? ilocal_save[i] : i;
+    }
+    for (PetscInt i = 0; i < nface_loc; i++) { // Augment the graph
+      ierr = PetscLayoutFindOwner(map, localToGlobal[i], &iremote[nleaves + i * Nc].rank); CHKERRQ(ierr);
+      for (PetscInt k = 0; k < Nc; k++) {
+        ilocal[nleaves + i * Nc + k] = leaves[i] * Nc + k;
+        iremote[nleaves + i * Nc + k].rank = iremote[nleaves + i * Nc].rank;
+        iremote[nleaves + i * Nc + k].index = roots_global[localToGlobal[i]] * Nc + k;
+      }
+    }
+
+    ierr = PetscSFSetGraph(sf, nroots, nleaves + Nc * nface_loc, ilocal, PETSC_OWN_POINTER, iremote, PETSC_OWN_POINTER); CHKERRQ(ierr);
+
+    ierr = ISDestroy(&roots_is);        CHKERRQ(ierr);
+    ierr = ISDestroy(&roots_global_is); CHKERRQ(ierr);
+    ierr = PetscFree(localToGlobal);    CHKERRQ(ierr);
+    ierr = PetscFree2(roots, leaves);   CHKERRQ(ierr);
+  }
 
   PetscFunctionReturn(0);
 }
@@ -192,13 +220,8 @@ static PetscErrorCode MeshSetUp_PerioCtx(DM dm, const char *opt_filename){
     ierr = ISGetIndices(bnd_is, &bnd);                                                               CHKERRQ(ierr);
   }
 
-  MeshCtx ctx;
-  ierr = DMGetApplicationContext(dm, &ctx); CHKERRQ(ierr);
-
-  PetscBool       rem[num_loc]; // Boundaries to remove
-  struct PerioCtx ctxs[num / 2]; // Periodicity contexts
+  PetscBool rem[num_loc]; // Boundaries to remove
   {
-    ctx->n_perio = 0;
     for (PetscInt i = 0; i < num_loc; i++) rem[i] = PETSC_FALSE;
     for (PetscInt i = 0; i < num; i++) {
       PetscInt master;
@@ -210,8 +233,8 @@ static PetscErrorCode MeshSetUp_PerioCtx(DM dm, const char *opt_filename){
         ierr = ISLocate(bnd_is_loc, bnd[i], &i_slave);  CHKERRQ(ierr);
         if (i_master >= 0) rem[i_master] = PETSC_TRUE;
         if (i_slave >= 0) rem[i_slave] = PETSC_TRUE;
-        ierr = MeshSetUp_PerioCtx_Ctx(dm, master, bnd[i], disp, &ctxs[ctx->n_perio++]); CHKERRQ(ierr);
-        ierr = PetscFree(disp);                                                         CHKERRQ(ierr);
+        ierr = MeshSetUp_PerioCtx_Ctx(dm, master, bnd[i], disp); CHKERRQ(ierr);
+        ierr = PetscFree(disp);                                  CHKERRQ(ierr);
       }
     }
   }
@@ -237,11 +260,6 @@ static PetscErrorCode MeshSetUp_PerioCtx(DM dm, const char *opt_filename){
     ierr = ISRestoreIndices(bnd_is, &bnd);         CHKERRQ(ierr);
     ierr = ISDestroy(&bnd_is_loc);                 CHKERRQ(ierr);
     ierr = ISDestroy(&bnd_is);                     CHKERRQ(ierr);
-  }
-
-  { // Setting periodicity context for the mesh
-    ierr = PetscMalloc1(ctx->n_perio, &ctx->perio); CHKERRQ(ierr);
-    for (PetscInt n = 0; n < ctx->n_perio; n++) ctx->perio[n] = ctxs[n];
   }
 
   PetscFunctionReturn(0);
@@ -417,7 +435,6 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
     ierr = DMGlobalToLocalBegin(dmGrad, grad, INSERT_VALUES, locGrad);                               CHKERRQ(ierr);
     ierr = DMGlobalToLocalEnd(dmGrad, grad, INSERT_VALUES, locGrad);                                 CHKERRQ(ierr);
     ierr = DMRestoreGlobalVector(dmGrad, &grad);                                                     CHKERRQ(ierr);
-    ierr = MeshInsertPeriodicValues(dm, locX, locGrad);                                              CHKERRQ(ierr);
     ierr = DMPlexInsertBoundaryValues(dm, PETSC_FALSE, locX, time, facegeom, cellgeom, locGrad);     CHKERRQ(ierr);
     ierr = DMPlexInsertBoundaryValues(dmGrad, PETSC_FALSE, locGrad, time, facegeom, cellgeom, NULL); CHKERRQ(ierr);
   }
@@ -563,12 +580,6 @@ PetscErrorCode MeshDestroy(DM *dm){
 
   ierr = PetscFVDestroy(&fvm);                                 CHKERRQ(ierr);
   ierr = DMGetApplicationContext(*dm, &ctx);                   CHKERRQ(ierr);
-  for (PetscInt n = 0; n < ctx->n_perio; n++) {
-    ierr = VecDestroy(&ctx->perio[n].buffer);                  CHKERRQ(ierr);
-    ierr = ISDestroy(&ctx->perio[n].master);                   CHKERRQ(ierr);
-    ierr = ISDestroy(&ctx->perio[n].slave);                    CHKERRQ(ierr);
-  }
-  ierr = PetscFree(ctx->perio);                                CHKERRQ(ierr);
   for (PetscInt n = 0; n < ctx->cStartOverlap - ctx->cStartCell; n++) {
     ierr = ISDestroy(&ctx->CellCtx[n].neighborhood);           CHKERRQ(ierr);
     ierr = PetscFree(ctx->CellCtx[n].grad_coeff);              CHKERRQ(ierr);
@@ -751,61 +762,6 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
     ierr = PetscDSSetFromOptions(prob);       CHKERRQ(ierr);
   }
 
-  PetscFunctionReturn(0);
-}
-
-
-PetscErrorCode MeshInsertPeriodicValues(DM dm, Vec locX, Vec locGrad){
-  PetscErrorCode ierr;
-
-  PetscFunctionBeginUser;
-
-  PetscFV  fvm;
-  MeshCtx  ctx;
-  DM       dmGrad;
-  PetscInt Nc, dim;
-  { // Getting mesh data
-    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);   CHKERRQ(ierr);
-    ierr = PetscFVGetNumComponents(fvm, &Nc);              CHKERRQ(ierr);
-    ierr = DMGetDimension(dm, &dim);                       CHKERRQ(ierr);
-    ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad); CHKERRQ(ierr);
-    ierr = DMGetApplicationContext(dm, &ctx);              CHKERRQ(ierr);
-  }
-
-  PetscReal *locX_array, *locGrad_array, *valX, *valGrad, val[Nc * (dim + 1)];
-  ierr = VecGetArray(locX, &locX_array);                     CHKERRQ(ierr);
-  if (locGrad) {ierr = VecGetArray(locGrad, &locGrad_array); CHKERRQ(ierr);}
-  for (PetscInt n = 0; n < ctx->n_perio; n++) {
-    PetscInt       n_master, n_slave;
-    const PetscInt *master, *slave;
-    PetscReal      *buffer_array;
-
-    ierr = ISGetSize(ctx->perio[n].master, &n_master);  CHKERRQ(ierr);
-    ierr = ISGetIndices(ctx->perio[n].master, &master); CHKERRQ(ierr);
-    for (PetscInt i = 0; i < n_master; i++) {
-      ierr = DMPlexPointLocalFieldRead(dm, master[i], 0, locX_array, &valX);           CHKERRQ(ierr);
-      ierr = DMPlexPointLocalFieldRead(dmGrad, master[i], 0, locGrad_array, &valGrad); CHKERRQ(ierr);
-      for (PetscInt k = 0; k < Nc; k++) val[k] = valX[k];
-      if (locGrad) for (PetscInt k = 0; k < dim * Nc; k++) val[Nc + k] = valGrad[k];
-  		ierr = VecSetValuesBlockedLocal(ctx->perio[n].buffer, 1, &i, val, INSERT_VALUES); CHKERRQ(ierr);
-    }
-    ierr = ISRestoreIndices(ctx->perio[n].master, &master);  CHKERRQ(ierr);
-    ierr = VecAssemblyBegin(ctx->perio[n].buffer);           CHKERRQ(ierr);
-    ierr = VecAssemblyEnd(ctx->perio[n].buffer);             CHKERRQ(ierr);
-    ierr = VecGetArray(ctx->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
-
-    ierr = ISGetSize(ctx->perio[n].slave, &n_slave);  CHKERRQ(ierr);
-    ierr = ISGetIndices(ctx->perio[n].slave, &slave); CHKERRQ(ierr);
-    for (PetscInt i = 0; i < n_slave; i++) {
-      ierr = DMPlexPointLocalFieldRef(dm, slave[i], 0, locX_array, &valX);           CHKERRQ(ierr);
-      ierr = DMPlexPointLocalFieldRef(dmGrad, slave[i], 0, locGrad_array, &valGrad); CHKERRQ(ierr);
-      for (PetscInt k = 0; k < Nc; k++) valX[k] = buffer_array[Nc * (dim + 1) * i + k];
-      if (locGrad) for (PetscInt k = 0; k < dim * Nc; k++) valGrad[k] = buffer_array[Nc * (dim + 1) * i + Nc + k];
-    }
-    ierr = VecRestoreArray(ctx->perio[n].buffer, &buffer_array); CHKERRQ(ierr);
-  }
-  if (locGrad) {ierr = VecRestoreArray(locGrad, &locGrad_array); CHKERRQ(ierr);}
-  ierr = VecRestoreArray(locX, &locX_array);                     CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 

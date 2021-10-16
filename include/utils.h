@@ -4,6 +4,7 @@
 #include <petscdmplex.h>
 #include <petscds.h>
 #include <petscts.h>
+#include <petscsf.h>
 
 
 enum ProblemType {TYPE_EULER, TYPE_NS};
