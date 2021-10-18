@@ -193,6 +193,7 @@ static PetscErrorCode MeshSetUp_Periodicity(DM dm, const char *opt_filename){
 
   PetscFunctionBeginUser;
 
+  DM             dmGrad;
   PetscInt       dim, num, num_loc, Nc; // Mesh dimension, number of boundaries on mesh and on local process, number of components
   IS             bnd_is, bnd_is_loc;
   const PetscInt *bnd, *bnd_loc;
@@ -211,6 +212,7 @@ static PetscErrorCode MeshSetUp_Periodicity(DM dm, const char *opt_filename){
     ierr = ISGetIndices(bnd_is, &bnd);                                                              CHKERRQ(ierr);
     ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);                                            CHKERRQ(ierr);
     ierr = PetscFVGetNumComponents(fvm, &Nc);                                                       CHKERRQ(ierr);
+    ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad);                                          CHKERRQ(ierr);
   }
 
   PetscInt nface_tot = 0;
@@ -265,6 +267,40 @@ static PetscErrorCode MeshSetUp_Periodicity(DM dm, const char *opt_filename){
             ilocal[nleaves_dm + idx] = ilocal_bnd[j] * Nc + k;
             iremote[nleaves_dm + idx].rank = iremote_bnd[j].rank;
             iremote[nleaves_dm + idx].index = iremote_bnd[j].index * Nc + k;
+          }
+        }
+      }
+    }
+
+    ierr = PetscSFSetGraph(sf_dm, nroots_dm, nleaves_tot, ilocal, PETSC_OWN_POINTER, iremote, PETSC_OWN_POINTER); CHKERRQ(ierr);
+  }
+
+  { // Update grad DM Star Forest
+    PetscSF           sf_dm;
+    PetscInt          nroots_dm, nleaves_dm, nleaves_tot;
+    const PetscInt    *ilocal_dm, *ilocal_bnd;
+    const PetscSFNode *iremote_dm, *iremote_bnd;
+    ierr = DMGetSectionSF(dmGrad, &sf_dm);                                           CHKERRQ(ierr);
+    ierr = PetscSFGetGraph(sf_dm, &nroots_dm, &nleaves_dm, &ilocal_dm, &iremote_dm); CHKERRQ(ierr);
+
+    PetscSFNode *iremote;
+    PetscInt    *ilocal;
+    nleaves_tot = nleaves_dm + dim * Nc * nface_tot;
+    ierr = PetscMalloc2(nleaves_tot, &ilocal, nleaves_tot, &iremote); CHKERRQ(ierr);
+
+    for (PetscInt i = 0; i < nleaves_dm; i++) { // Copy previous graph
+      iremote[i] = iremote_dm[i];
+      ilocal[i] = (ilocal_dm) ? ilocal_dm[i] : i;
+    }
+    for (PetscInt i = 0, idx=0; i < num; i++) { // Augment the graph
+      if (sf_bnd[i]) {
+        PetscInt nleaves_bnd;
+        ierr = PetscSFGetGraph(sf_bnd[i], NULL, &nleaves_bnd, &ilocal_bnd, &iremote_bnd); CHKERRQ(ierr);
+        for (PetscInt j = 0; j < nleaves_bnd; j++) {
+          for (PetscInt k = 0; k < dim * Nc; k++, idx++) {
+            ilocal[nleaves_dm + idx] = ilocal_bnd[j] * dim * Nc + k;
+            iremote[nleaves_dm + idx].rank = iremote_bnd[j].rank;
+            iremote[nleaves_dm + idx].index = iremote_bnd[j].index * dim * Nc + k;
           }
         }
       }
