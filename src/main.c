@@ -14,10 +14,9 @@ int main(int argc, char **argv){
   char *input_filename = argv[1];
   ierr = YAMLLoadPetscOptions(input_filename); CHKERRQ(ierr);
 
-  PetscBool set;
-  char mesh_filename[256];
-  ierr = PetscOptionsGetString(NULL, NULL, "-mesh", mesh_filename, sizeof(mesh_filename), &set); CHKERRQ(ierr);
-  if (!set) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "No mesh file was given: please use the option \"-mesh filename\"");
+  char mesh_filename[256] = "";
+  ierr = PetscOptionsGetString(NULL, NULL, "-mesh", mesh_filename, sizeof(mesh_filename), NULL); CHKERRQ(ierr);
+  if (!mesh_filename[0]) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "No mesh file was given: please use the option \"-mesh filename\"");
 
   DM mesh;
   ierr = MeshLoadFromFile(PETSC_COMM_WORLD, mesh_filename, input_filename, &mesh); CHKERRQ(ierr);
