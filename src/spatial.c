@@ -5,21 +5,18 @@
 
 
 /*
-  Update the DM Star Forest
+  Yelds the PetscSF corresponding to the periodic relation
   disp is the displacement from bc_1 to bc_2
 */
-static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2, PetscReal *disp){
+static PetscErrorCode MeshSetUp_Periodicity_Local(DM dm, PetscInt bc_1, PetscInt bc_2, PetscReal *disp, PetscSF *sf){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
 
-  PetscInt Nc, dim, bcStart, bcEnd;
+  PetscInt dim, bcStart, bcEnd;
   { // Get problem related values
-    PetscFV  fvm;
     ierr = DMGetDimension(dm, &dim);                             CHKERRQ(ierr);
     ierr = MeshGetCellStratum(dm, NULL, NULL, &bcStart, &bcEnd); CHKERRQ(ierr);
-    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);         CHKERRQ(ierr);
-    ierr = PetscFVGetNumComponents(fvm, &Nc);                    CHKERRQ(ierr);
   }
 
   PetscInt       nface1_loc, nface2_loc, nface_loc;
@@ -49,14 +46,12 @@ static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2
     nface_loc = nface1_loc + nface2_loc;
   }
 
-  PetscInt        block_start;
   Vec             coord_vec;
+  PetscInt        block_start;
   const PetscReal *coord;
-  PetscInt        *roots, *leaves;
-  { // Get face coordinates and support
+  { // Get face coordinates
     Vec        coord_mpi;
     VecScatter scatter;
-    ierr = PetscMalloc2(nface_loc, &roots, nface_loc, &leaves);      CHKERRQ(ierr);
     ierr = VecCreate(PetscObjectComm((PetscObject) dm), &coord_mpi); CHKERRQ(ierr);
     ierr = VecSetType(coord_mpi, VECMPI);                            CHKERRQ(ierr);
     ierr = VecSetSizes(coord_mpi, nface_loc * dim, PETSC_DECIDE);    CHKERRQ(ierr);
@@ -69,16 +64,6 @@ static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2
       loc = i + block_start;
       ierr = DMPlexComputeCellGeometryFVM(dm, face1[i], NULL, val, NULL); CHKERRQ(ierr);
       ierr = VecSetValuesBlocked(coord_mpi, 1, &loc, val, INSERT_VALUES); CHKERRQ(ierr);
-
-      const PetscInt *support;
-      ierr = DMPlexGetSupport(dm, face1[i], &support); CHKERRQ(ierr);
-      if (bcStart <= support[0] && support[0] < bcEnd) {
-        roots[i] = support[1];
-        leaves[i] = support[0];
-      } else {
-        roots[i] = support[0];
-        leaves[i] = support[1];
-      }
     }
     for (PetscInt j = 0; j < nface2_loc; j++) {
       PetscInt  loc;
@@ -86,16 +71,6 @@ static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2
       loc = j + block_start + nface1_loc;
       ierr = DMPlexComputeCellGeometryFVM(dm, face2[j], NULL, val, NULL); CHKERRQ(ierr);
       ierr = VecSetValuesBlocked(coord_mpi, 1, &loc, val, INSERT_VALUES); CHKERRQ(ierr);
-
-      const PetscInt *support;
-      ierr = DMPlexGetSupport(dm, face2[j], &support); CHKERRQ(ierr);
-      if (bcStart <= support[0] && support[0] < bcEnd) {
-        roots[nface1_loc + j] = support[1];
-        leaves[nface1_loc + j] = support[0];
-      } else {
-        roots[nface1_loc + j] = support[0];
-        leaves[nface1_loc + j] = support[1];
-      }
     }
     ierr = VecAssemblyBegin(coord_mpi);                                                    CHKERRQ(ierr);
     ierr = VecAssemblyEnd(coord_mpi);                                                      CHKERRQ(ierr);
@@ -107,13 +82,49 @@ static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2
     ierr = VecGetArrayRead(coord_vec, &coord);                                             CHKERRQ(ierr);
   }
 
+  PetscInt       *leaves;
+  const PetscInt *roots_global;
+  PetscLayout    map;
+  IS             roots_is, roots_global_is;
+  { // Get face support
+    PetscInt *roots;
+    ierr = PetscMalloc1(nface_loc, &roots);  CHKERRQ(ierr);
+    ierr = PetscMalloc1(nface_loc, &leaves); CHKERRQ(ierr);
+
+    const PetscInt *support;
+    for (PetscInt i = 0; i < nface1_loc; i++) {
+      ierr = DMPlexGetSupport(dm, face1[i], &support); CHKERRQ(ierr);
+      if (bcStart <= support[0] && support[0] < bcEnd) {
+        roots[i] = support[1];
+        leaves[i] = support[0];
+      } else {
+        roots[i] = support[0];
+        leaves[i] = support[1];
+      }
+    }
+    for (PetscInt j = 0; j < nface2_loc; j++) {
+      ierr = DMPlexGetSupport(dm, face2[j], &support); CHKERRQ(ierr);
+      if (bcStart <= support[0] && support[0] < bcEnd) {
+        roots[nface1_loc + j] = support[1];
+        leaves[nface1_loc + j] = support[0];
+      } else {
+        roots[nface1_loc + j] = support[0];
+        leaves[nface1_loc + j] = support[1];
+      }
+    }
+
+    ierr = ISCreateGeneral(PetscObjectComm((PetscObject) dm), nface_loc, roots, PETSC_OWN_POINTER, &roots_is); CHKERRQ(ierr);
+    ierr = ISGetLayout(roots_is, &map);                                                                        CHKERRQ(ierr);
+    ierr = ISAllGather(roots_is, &roots_global_is);                                                            CHKERRQ(ierr);
+    ierr = ISGetIndices(roots_global_is, &roots_global);                                                       CHKERRQ(ierr);
+  }
+
   PetscInt nface_tot;
   ierr = VecGetSize(coord_vec, &nface_tot); CHKERRQ(ierr);
   nface_tot /= dim;
 
   PetscInt *localToGlobal;
   ierr = PetscMalloc1(nface_loc, &localToGlobal); CHKERRQ(ierr);
-
   for (PetscInt i = 0; i < nface1_loc; i++) {
     PetscBool found = PETSC_FALSE;
     PetscReal len;
@@ -145,85 +156,69 @@ static PetscErrorCode MeshSetUp_PerioCtx_Ctx(DM dm, PetscInt bc_1, PetscInt bc_2
     if (!found) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d with given displacement", bc_1, face2[j], bc_2);
   }
 
-  ierr = ISRestoreIndices(face1_is, &face1);     CHKERRQ(ierr);
-  ierr = ISRestoreIndices(face2_is, &face2);     CHKERRQ(ierr);
-  ierr = ISDestroy(&face1_is);                   CHKERRQ(ierr);
-  ierr = ISDestroy(&face2_is);                   CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(coord_vec, &coord); CHKERRQ(ierr);
-  ierr = VecDestroy(&coord_vec);                 CHKERRQ(ierr);
-
-  { // Update DM Star Forest
-    PetscSF           sf;
-    PetscInt          nroots, nleaves;
-    const PetscInt    *ilocal_save;
-    const PetscSFNode *iremote_save;
-    ierr = DMGetSectionSF(dm, &sf); CHKERRQ(ierr);
-    ierr = PetscSFGetGraph(sf, &nroots, &nleaves, &ilocal_save, &iremote_save); CHKERRQ(ierr);
-
-    IS             roots_is, roots_global_is;
-    PetscLayout    map;
-    const PetscInt *roots_global;
-    ierr = ISCreateGeneral(PetscObjectComm((PetscObject) dm), nface_loc, roots, PETSC_USE_POINTER, &roots_is); CHKERRQ(ierr);
-    ierr = ISGetLayout(roots_is, &map);                                                                        CHKERRQ(ierr);
-    ierr = ISAllGather(roots_is, &roots_global_is);                                                            CHKERRQ(ierr);
-    ierr = ISGetIndices(roots_global_is, &roots_global);                                                       CHKERRQ(ierr);
-
-    PetscInt    *ilocal;
+  { // Create PetscSF
     PetscSFNode *iremote;
-    ierr = PetscMalloc2(nleaves + Nc * nface_loc, &ilocal, nleaves + Nc * nface_loc, &iremote); CHKERRQ(ierr);
-    for (PetscInt i = 0; i < nleaves; i++) { // Copy previous graph
-      iremote[i] = iremote_save[i];
-      ilocal[i] = (ilocal_save) ? ilocal_save[i] : i;
-    }
-    for (PetscInt i = 0; i < nface_loc; i++) { // Augment the graph
-      ierr = PetscLayoutFindOwner(map, localToGlobal[i], &iremote[nleaves + i * Nc].rank); CHKERRQ(ierr);
-      for (PetscInt k = 0; k < Nc; k++) {
-        ilocal[nleaves + i * Nc + k] = leaves[i] * Nc + k;
-        iremote[nleaves + i * Nc + k].rank = iremote[nleaves + i * Nc].rank;
-        iremote[nleaves + i * Nc + k].index = roots_global[localToGlobal[i]] * Nc + k;
-      }
+    ierr = PetscMalloc1(nface_loc, &iremote); CHKERRQ(ierr);
+    for (PetscInt i = 0; i < nface_loc; i++) {
+      ierr = PetscLayoutFindOwner(map, localToGlobal[i], &iremote[i].rank); CHKERRQ(ierr);
+      iremote[i].index = roots_global[localToGlobal[i]];
     }
 
-    ierr = PetscSFSetGraph(sf, nroots, nleaves + Nc * nface_loc, ilocal, PETSC_OWN_POINTER, iremote, PETSC_OWN_POINTER); CHKERRQ(ierr);
+    ierr = PetscSFCreate(PetscObjectComm((PetscObject) dm), sf);                                      CHKERRQ(ierr);
+    ierr = PetscSFSetGraph(*sf, 0, nface_loc, leaves, PETSC_OWN_POINTER, iremote, PETSC_OWN_POINTER); CHKERRQ(ierr);
+  }
 
-    ierr = ISDestroy(&roots_is);        CHKERRQ(ierr);
-    ierr = ISDestroy(&roots_global_is); CHKERRQ(ierr);
-    ierr = PetscFree(localToGlobal);    CHKERRQ(ierr);
-    ierr = PetscFree2(roots, leaves);   CHKERRQ(ierr);
+  { // Cleanup
+    ierr = PetscFree(localToGlobal);                     CHKERRQ(ierr);
+    ierr = ISGetIndices(roots_global_is, &roots_global); CHKERRQ(ierr);
+    ierr = ISDestroy(&roots_global_is);                  CHKERRQ(ierr);
+    ierr = ISDestroy(&roots_is);                         CHKERRQ(ierr);
+    ierr = VecRestoreArrayRead(coord_vec, &coord);       CHKERRQ(ierr);
+    ierr = VecDestroy(&coord_vec);                       CHKERRQ(ierr);
+    ierr = ISRestoreIndices(face1_is, &face1);           CHKERRQ(ierr);
+    ierr = ISRestoreIndices(face2_is, &face2);           CHKERRQ(ierr);
+    ierr = ISDestroy(&face1_is);                         CHKERRQ(ierr);
+    ierr = ISDestroy(&face2_is);                         CHKERRQ(ierr);
   }
 
   PetscFunctionReturn(0);
 }
 
 /*
-  Reads the periodicity from the input file, and construct the `perio` context array
-  The periodicity contexts can only be created after some of the physical context is filled, as the number of components is needed
+  Reads the periodicity from the input file, and updates the Star Forest
+  The periodicity can only be set up after some of the physical context is filled, as the number of components is needed
 */
-static PetscErrorCode MeshSetUp_PerioCtx(DM dm, const char *opt_filename){
+static PetscErrorCode MeshSetUp_Periodicity(DM dm, const char *opt_filename){
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
 
-  PetscInt       dim, num, num_loc; // Mesh dimension, number of boundaries on mesh and on local process
+  PetscInt       dim, num, num_loc, Nc; // Mesh dimension, number of boundaries on mesh and on local process, number of components
   IS             bnd_is, bnd_is_loc;
   const PetscInt *bnd, *bnd_loc;
   {
-    IS bnd_is_mpi;
-    ierr = DMGetDimension(dm, &dim);                                                                 CHKERRQ(ierr);
-    ierr = DMGetLabelIdIS(dm, "Face Sets", &bnd_is_loc);                                             CHKERRQ(ierr);
-    ierr = ISOnComm(bnd_is_loc, PetscObjectComm((PetscObject) dm), PETSC_USE_POINTER , &bnd_is_mpi); CHKERRQ(ierr);
-    ierr = ISAllGather(bnd_is_mpi, &bnd_is);                                                         CHKERRQ(ierr);
-    ierr = ISDestroy(&bnd_is_mpi);                                                                   CHKERRQ(ierr);
-    ierr = ISSortRemoveDups(bnd_is);                                                                 CHKERRQ(ierr);
-    ierr = ISGetSize(bnd_is, &num);                                                                  CHKERRQ(ierr);
-    ierr = ISGetSize(bnd_is_loc, &num_loc);                                                          CHKERRQ(ierr);
-    ierr = ISGetIndices(bnd_is_loc, &bnd_loc);                                                       CHKERRQ(ierr);
-    ierr = ISGetIndices(bnd_is, &bnd);                                                               CHKERRQ(ierr);
+    PetscFV fvm;
+    IS      bnd_is_mpi;
+    ierr = DMGetDimension(dm, &dim);                                                                CHKERRQ(ierr);
+    ierr = DMGetLabelIdIS(dm, "Face Sets", &bnd_is_loc);                                            CHKERRQ(ierr);
+    ierr = ISOnComm(bnd_is_loc, PetscObjectComm((PetscObject) dm), PETSC_USE_POINTER, &bnd_is_mpi); CHKERRQ(ierr);
+    ierr = ISAllGather(bnd_is_mpi, &bnd_is);                                                        CHKERRQ(ierr);
+    ierr = ISDestroy(&bnd_is_mpi);                                                                  CHKERRQ(ierr);
+    ierr = ISSortRemoveDups(bnd_is);                                                                CHKERRQ(ierr);
+    ierr = ISGetSize(bnd_is, &num);                                                                 CHKERRQ(ierr);
+    ierr = ISGetSize(bnd_is_loc, &num_loc);                                                         CHKERRQ(ierr);
+    ierr = ISGetIndices(bnd_is_loc, &bnd_loc);                                                      CHKERRQ(ierr);
+    ierr = ISGetIndices(bnd_is, &bnd);                                                              CHKERRQ(ierr);
+    ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);                                            CHKERRQ(ierr);
+    ierr = PetscFVGetNumComponents(fvm, &Nc);                                                       CHKERRQ(ierr);
   }
 
+  PetscInt nface_tot = 0;
+  PetscSF sf_bnd[num];
   PetscBool rem[num_loc]; // Boundaries to remove
   {
     for (PetscInt i = 0; i < num_loc; i++) rem[i] = PETSC_FALSE;
+    for (PetscInt i = 0; i < num; i++) sf_bnd[i] = NULL;
     for (PetscInt i = 0; i < num; i++) {
       PetscInt master;
       PetscReal *disp;
@@ -234,10 +229,48 @@ static PetscErrorCode MeshSetUp_PerioCtx(DM dm, const char *opt_filename){
         ierr = ISLocate(bnd_is_loc, bnd[i], &i_slave);  CHKERRQ(ierr);
         if (i_master >= 0) rem[i_master] = PETSC_TRUE;
         if (i_slave >= 0) rem[i_slave] = PETSC_TRUE;
-        ierr = MeshSetUp_PerioCtx_Ctx(dm, master, bnd[i], disp); CHKERRQ(ierr);
-        ierr = PetscFree(disp);                                  CHKERRQ(ierr);
+        ierr = MeshSetUp_Periodicity_Local(dm, master, bnd[i], disp, &sf_bnd[i]); CHKERRQ(ierr);
+        ierr = PetscFree(disp);                                                   CHKERRQ(ierr);
+
+        PetscInt nface;
+        ierr = PetscSFGetGraph(sf_bnd[i], NULL, &nface, NULL, NULL); CHKERRQ(ierr);
+        nface_tot += nface;
       }
     }
+  }
+
+  { // Update DM Star Forest
+    PetscSF           sf_dm;
+    PetscInt          nroots_dm, nleaves_dm, nleaves_tot;
+    const PetscInt    *ilocal_dm, *ilocal_bnd;
+    const PetscSFNode *iremote_dm, *iremote_bnd;
+    ierr = DMGetSectionSF(dm, &sf_dm);                                               CHKERRQ(ierr);
+    ierr = PetscSFGetGraph(sf_dm, &nroots_dm, &nleaves_dm, &ilocal_dm, &iremote_dm); CHKERRQ(ierr);
+
+    PetscSFNode *iremote;
+    PetscInt    *ilocal;
+    nleaves_tot = nleaves_dm + Nc * nface_tot;
+    ierr = PetscMalloc2(nleaves_tot, &ilocal, nleaves_tot, &iremote); CHKERRQ(ierr);
+
+    for (PetscInt i = 0; i < nleaves_dm; i++) { // Copy previous graph
+      iremote[i] = iremote_dm[i];
+      ilocal[i] = (ilocal_dm) ? ilocal_dm[i] : i;
+    }
+    for (PetscInt i = 0, idx=0; i < num; i++) { // Augment the graph
+      if (sf_bnd[i]) {
+        PetscInt nleaves_bnd;
+        ierr = PetscSFGetGraph(sf_bnd[i], NULL, &nleaves_bnd, &ilocal_bnd, &iremote_bnd); CHKERRQ(ierr);
+        for (PetscInt j = 0; j < nleaves_bnd; j++) {
+          for (PetscInt k = 0; k < Nc; k++, idx++) {
+            ilocal[nleaves_dm + idx] = ilocal_bnd[j] * Nc + k;
+            iremote[nleaves_dm + idx].rank = iremote_bnd[j].rank;
+            iremote[nleaves_dm + idx].index = iremote_bnd[j].index * Nc + k;
+          }
+        }
+      }
+    }
+
+    ierr = PetscSFSetGraph(sf_dm, nroots_dm, nleaves_tot, ilocal, PETSC_OWN_POINTER, iremote, PETSC_OWN_POINTER); CHKERRQ(ierr);
   }
 
   { // Removing periodic boundaries from "Face Sets"
@@ -257,10 +290,11 @@ static PetscErrorCode MeshSetUp_PerioCtx(DM dm, const char *opt_filename){
   }
 
   { // Cleanup
-    ierr = ISRestoreIndices(bnd_is_loc, &bnd_loc); CHKERRQ(ierr);
-    ierr = ISRestoreIndices(bnd_is, &bnd);         CHKERRQ(ierr);
-    ierr = ISDestroy(&bnd_is_loc);                 CHKERRQ(ierr);
-    ierr = ISDestroy(&bnd_is);                     CHKERRQ(ierr);
+    for (PetscInt i = 0; i < num; i++) {ierr = PetscSFDestroy(&sf_bnd[i]); CHKERRQ(ierr);}
+    ierr = ISRestoreIndices(bnd_is_loc, &bnd_loc);                         CHKERRQ(ierr);
+    ierr = ISRestoreIndices(bnd_is, &bnd);                                 CHKERRQ(ierr);
+    ierr = ISDestroy(&bnd_is_loc);                                         CHKERRQ(ierr);
+    ierr = ISDestroy(&bnd_is);                                             CHKERRQ(ierr);
   }
 
   PetscFunctionReturn(0);
