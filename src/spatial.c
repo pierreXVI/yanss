@@ -371,6 +371,7 @@ static PetscErrorCode MeshSetUp_Ctx(DM dm){
     ierr = DMPlexGetHeightStratum(dm, 1, &fStart, &fEnd);                         CHKERRQ(ierr);
     ierr = DMPlexGetHeightStratum(dm, 0, &(ctx->cStartCell), &(ctx->cEnd));       CHKERRQ(ierr);
     ierr = DMPlexGetGhostCellStratum(dm, &(ctx->cStartBoundary), NULL);           CHKERRQ(ierr);
+    if (ctx->cStartBoundary < ctx->cStartCell) ctx->cStartBoundary = ctx->cEnd;
     for (PetscInt f = fStart; f < fEnd; f++) {
       ierr = DMGetLabelValue(dm, "ghost", f, &ghost);                             CHKERRQ(ierr);
       if (ghost < 0) nface++;
