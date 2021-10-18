@@ -20,9 +20,6 @@
 */
 
 typedef struct {
-  PetscInt        n_perio; // Number of periodic BC
-  struct PerioCtx *perio;  // Periodicity context
-
   PetscInt cStartCell; // The first "true" cell
   PetscInt cStartOverlap; // The first partition cell
   PetscInt cStartBoundary; // The first boundary cell
@@ -36,11 +33,6 @@ typedef struct {
   PetscReal *FaceCtx;
 
 } *MeshCtx;
-
-struct PerioCtx {
-  Vec buffer;        // Buffer vector
-  IS  master, slave; // Master and Slave cell ids
-};
 
 
 /*
@@ -77,11 +69,6 @@ PetscErrorCode MeshCreateGlobalVector(DM, Vec*);
   Sets up the mesh and the physical context (for the boundaries conditions)
 */
 PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename);
-
-/*
-  Puts coefficients which represent periodic values into the local solution and gradient vectors
-*/
-PetscErrorCode MeshInsertPeriodicValues(DM, Vec, Vec);
 
 /*
   Compute the gradient (global vector) of the given vector (local vector) using the precomputed data

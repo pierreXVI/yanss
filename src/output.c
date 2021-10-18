@@ -162,7 +162,6 @@ PetscErrorCode IOMonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, v
   ierr = VecSetOptionsPrefix(grad, "grad_");                               CHKERRQ(ierr);
 
   if (!steps) {
-    ierr = MeshInsertPeriodicValues(dm, locX, NULL);    CHKERRQ(ierr);
     ierr = MeshReconstructGradientsFVM(dm, locX, grad); CHKERRQ(ierr);
   }
 
