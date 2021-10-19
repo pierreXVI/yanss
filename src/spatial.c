@@ -777,7 +777,7 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
 
   ierr = DMTSSetRHSFunctionLocal(dm, MeshComputeRHSFunctionFVM, phys); CHKERRQ(ierr);
 
-  ierr = MeshSetUp_PerioCtx(dm, filename); CHKERRQ(ierr);
+  ierr = MeshSetUp_Periodicity(dm, filename); CHKERRQ(ierr);
 
   { // Setting discrete system (Riemann solver, boundaries)
     DM             dmGrad;
