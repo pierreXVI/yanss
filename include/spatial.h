@@ -109,4 +109,16 @@ PetscErrorCode VecApplyFunctionInPlace(Vec, void(const PetscReal*, PetscReal*, v
 */
 PetscErrorCode VecApplyFunctionComponents(Vec, Vec*, void(const PetscReal*, PetscReal*, void*), void*);
 
+
+/*
+  Convert the field from conservative to primitive in each "leaf" of the PetscSF:
+  this is called after a DMGlobalToLocalEnd.
+  To get a local primitive vector, one must set the DM with
+    `ierr = DMGlobalToLocalHookAdd(dm, NULL, GlobalConservativeToLocalPrimitive_Endhook, phys); CHKERRQ(ierr);`
+  or call
+    `ierr = GlobalConservativeToLocalPrimitive_Endhook(dm, NULL, INSERT_VALUES, locX, phys); CHKERRQ(ierr);`
+  The first solution makes the ConservativeToPrimitive convertion automatic but mandatory. The second if more flexible.
+*/
+PetscErrorCode GlobalConservativeToLocalPrimitive_Endhook(DM, Vec, InsertMode, Vec, void*);
+
 #endif

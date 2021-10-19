@@ -162,6 +162,7 @@ PetscErrorCode IOMonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, v
   ierr = VecSetOptionsPrefix(grad, "grad_");                               CHKERRQ(ierr);
 
   if (!steps) {
+    ierr = GlobalConservativeToLocalPrimitive_Endhook(dm, NULL, INSERT_VALUES, locX, mctx->phys); CHKERRQ(ierr);
     ierr = MeshReconstructGradientsFVM(dm, locX, grad); CHKERRQ(ierr);
   }
 

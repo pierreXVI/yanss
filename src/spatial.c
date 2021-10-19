@@ -464,38 +464,6 @@ static PetscErrorCode MeshSetUp_Ctx(DM dm){
 
 
 /*
-  Convert the field from conservative to primitive in each "leaf" of the PetscSF:
-  this is called after a DMGlobalToLocalEnd.
-  To get a local primitive vector, one must set the DM with
-    `ierr = DMGlobalToLocalHookAdd(dm, NULL, GlobalConservativeToLocalPrimitive_Endhook, phys); CHKERRQ(ierr);`
-  or call
-    `ierr = GlobalConservativeToLocalPrimitive_Endhook(dm, NULL, INSERT_VALUES, locX, phys); CHKERRQ(ierr);`
-  The first solution makes the ConservativeToPrimitive convertion automatic but mandatory. The second if more flexible.
-*/
-static PetscErrorCode GlobalConservativeToLocalPrimitive_Endhook(DM dm, Vec g, InsertMode mode, Vec l, void *ctx){
-  PetscErrorCode ierr;
-  PetscSF        sf;
-  PetscInt       nleaves, Nc;
-  const PetscInt *leaves;
-  PetscReal      *l_array;
-  Physics        phys = (Physics) ctx;
-
-  PetscFunctionBeginUser;
-  ierr = DMGetSectionSF(dm, &sf);                            CHKERRQ(ierr);
-  ierr = PetscSFGetGraph(sf, NULL, &nleaves, &leaves, NULL); CHKERRQ(ierr);
-  ierr = VecGetBlockSize(l, &Nc);                            CHKERRQ(ierr);
-  ierr = VecGetArray(l, &l_array);                           CHKERRQ(ierr);
-  if (leaves) {
-    for (PetscInt i = 0; i < nleaves; i += Nc) ConservativeToPrimitive(l_array + leaves[i], l_array + leaves[i], phys);
-  } else {
-    for (PetscInt i = 0; i < nleaves; i += Nc) ConservativeToPrimitive(l_array + i, l_array + i, phys);
-  }
-  ierr = VecRestoreArray(l, &l_array);                       CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-
-/*
   Compute the RHS
 */
 static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F, void *ctx){
@@ -982,5 +950,28 @@ PetscErrorCode VecApplyFunctionComponents(Vec x, Vec *y,
   ierr = VecAssemblyEnd(*y);                               CHKERRQ(ierr);
   ierr = PetscFree2(val_y, ix);                            CHKERRQ(ierr);
 
+  PetscFunctionReturn(0);
+}
+
+
+PetscErrorCode GlobalConservativeToLocalPrimitive_Endhook(DM dm, Vec g, InsertMode mode, Vec l, void *ctx){
+  PetscErrorCode ierr;
+  PetscSF        sf;
+  PetscInt       nleaves, Nc;
+  const PetscInt *leaves;
+  PetscReal      *l_array;
+  Physics        phys = (Physics) ctx;
+
+  PetscFunctionBeginUser;
+  ierr = DMGetSectionSF(dm, &sf);                            CHKERRQ(ierr);
+  ierr = PetscSFGetGraph(sf, NULL, &nleaves, &leaves, NULL); CHKERRQ(ierr);
+  ierr = VecGetBlockSize(l, &Nc);                            CHKERRQ(ierr);
+  ierr = VecGetArray(l, &l_array);                           CHKERRQ(ierr);
+  if (leaves) {
+    for (PetscInt i = 0; i < nleaves; i += Nc) ConservativeToPrimitive(l_array + leaves[i], l_array + leaves[i], phys);
+  } else {
+    for (PetscInt i = 0; i < nleaves; i += Nc) ConservativeToPrimitive(l_array + i, l_array + i, phys);
+  }
+  ierr = VecRestoreArray(l, &l_array);                       CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
