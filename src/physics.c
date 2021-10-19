@@ -4,15 +4,16 @@
 
 
 /*____________________________________________________________________________________________________________________*/
-static const enum ProblemType problem_type = TYPE_EULER;
 static struct FieldDescription {
   const char *name_c;
   const char *name_p;
   PetscInt   dof;
-} fields_euler[] = {{"rho",     "rho", DOF_1},
-                    {"rho * U", "U",   DOF_DIM},
-                    {"rho * E", "p",   DOF_1},
-                    {NULL,      NULL,  0}};
+} FIELDS_NS[] = {
+  {"rho",     "rho", DOF_1},
+  {"rho * U", "U",   DOF_DIM},
+  {"rho * E", "p",   DOF_1},
+  {NULL,      NULL,  0}
+};
 
 
 PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x, PetscInt Nc, PetscReal *u, void *ctx){
@@ -119,14 +120,19 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
     const char *buffer, *loc = "Physics";
     ierr = YAMLLoadVarFromLoc(filename, "gamma", 1, &loc, &buffer); CHKERRQ(ierr);
     (*phys)->gamma = atof(buffer);
+    ierr = YAMLLoadVarFromLoc(filename, "r_gas", 1, &loc, &buffer); CHKERRQ(ierr);
+    (*phys)->r_gas = atof(buffer);
+    ierr = YAMLLoadVarFromLoc(filename, "mu", 1, &loc, &buffer); CHKERRQ(ierr);
+    (*phys)->mu = atof(buffer);
+    ierr = YAMLLoadVarFromLoc(filename, "lambda", 1, &loc, &buffer); CHKERRQ(ierr);
+    (*phys)->lambda = atof(buffer);
     ierr = PetscFree(buffer); CHKERRQ(ierr);
 
     ierr = YAMLLoadInitialCondition(filename, (*phys)->dim, &(*phys)->init); CHKERRQ(ierr);
   }
 
   { // Setting fields
-    (*phys)->type = problem_type;
-    struct FieldDescription *fields = fields_euler;
+    struct FieldDescription *fields = FIELDS_NS;
     PetscInt nfields;
     for (nfields = 0, (*phys)->dof = 0; fields[nfields].name_c; nfields++) {
       switch (fields[nfields].dof) {

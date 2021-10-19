@@ -31,29 +31,22 @@ static PetscErrorCode BCWall(PetscReal time, const PetscReal c[], const PetscRea
   struct BCCtx *bc_ctx = (struct BCCtx*) ctx;
 
   PetscFunctionBeginUser;
-  switch (bc_ctx->phys->type) {
-  case TYPE_EULER: /* u <- u - (u.n)n */
-    xG[0] = xI[0];
-    xG[bc_ctx->phys->dim + 1] = xI[bc_ctx->phys->dim + 1];
 
+  xG[0] = xI[0];
+  xG[bc_ctx->phys->dim + 1] = xI[bc_ctx->phys->dim + 1];
+
+  if (bc_ctx->phys->mu > 0) { // Navier Stokes: u <- 0
+    // for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) xG[1 + i] = -xI[1 + i];
+    for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) xG[1 + i] = 0;
+  } else {  // Euler: u <- u - (u.n)n
     PetscReal dot = 0, norm2 = 0;
     for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) {
       dot += xI[1 + i] * n[i];
       norm2 += PetscSqr(n[i]);
     }
-    for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) xG[1 + i] = xI[1 + i] - 2 * dot * n[i] / norm2;
-    break;
-
-  case TYPE_NS: /* u <- 0 */
-    xG[0] = xI[0];
-    xG[bc_ctx->phys->dim + 1] = xI[bc_ctx->phys->dim + 1];
-
-    for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) xG[1 + i] = -xI[1 + i];
-    break;
-
-  default:
-    SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_SUP, "Wall boundary condition not implemented for this model (%d)\n", bc_ctx->phys->type);
-    break;
+    dot = dot / norm2;
+    // for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) xG[1 + i] = xI[1 + i] - 2 * dot * n[i];
+    for (PetscInt i = 0; i < bc_ctx->phys->dim; i++) xG[1 + i] = xI[1 + i] - dot * n[i];
   }
   PetscFunctionReturn(0);
 }

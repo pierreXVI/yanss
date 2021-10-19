@@ -7,9 +7,6 @@
 #include <petscsf.h>
 
 
-enum ProblemType {TYPE_EULER, TYPE_NS};
-
-
 #define DOF_1   -1
 #define DOF_DIM -2
 
@@ -37,12 +34,13 @@ union RiemannCtx{
 };
 
 typedef struct {
-  enum ProblemType     type;        // Problem type
-
   PetscInt             dof;         // Total number of dof
   PetscInt             dim;         // Spatial dimention
 
   PetscReal            gamma;       // Heat capacity ratio
+  PetscReal            r_gas;       // Specific gas constant (R / M)
+  PetscReal            mu;          // Dynamic viscosity
+  PetscReal            lambda;      // Thermal conductivity
 
   struct BCCtx         *bc_ctx;     // Boundary condition contexts
   PetscInt             nbc;         // Number of boundary conditions
