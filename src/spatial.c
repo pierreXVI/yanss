@@ -464,6 +464,38 @@ static PetscErrorCode MeshSetUp_Ctx(DM dm){
 
 
 /*
+  Convert the field from conservative to primitive in each "leaf" of the PetscSF:
+  this is called after a DMGlobalToLocalEnd.
+  To get a local primitive vector, one must set the DM with
+    `ierr = DMGlobalToLocalHookAdd(dm, NULL, GlobalConservativeToLocalPrimitive_Endhook, phys); CHKERRQ(ierr);`
+  or call
+    `ierr = GlobalConservativeToLocalPrimitive_Endhook(dm, NULL, INSERT_VALUES, locX, phys); CHKERRQ(ierr);`
+  The first solution makes the ConservativeToPrimitive convertion automatic but mandatory. The second if more flexible.
+*/
+static PetscErrorCode GlobalConservativeToLocalPrimitive_Endhook(DM dm, Vec g, InsertMode mode, Vec l, void *ctx){
+  PetscErrorCode ierr;
+  PetscSF        sf;
+  PetscInt       nleaves, Nc;
+  const PetscInt *leaves;
+  PetscReal      *l_array;
+  Physics        phys = (Physics) ctx;
+
+  PetscFunctionBeginUser;
+  ierr = DMGetSectionSF(dm, &sf);                            CHKERRQ(ierr);
+  ierr = PetscSFGetGraph(sf, NULL, &nleaves, &leaves, NULL); CHKERRQ(ierr);
+  ierr = VecGetBlockSize(l, &Nc);                            CHKERRQ(ierr);
+  ierr = VecGetArray(l, &l_array);                           CHKERRQ(ierr);
+  if (leaves) {
+    for (PetscInt i = 0; i < nleaves; i += Nc) ConservativeToPrimitive(l_array + leaves[i], l_array + leaves[i], phys);
+  } else {
+    for (PetscInt i = 0; i < nleaves; i += Nc) ConservativeToPrimitive(l_array + i, l_array + i, phys);
+  }
+  ierr = VecRestoreArray(l, &l_array);                       CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+
+/*
   Compute the RHS
 */
 static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX, Vec F, void *ctx){
@@ -471,29 +503,19 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
 
   PetscFunctionBeginUser;
 
+  ierr = GlobalConservativeToLocalPrimitive_Endhook(dm, NULL, INSERT_VALUES, locX, ctx); CHKERRQ(ierr);
+
   Vec locF;
   ierr = DMGetLocalVector(dm, &locF); CHKERRQ(ierr);
   ierr = VecZeroEntries(locF);        CHKERRQ(ierr);
 
-  PetscFV   fvm;
-  PetscInt  fStart, fEnd, cStart, cEndCell, cEnd, Nc;
-  PetscReal *locX_array;
+  PetscFV  fvm;
+  PetscInt fStart, fEnd, cStart, cEndCell, cEnd, Nc;
   { // Getting mesh data
     ierr = DMPlexGetHeightStratum(dm, 1, &fStart, &fEnd);           CHKERRQ(ierr);
     ierr = MeshGetCellStratum(dm, &cStart, &cEndCell, &cEnd, NULL); CHKERRQ(ierr);
     ierr = DMGetField(dm, 0, NULL, (PetscObject*) &fvm);            CHKERRQ(ierr);
     ierr = PetscFVGetNumComponents(fvm, &Nc);                       CHKERRQ(ierr);
-    ierr = VecGetArray(locX, &locX_array);                          CHKERRQ(ierr);
-  }
-
-  { // Convertion conservative to primitive
-    // // For each "true" cell and each overlapping cell (the MPI exchanges are done before, on conservative variables)
-    // for (PetscInt c = cStart; c < cEnd; c++) {
-    //   PetscReal *valX;
-    //   ierr = DMPlexPointLocalFieldRef(dm, c, 0, locX_array, &valX); CHKERRQ(ierr);
-    //   ConservativeToPrimitive(valX, valX, ctx);
-    // }
-    VecApplyFunctionInPlace(locX, ConservativeToPrimitive, ctx);
   }
 
   DM  dmGrad;
@@ -611,17 +633,7 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
     ierr = VecRestoreArray(locF, &fa); CHKERRQ(ierr);
   }
 
-  { // Convertion primitive to conservative
-    // For each "true" cell and each overlapping cell (the MPI exchanges are done before, on conservative variables)
-    for (PetscInt c = cStart; c < cEndCell; c++) {
-      PetscReal *valX;
-      ierr = DMPlexPointLocalFieldRef(dm, c, 0, locX_array, &valX); CHKERRQ(ierr);
-      PrimitiveToConservative(valX, valX, ctx);
-    }
-  }
-
   { // Cleanup
-    ierr = VecRestoreArray(locX, &locX_array);                                                                 CHKERRQ(ierr);
     ierr = DMPlexRestoreFaceFields(dm, fStart, fEnd, locX, NULL, facegeom, cellgeom, locGrad, NULL, &uL, &uR); CHKERRQ(ierr);
     ierr = DMPlexRestoreFaceGeometry(dm, fStart, fEnd, facegeom, cellgeom, NULL, &fgeom, &vol);                CHKERRQ(ierr);
     ierr = DMRestoreWorkArray(dm, 0, MPIU_REAL, &fluxL);                                                       CHKERRQ(ierr);
