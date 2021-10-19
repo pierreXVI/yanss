@@ -17,6 +17,13 @@
   This numbering corresponds to the local vectors, the global vectors local cells are the "true" mesh cells only.
   Be carefull with the PETSc ambiguation:
   `DMPlexGetGhostCellStratum` corresponds to the boundary cells, and the "ghost" `DMLabel` to the partition cells.
+
+  The numerical flux is computed in `MeshComputeRHSFunctionFVM`:
+    - the local conservative vector is converted to primitive
+    - the primitive cell centered gradients are computed with `MeshReconstructGradientsFVM`
+    - the primitive face centered fields are constructed with the cell centered gradients
+    - the face flux is computed with the choosen Riemann solver
+    - the flux are accumulated on each cell
 */
 
 typedef struct {
