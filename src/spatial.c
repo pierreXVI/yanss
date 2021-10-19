@@ -548,64 +548,60 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
     ierr = PetscFVIntegrateRHSFunction(fvm, prob, 0, numFaces, fgeom, vol, uL, uR, fluxL, fluxR);               CHKERRQ(ierr);
 
     {
-    //   void            (*riemann)(PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscReal[], const PetscReal[], PetscInt, const PetscReal[], PetscReal[], void *);
-    //   void            *rctx;
-    //   PetscReal        flux[Nc];
-    //   const PetscReal *constants;
-    //   PetscInt         dim, numConstants, pdim, Nc, totDim, off, f, d;
-    //   PetscErrorCode   ierr;
-    //
-    //   ierr = PetscDSGetTotalComponents(prob, &Nc);CHKERRQ(ierr);
-    //   ierr = PetscDSGetTotalDimension(prob, &totDim);CHKERRQ(ierr);
-    //   ierr = PetscDSGetFieldOffset(prob, 0, &off);CHKERRQ(ierr);
-    //   ierr = PetscDSGetRiemannSolver(prob, 0, &riemann);CHKERRQ(ierr);
-    //   ierr = PetscDSGetContext(prob, 0, &rctx);CHKERRQ(ierr);
-    //   ierr = PetscDSGetConstants(prob, &numConstants, &constants);CHKERRQ(ierr);
-    //   ierr = PetscFVGetSpatialDimension(fvm, &dim);CHKERRQ(ierr);
-    //   ierr = PetscFVGetNumComponents(fvm, &pdim);CHKERRQ(ierr);
-    //   for (f = 0; f < numFaces; ++f) {
-    //     PetscReal fReal = f;
-    //     constants = &fReal;
-    //     (*riemann)(dim, pdim, fgeom[f].centroid, fgeom[f].normal, &uL[f*Nc], &uR[f*Nc], numConstants, constants, flux, rctx);
-    //     for (d = 0; d < pdim; ++d) {
-    //       fluxL[f*totDim+off+d] = flux[d] / vol[f*2+0];
-    //       fluxR[f*totDim+off+d] = flux[d] / vol[f*2+1];
-    //     }
-    //   }
-    }
+      Physics         phys;
+      PetscInt        dim;
+      MeshCtx         mesh_ctx;
+      const PetscReal *x_a, *grad_a;
+      ierr = DMGetDimension(dm, &dim);               CHKERRQ(ierr);
+      ierr = DMGetApplicationContext(dm, &mesh_ctx); CHKERRQ(ierr);
+      ierr = VecGetArrayRead(locX, &x_a);            CHKERRQ(ierr);
+      ierr = VecGetArrayRead(locGrad, &grad_a);      CHKERRQ(ierr);
 
-    {
-    //   PetscInt        dim;
-    //   MeshCtx         mesh_ctx;
-    //   const PetscReal *grad_a;
-    //   ierr = DMGetDimension(dm, &dim);               CHKERRQ(ierr);
-    //   ierr = DMGetApplicationContext(dm, &mesh_ctx); CHKERRQ(ierr);
-    //   ierr = VecGetArrayRead(locGrad, &grad_a);      CHKERRQ(ierr);
-    //
-    //   for (PetscInt f = fStart, iface=0; f < fEnd; f++) { // Computing face gradient
-    //     PetscInt ghost;
-    //     ierr = DMGetLabelValue(dm, "ghost", f, &ghost);     CHKERRQ(ierr);
-    //     if (ghost >= 0) continue;
-    //
-    //     const PetscInt *cells;
-    //     PetscReal      *g0, *g1;
-    //     ierr = DMPlexGetSupport(dm, f, &cells);                     CHKERRQ(ierr);
-    //     ierr = DMPlexPointLocalRead(dmGrad, cells[0], grad_a, &g0); CHKERRQ(ierr);
-    //     ierr = DMPlexPointLocalRead(dmGrad, cells[1], grad_a, &g1); CHKERRQ(ierr);
-    //
-    //     PetscReal face_grad[Nc * dim];
-    //     for (PetscInt k = 0; k < dim * Nc; k++) face_grad[k] = (g0[k] + mesh_ctx->FaceCtx[iface] * g1[k]) / (1 + mesh_ctx->FaceCtx[iface]);
-    //
-    //     for (PetscInt j = 0; j < Nc; j++) {
-    //       PetscReal foo = 0;
-    //       for (PetscInt k = 0; k < dim; k++) foo += fgeom[iface].normal[k] * face_grad[j * Nc + k];
-    //       fluxL[iface * Nc + j] += -5*foo;
-    //       fluxR[iface * Nc + j] += -5*foo;
-    //
-    //     }
-    //     iface++;
-    //   }
-    //   ierr = VecRestoreArrayRead(locGrad, &grad_a); CHKERRQ(ierr);
+      ierr = PetscDSGetContext(prob, 0, &phys);CHKERRQ(ierr);
+
+      for (PetscInt f = fStart, iface=0; f < fEnd; f++) { // Computing face gradient
+        PetscInt ghost;
+        ierr = DMGetLabelValue(dm, "ghost", f, &ghost); CHKERRQ(ierr);
+        if (ghost >= 0) continue;
+
+        const PetscInt *cells;
+        PetscReal      *x0, *x1;
+        PetscReal      *g0, *g1;
+        ierr = DMPlexGetSupport(dm, f, &cells);                     CHKERRQ(ierr);
+        ierr = DMPlexPointLocalRead(dm, cells[0], x_a, &x0);        CHKERRQ(ierr);
+        ierr = DMPlexPointLocalRead(dm, cells[1], x_a, &x1);        CHKERRQ(ierr);
+        ierr = DMPlexPointLocalRead(dmGrad, cells[0], grad_a, &g0); CHKERRQ(ierr);
+        ierr = DMPlexPointLocalRead(dmGrad, cells[1], grad_a, &g1); CHKERRQ(ierr);
+
+        PetscReal face_x[Nc], face_grad[Nc * dim];
+        for (PetscInt k = 0; k < Nc; k++) face_x[k] = (x0[k] + mesh_ctx->FaceCtx[iface] * x1[k]) / (1 + mesh_ctx->FaceCtx[iface]);
+        for (PetscInt k = 0; k < dim * Nc; k++) face_grad[k] = (g0[k] + mesh_ctx->FaceCtx[iface] * g1[k]) / (1 + mesh_ctx->FaceCtx[iface]);
+
+        PetscReal div_u = 0; // 2/3 * div u
+        for (PetscInt i = 0; i < dim; i++) div_u += face_grad[(i + 1) * dim + i];
+        div_u *= 2. / 3.;
+
+        PetscReal u_n = 0, foo = 0, grad_t_n = 0; // u . n, (grad u + t_grad u) . n . u, grad T . n
+        for (PetscInt i = 0; i < dim; i++) {
+          u_n += fgeom[iface].normal[i] * face_x[i + 1];
+          grad_t_n += fgeom[iface].normal[i] * (face_x[0] * face_grad[(dim + 1) * Nc + i] - face_x[dim + 1] * face_grad[i]) / (phys->r_gas * PetscSqr(face_x[0]));
+
+          PetscReal bar = 0; // (grad u + t_grad u) . n . e_k
+          for (PetscInt j = 0; j < dim; j++) bar += (face_grad[(i + 1) * dim + j] + face_grad[(j + 1) * dim + i]) * fgeom[iface].normal[j];
+          foo += bar * face_x[i + 1];
+
+          fluxL[iface * Nc + i + 1] += phys->mu * (div_u * fgeom[iface].normal[i] - bar);
+        }
+        fluxL[iface * Nc + dim + 1] += phys->mu * (div_u * u_n - foo) - phys->lambda * grad_t_n;
+
+        // printf("% f, % f\n", fgeom[iface].centroid[0], fgeom[iface].centroid[1]);
+        // printf("  % f, % f, % f, % f\n", fluxL[iface * Nc + 0], fluxL[iface * Nc + 1], fluxL[iface * Nc + 2], fluxL[iface * Nc + 3]);
+        // printf("  g0 = % f, % f, % f, % f\n", g0[0], g0[1], g0[2], g0[3]);
+        // printf("  g1 = % f, % f, % f, % f\n", g1[0], g1[1], g1[2], g1[3]);
+
+        iface++;
+      }
+      ierr = VecRestoreArrayRead(locGrad, &grad_a); CHKERRQ(ierr);
     }
   }
 
