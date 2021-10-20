@@ -7,13 +7,13 @@ struct MonitorFunctionList {
   const char      *name;
   PetscErrorCode  (*func)(TS, PetscInt, PetscReal, Vec, void*);
   PetscViewerType type;
-} MonitorList[] = {{"Debug",        IOMonitorDEBUG,        NULL},
-                   {"Ascii_Res",    IOMonitorAscii_Res,    NULL},
-                   {"Ascii_MinMax", IOMonitorAscii_MinMax, NULL},
-                   {"Draw",         IOMonitorDraw,         PETSCVIEWERDRAW},
-                   {"Draw_NormU",   IOMonitorDrawNormU,    PETSCVIEWERDRAW},
-                   {"Draw_Grad",    IOMonitorDrawGrad,     PETSCVIEWERDRAW},
-                   {NULL,           NULL,                  NULL}};
+} MonitorList[] = {{"Debug",        MonitorDEBUG,        NULL},
+                   {"Ascii_Res",    MonitorAscii_Res,    NULL},
+                   {"Ascii_MinMax", MonitorAscii_MinMax, NULL},
+                   {"Draw",         MonitorDraw,         PETSCVIEWERDRAW},
+                   {"Draw_NormU",   MonitorDrawNormU,    PETSCVIEWERDRAW},
+                   {"Draw_Grad",    MonitorDrawGrad,     PETSCVIEWERDRAW},
+                   {NULL,           NULL,                NULL}};
 
 /*
   Wrapper to free a Monitor Context

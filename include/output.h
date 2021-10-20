@@ -27,28 +27,28 @@ struct MonitorCtx {
 /*
   Print for each field "field_name : min_value, max_value"
 */
-PetscErrorCode IOMonitorAscii_MinMax(TS, PetscInt, PetscReal, Vec, void*);
+PetscErrorCode MonitorAscii_MinMax(TS, PetscInt, PetscReal, Vec, void*);
 
 /*
   Print for each field "field_name : min_flux_value, max_flux_value"
 */
-PetscErrorCode IOMonitorAscii_Res(TS, PetscInt, PetscReal, Vec, void*);
+PetscErrorCode MonitorAscii_Res(TS, PetscInt, PetscReal, Vec, void*);
 
 /*
   Draw each fields in separate graphic windows
 */
-PetscErrorCode IOMonitorDraw(TS, PetscInt, PetscReal, Vec, void*);
+PetscErrorCode MonitorDraw(TS, PetscInt, PetscReal, Vec, void*);
 
 /*
   Draw norm of the velocity
 */
-PetscErrorCode IOMonitorDrawNormU(TS, PetscInt, PetscReal, Vec, void*);
+PetscErrorCode MonitorDrawNormU(TS, PetscInt, PetscReal, Vec, void*);
 
 /*
   Draw each field gradients in separate graphic windows
 */
-PetscErrorCode IOMonitorDrawGrad(TS, PetscInt, PetscReal, Vec, void*);
+PetscErrorCode MonitorDrawGrad(TS, PetscInt, PetscReal, Vec, void*);
 
-PetscErrorCode IOMonitorDEBUG(TS, PetscInt, PetscReal, Vec, void*);
+PetscErrorCode MonitorDEBUG(TS, PetscInt, PetscReal, Vec, void*);
 
 #endif

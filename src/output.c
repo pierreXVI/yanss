@@ -52,7 +52,7 @@ static PetscErrorCode DrawVecOnDM(Vec v, DM dm, PetscViewer viewer, const char *
 }
 
 
-PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
+PetscErrorCode MonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
   struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
 
@@ -79,7 +79,7 @@ PetscErrorCode IOMonitorAscii_MinMax(TS ts, PetscInt steps, PetscReal time, Vec 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
+PetscErrorCode MonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
   struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
 
@@ -111,7 +111,7 @@ PetscErrorCode IOMonitorAscii_Res(TS ts, PetscInt steps, PetscReal time, Vec u, 
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
+PetscErrorCode MonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
   struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
 
@@ -122,7 +122,7 @@ PetscErrorCode IOMonitorDraw(TS ts, PetscInt steps, PetscReal time, Vec u, void 
 }
 
 #include "physics.h"
-PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
+PetscErrorCode MonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
   struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
   DM                dm;
@@ -139,7 +139,7 @@ PetscErrorCode IOMonitorDrawNormU(TS ts, PetscInt steps, PetscReal time, Vec u, 
 }
 
 #include "view.h"
-PetscErrorCode IOMonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
+PetscErrorCode MonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
   struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
   DM                dm, dmGrad;
@@ -174,7 +174,7 @@ PetscErrorCode IOMonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, v
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode IOMonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
+PetscErrorCode MonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
   PetscErrorCode    ierr;
   struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
 
