@@ -22,21 +22,21 @@ PetscErrorCode InitialCondition(PetscInt dim, PetscReal time, const PetscReal *x
 
   PetscReal M = 0.8, beta = 1.3860642817598832, R = 1;
   PetscReal Xc = 0, Yc = 0;
-  PetscReal Pinf = 1, Tinf = 1, Rgas = 1;
-  PetscReal rhoinf = Pinf / (Rgas * Tinf);
+  PetscReal Pinf = 1, Tinf = 1;
+  PetscReal rhoinf = Pinf / (phys->r_gas * Tinf);
 
-  PetscReal Uinf = M * PetscSqrtReal(phys->gamma * Rgas * Tinf);
+  PetscReal Uinf = M * PetscSqrtReal(phys->gamma * phys->r_gas * Tinf);
 
   PetscReal dx = (x[0] - Xc) / R, dy = (x[1] - Yc) / R;
   PetscReal alpha = beta * PetscExpReal(-(PetscSqr(dx) + PetscSqr(dy)) / 2);
 
-  PetscReal T0 = Tinf - PetscSqr(Uinf * alpha) * (phys->gamma - 1) / (2 * phys->gamma * Rgas);
+  PetscReal T0 = Tinf - PetscSqr(Uinf * alpha) * (phys->gamma - 1) / (2 * phys->gamma * phys->r_gas);
   PetscReal rho0 = rhoinf * PetscPowReal(T0 / Tinf, 1 / (phys->gamma - 1));
 
   u[0] = rho0;
   u[1] = Uinf * (1 - alpha * dy);
   u[2] = Uinf * alpha * dx;
-  u[3] = rho0 * Rgas * T0;
+  u[3] = rho0 * phys->r_gas * T0;
 
   PrimitiveToConservative(u, u, phys);
   // PrimitiveToConservative(phys->init, u, phys);
