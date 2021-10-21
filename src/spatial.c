@@ -310,17 +310,18 @@ static PetscErrorCode MeshSetUp_Periodicity(DM dm, const char *opt_filename){
   }
 
   { // Removing periodic boundaries from "Face Sets"
-    DMLabel label_old, label_new;
-    ierr = DMRemoveLabel(dm, "Face Sets", &label_old); CHKERRQ(ierr);
-    ierr = DMCreateLabel(dm, "Face Sets");             CHKERRQ(ierr);
-    ierr = DMGetLabel(dm, "Face Sets", &label_new);    CHKERRQ(ierr);
+    DMLabel label_old, label_new, label_perio;
+    ierr = DMRemoveLabel(dm, "Face Sets", &label_old);  CHKERRQ(ierr);
+    ierr = DMCreateLabel(dm, "Face Sets");              CHKERRQ(ierr);
+    ierr = DMCreateLabel(dm, "Periodicity");            CHKERRQ(ierr);
+    ierr = DMGetLabel(dm, "Face Sets", &label_new);     CHKERRQ(ierr);
+    ierr = DMGetLabel(dm, "Periodicity", &label_perio); CHKERRQ(ierr);
     for (PetscInt i = 0; i < num_loc; i++) {
-      if (!rem[i]) {
-        IS points;
-        ierr = DMLabelGetStratumIS(label_old, bnd_loc[i], &points); CHKERRQ(ierr);
-        ierr = DMLabelSetStratumIS(label_new, bnd_loc[i], points);  CHKERRQ(ierr);
-        ierr = ISDestroy(&points);                                  CHKERRQ(ierr);
-      }
+      IS points;
+      DMLabel label_target = (rem[i]) ? label_perio : label_new;
+      ierr = DMLabelGetStratumIS(label_old, bnd_loc[i], &points);   CHKERRQ(ierr);
+      ierr = DMLabelSetStratumIS(label_target, bnd_loc[i], points); CHKERRQ(ierr);
+      ierr = ISDestroy(&points);                                    CHKERRQ(ierr);
     }
     ierr = DMLabelDestroy(&label_old); CHKERRQ(ierr);
   }
