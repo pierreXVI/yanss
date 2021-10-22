@@ -143,7 +143,7 @@ PetscErrorCode MonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, voi
   PetscErrorCode    ierr;
   struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
   DM                dm, dmGrad;
-  Vec               locX, grad;
+  Vec               grad;
   PetscFV           fvm;
 
   PetscFunctionBeginUser;
@@ -154,23 +154,22 @@ PetscErrorCode MonitorDrawGrad(TS ts, PetscInt steps, PetscReal time, Vec u, voi
   ierr = DMPlexGetDataFVM(dm, fvm, NULL, NULL, &dmGrad); CHKERRQ(ierr);
   ierr = DMSetOutputSequenceNumber(dmGrad, steps, time); CHKERRQ(ierr);
 
-  ierr = DMGetLocalVector(dm, &locX);                                      CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(dm, u, INSERT_VALUES, locX);                 CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(dm, u, INSERT_VALUES, locX);                   CHKERRQ(ierr);
   ierr = DMGetGlobalVector(dmGrad, &grad);                                 CHKERRQ(ierr);
   ierr = VecSetOperation(grad, VECOP_VIEW, (void (*)(void)) VecView_Mesh); CHKERRQ(ierr);
   ierr = VecSetOptionsPrefix(grad, "grad_");                               CHKERRQ(ierr);
 
   if (!steps) {
+    Vec locX;
+    ierr = DMGetLocalVector(dm, &locX);                                                           CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(dm, u, INSERT_VALUES, locX);                                      CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(dm, u, INSERT_VALUES, locX);                                        CHKERRQ(ierr);
     ierr = GlobalConservativeToLocalPrimitive_Endhook(dm, NULL, INSERT_VALUES, locX, mctx->phys); CHKERRQ(ierr);
-    ierr = MeshReconstructGradientsFVM(dm, locX, grad); CHKERRQ(ierr);
+    ierr = MeshReconstructGradientsFVM(dm, locX, grad);                                           CHKERRQ(ierr);
+    ierr = DMRestoreLocalVector(dm, &locX);                                                       CHKERRQ(ierr);
   }
 
   ierr = VecView(grad, mctx->viewer); CHKERRQ(ierr);
-
   ierr = DMRestoreGlobalVector(dmGrad, &grad); CHKERRQ(ierr);
-  ierr = DMRestoreLocalVector(dm, &locX);      CHKERRQ(ierr);
-
   PetscFunctionReturn(0);
 }
 
