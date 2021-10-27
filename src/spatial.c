@@ -448,7 +448,15 @@ static PetscErrorCode MeshSetUp_Ctx(DM dm){
     PetscReal dx0 = 0, dx1 = 0;
     for (size_t k = 0; k < dim; k++) dx0 += PetscSqr(fg->centroid[k] - cg0->centroid[k]);
     for (size_t k = 0; k < dim; k++) dx1 += PetscSqr(fg->centroid[k] - cg1->centroid[k]);
-    ctx->FaceCtx[iface] = PetscSqr(dx0 / dx1);
+    dx0 = PetscSqrtReal(dx0);
+    dx1 = PetscSqrtReal(dx1);
+    if (cells[0] >= ctx->cStartBoundary) {
+      ctx->FaceCtx[iface] = dx1;
+    } else if (cells[1] >= ctx->cStartBoundary) {
+      ctx->FaceCtx[iface] = dx0;
+    } else {
+      ctx->FaceCtx[iface] = dx0 / (dx0 + dx1);
+    }
     iface++;
   }
 
@@ -517,60 +525,74 @@ static PetscErrorCode MeshComputeRHSFunctionFVM(DM dm, PetscReal time, Vec locX,
   }
 
   {
-    Physics         phys;
-    PetscInt        dim;
-    MeshCtx         mesh_ctx;
-    const PetscReal *x_a, *grad_a;
-    ierr = DMGetDimension(dm, &dim);               CHKERRQ(ierr);
-    ierr = DMGetApplicationContext(dm, &mesh_ctx); CHKERRQ(ierr);
-    ierr = PetscDSGetContext(prob, 0, &phys);      CHKERRQ(ierr);
-    ierr = VecGetArrayRead(locX, &x_a);            CHKERRQ(ierr);
-    ierr = VecGetArrayRead(locGrad, &grad_a);      CHKERRQ(ierr);
+    Physics phys;
+    ierr = PetscDSGetContext(prob, 0, &phys); CHKERRQ(ierr);
+    if (phys->mu != 0 || phys->lambda != 0) {
+      PetscInt        dim;
+      MeshCtx         mesh_ctx;
+      const PetscReal *x_a, *grad_a;
+      ierr = DMGetApplicationContext(dm, &mesh_ctx); CHKERRQ(ierr);
+      ierr = DMGetDimension(dm, &dim);               CHKERRQ(ierr);
+      ierr = VecGetArrayRead(locX, &x_a);            CHKERRQ(ierr);
+      ierr = VecGetArrayRead(locGrad, &grad_a);      CHKERRQ(ierr);
 
-    PetscReal face_x[Nc], face_grad[Nc * dim], flux[Nc];
-    for (PetscInt f = fStart, iface=0; f < fEnd; f++) { // Computing diffusive flux
-      PetscInt ghost;
-      ierr = DMGetLabelValue(dm, "ghost", f, &ghost); CHKERRQ(ierr);
-      if (ghost >= 0) continue;
+      PetscReal face_x[Nc], face_grad[Nc * dim], flux[Nc];
+      for (PetscInt f = fStart, iface=0; f < fEnd; f++) { // Computing diffusive flux
+        PetscInt ghost;
+        ierr = DMGetLabelValue(dm, "ghost", f, &ghost); CHKERRQ(ierr);
+        if (ghost >= 0) continue;
 
-      const PetscInt *cells;
-      PetscReal      *x0, *x1, *g0, *g1;
-      ierr = DMPlexGetSupport(dm, f, &cells);                     CHKERRQ(ierr);
-      ierr = DMPlexPointLocalRead(dm, cells[0], x_a, &x0);        CHKERRQ(ierr);
-      ierr = DMPlexPointLocalRead(dm, cells[1], x_a, &x1);        CHKERRQ(ierr);
-      ierr = DMPlexPointLocalRead(dmGrad, cells[0], grad_a, &g0); CHKERRQ(ierr);
-      ierr = DMPlexPointLocalRead(dmGrad, cells[1], grad_a, &g1); CHKERRQ(ierr);
+        const PetscInt *cells;
+        PetscReal      *x0, *x1, *g0, *g1;
+        ierr = DMPlexGetSupport(dm, f, &cells);                     CHKERRQ(ierr);
+        ierr = DMPlexPointLocalRead(dm, cells[0], x_a, &x0);        CHKERRQ(ierr);
+        ierr = DMPlexPointLocalRead(dm, cells[1], x_a, &x1);        CHKERRQ(ierr);
+        ierr = DMPlexPointLocalRead(dmGrad, cells[0], grad_a, &g0); CHKERRQ(ierr);
+        ierr = DMPlexPointLocalRead(dmGrad, cells[1], grad_a, &g1); CHKERRQ(ierr);
 
-      for (PetscInt k = 0; k < Nc * dim; k++) face_grad[k] = (g0[k] + mesh_ctx->FaceCtx[iface] * g1[k]) / (1 + mesh_ctx->FaceCtx[iface]);
-      for (PetscInt k = 0; k < Nc; k++) face_x[k] = (x0[k] + mesh_ctx->FaceCtx[iface] * x1[k]) / (1 + mesh_ctx->FaceCtx[iface]);
+        if (cells[0] >= mesh_ctx->cStartBoundary || cells[1] >= mesh_ctx->cStartBoundary) {
+          PetscReal *g = (cells[1] >= mesh_ctx->cStartBoundary) ? g0 : g1;
+          for (PetscInt k = 0; k < Nc; k++) {
+            PetscReal fdNormalGrad = (x1[k] - x0[k]) / mesh_ctx->FaceCtx[iface];
+            for (PetscInt i = 0; i < dim; i++) {
+              face_grad[k * dim + i] = g[k * dim + i] + fdNormalGrad * fgeom[iface].normal[i];
+            }
+          }
+          for (PetscInt k = 0; k < Nc; k++) face_x[k] = (x0[k] + x1[k]) / 2;
+        } else {
+          for (PetscInt k = 0; k < Nc * dim; k++) face_grad[k] = g0[k] + mesh_ctx->FaceCtx[iface] * (g1[k] - g0[k]);
+          for (PetscInt k = 0; k < Nc; k++) face_x[k] = x0[k] + mesh_ctx->FaceCtx[iface] * (x1[k] - x0[k]);
+        }
 
-      PetscReal div_u = 0; // 2/3 * div u
-      for (PetscInt i = 0; i < dim; i++) div_u += face_grad[(i + 1) * dim + i];
-      div_u *= 2. / 3.;
+        PetscReal div_u = 0; // 2/3 * div u
+        for (PetscInt i = 0; i < dim; i++) div_u += face_grad[(i + 1) * dim + i];
+        div_u *= 2. / 3.;
 
-      PetscReal u_n = 0, foo = 0, grad_t_n = 0; // u . n, (grad u + t_grad u) . n . u, grad T . n
-      for (PetscInt i = 0; i < dim; i++) {
-        u_n += fgeom[iface].normal[i] * face_x[i + 1];
-        grad_t_n += fgeom[iface].normal[i] * (face_x[0] * face_grad[(dim + 1) * dim + i] - face_x[dim + 1] * face_grad[i]) / (phys->r_gas * PetscSqr(face_x[0]));
+        PetscReal u_n = 0, foo = 0, grad_t_n = 0; // u . n, (grad u + t_grad u) . n . u, grad T . n
+        for (PetscInt i = 0; i < dim; i++) {
+          u_n += fgeom[iface].normal[i] * face_x[i + 1];
+          grad_t_n += fgeom[iface].normal[i] * (face_x[0] * face_grad[(dim + 1) * dim + i] - face_x[dim + 1] * face_grad[i]) / (phys->r_gas * PetscSqr(face_x[0]));
 
-        PetscReal bar = 0; // (grad u + t_grad u) . n . e_i
-        for (PetscInt j = 0; j < dim; j++) bar += (face_grad[(i + 1) * dim + j] + face_grad[(j + 1) * dim + i]) * fgeom[iface].normal[j];
-        foo += bar * face_x[i + 1];
+          PetscReal bar = 0; // (grad u + t_grad u) . n . e_i
+          for (PetscInt j = 0; j < dim; j++) bar += (face_grad[(i + 1) * dim + j] + face_grad[(j + 1) * dim + i]) * fgeom[iface].normal[j];
+          foo += bar * face_x[i + 1];
 
-        flux[i + 1] = phys->mu * (div_u * fgeom[iface].normal[i] - bar);
+          flux[i + 1] = phys->mu * (div_u * fgeom[iface].normal[i] - bar);
+        }
+        flux[dim + 1] = phys->mu * (div_u * u_n - foo) - phys->lambda * grad_t_n;
+
+        for (PetscInt k = 1; k < Nc; k++) {
+          fluxL[iface * Nc + k] += flux[k] / vol[2 * iface + 0];
+          fluxR[iface * Nc + k] += flux[k] / vol[2 * iface + 1];
+        }
+
+        iface++;
       }
-      flux[dim + 1] = phys->mu * (div_u * u_n - foo) - phys->lambda * grad_t_n;
 
-      for (PetscInt k = 1; k < Nc; k++) {
-        fluxL[iface * Nc + k] += flux[k] / vol[2 * iface + 0];
-        fluxR[iface * Nc + k] += flux[k] / vol[2 * iface + 1];
-      }
-
-      iface++;
+      ierr = VecRestoreArrayRead(locGrad, &grad_a); CHKERRQ(ierr);
+      ierr = VecRestoreArrayRead(locX, &x_a);       CHKERRQ(ierr);
     }
 
-    ierr = VecRestoreArrayRead(locGrad, &grad_a); CHKERRQ(ierr);
-    ierr = VecRestoreArrayRead(locX, &x_a);       CHKERRQ(ierr);
   }
 
   { // Filling flux vector
