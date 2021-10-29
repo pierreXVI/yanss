@@ -667,11 +667,12 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
 
   PetscFunctionBeginUser;
   ierr = DMPlexCreateFromFile(comm, filename, PETSC_TRUE, dm); CHKERRQ(ierr);
+  ierr = DMSetFromOptions(*dm);                                CHKERRQ(ierr);
   ierr = DMGetDimension(*dm, &dim);                            CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-mesh_view_orig");      CHKERRQ(ierr);
   ierr = DMSetBasicAdjacency(*dm, PETSC_TRUE, PETSC_FALSE);    CHKERRQ(ierr);
 
-  { // Partitioning
+  { // Partitioning: -dm_distribute -dm_distribute_overlap 2
     PetscPartitioner part;
     ierr = DMPlexGetPartitioner(*dm, &part);        CHKERRQ(ierr);
     ierr = PetscPartitionerSetFromOptions(part);    CHKERRQ(ierr);
@@ -682,9 +683,7 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
     }
   }
 
-  ierr = DMSetFromOptions(*dm); CHKERRQ(ierr);
-
-  { // Boundaries
+  { // Boundaries: -dm_plex_create_fv_ghost_cells
     ierr = DMPlexConstructGhostCells(*dm, NULL, NULL, &foo_dm); CHKERRQ(ierr);
     ierr = DMDestroy(dm);                                       CHKERRQ(ierr);
     *dm = foo_dm;

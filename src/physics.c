@@ -162,8 +162,7 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
           ierr = PetscSNPrintf(buffer, sizeof(buffer),"d_%d %s", k, fields[i].name_p);         CHKERRQ(ierr);
           ierr = PetscFVSetComponentName(fvmGrad, (*phys)->dim * dof + k, buffer);             CHKERRQ(ierr);
         }
-      }
-      else {
+      } else {
         for (PetscInt j = 0; j < fields[i].dof; j++) {
           ierr = PetscSNPrintf(buffer, sizeof(buffer),"%s_%d", fields[i].name_c, j);           CHKERRQ(ierr);
           ierr = PetscFVSetComponentName(fvm, dof + j, buffer);                                CHKERRQ(ierr);
