@@ -64,6 +64,10 @@ PetscErrorCode TSCreate_User(MPI_Comm comm, TS *ts, const char *filename, DM dm,
   dt = cfl * minRadius / (PetscSqrtReal(phys->gamma * phys->init[phys->dim + 1] / phys->init[0]) + PetscSqrtReal(norm2));
   ierr = TSSetTimeStep(*ts, dt); CHKERRQ(ierr);
 
+  SNES snes;
+  ierr = TSGetSNES(*ts, &snes); CHKERRQ(ierr);
+  ierr = SNESSetUseMatrixFree(snes, PETSC_FALSE, PETSC_TRUE); CHKERRQ(ierr);
+
   ierr = TSSetFromOptions(*ts); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
