@@ -592,7 +592,7 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm, Physics phys){
     ierr = PetscFunctionListAdd(&riemann_list, "roe",       RiemannSolver_RoePike);                                                   CHKERRQ(ierr);
     ierr = PetscOptionsFList("-riemann", "Riemann Solver", "", riemann_list, riemann_name, riemann_name, sizeof(riemann_name), NULL); CHKERRQ(ierr);
     ierr = PetscFunctionListFind(riemann_list, riemann_name, &phys->riemann_solver);                                                  CHKERRQ(ierr);
-    if (!phys->riemann_solver) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Riemann solver: '%s'", riemann_name);
+    if (!phys->riemann_solver) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Riemann solver: '%s'", riemann_name);
     ierr = PetscFunctionListDestroy(&riemann_list);                                                                                   CHKERRQ(ierr);
     ierr = PetscOptionsEnd();                                                                                                         CHKERRQ(ierr);
   }
@@ -613,7 +613,7 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm, Physics phys){
     ierr = PetscOptionsFList("-riemann_exact_p_solver", "Riemann Exact Pressure Solver",
                              "", p_solver_list, p_solver_name, p_solver_name, sizeof(p_solver_name), NULL); CHKERRQ(ierr);
     ierr = PetscFunctionListFind(p_solver_list, p_solver_name, &phys->riemann_ctx.pressure_solver);  CHKERRQ(ierr);
-    if (!phys->riemann_ctx.pressure_solver) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Pressure solver: '%s'", p_solver_name);
+    if (!phys->riemann_ctx.pressure_solver) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Pressure solver: '%s'", p_solver_name);
     ierr = PetscFunctionListDestroy(&p_solver_list); CHKERRQ(ierr);
 
     phys->riemann_ctx.pressure_solver_rtol = 1E-6;
@@ -643,7 +643,7 @@ PetscErrorCode PhysicsRiemannSetFromOptions(MPI_Comm comm, Physics phys){
     ierr = PetscOptionsFList("-riemann_roe_entropy_fix", "Roe-Pike solver entropy fix",
                              "", entropy_fix_list, entropy_fix_name, entropy_fix_name, sizeof(entropy_fix_name), NULL); CHKERRQ(ierr);
     ierr = PetscFunctionListFind(entropy_fix_list, entropy_fix_name, &phys->riemann_ctx.entropy_fix); CHKERRQ(ierr);
-    if (!phys->riemann_ctx.entropy_fix) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Entropy fix: '%s'", entropy_fix_name);
+    if (!phys->riemann_ctx.entropy_fix) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Unknown Entropy fix: '%s'", entropy_fix_name);
     ierr = PetscFunctionListDestroy(&entropy_fix_list); CHKERRQ(ierr);
     ierr = PetscOptionsEnd(); CHKERRQ(ierr);
   }

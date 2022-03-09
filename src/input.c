@@ -71,7 +71,7 @@ static PetscErrorCode YAMLParserCreate(YAMLParser *parser, const char *filename)
   ierr = PetscPushErrorHandler(ParserErrorHandler, parser); CHKERRQ(ierr);
 
   FILE *input = fopen(filename, "rb");
-  if (!input) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_FILE_OPEN, "Failed to open %s", filename);
+  if (!input) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_FILE_OPEN, "Failed to open %s", filename);
 
   ierr = PetscNew(parser); CHKERRQ(ierr);
   if (!yaml_parser_initialize(*parser)) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER, "Cannot initialize parser");
@@ -84,7 +84,7 @@ static PetscErrorCode YAMLParserCreate(YAMLParser *parser, const char *filename)
 */
 static PetscErrorCode YAMLParserParse(YAMLParser parser, yaml_event_t *event) {
   PetscFunctionBeginUser;
-  if (!yaml_parser_parse(parser, event)) SETERRQ1(PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED, "Failed to parse: %s", parser->problem);
+  if (!yaml_parser_parse(parser, event)) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED, "Failed to parse: %s", parser->problem);
   PetscFunctionReturn(0);
 }
 
@@ -137,7 +137,7 @@ static PetscErrorCode YAMLParserMoveToScalar(YAMLParser *parser, const char *fil
 
 
     if (isAnchor) {
-      if (event_type == YAML_DOCUMENT_END_EVENT) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "&%s not found in %s", scalarname, filename);
+      if (event_type == YAML_DOCUMENT_END_EVENT) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "&%s not found in %s", scalarname, filename);
     } else {
       switch (event_type) {
       case YAML_STREAM_START_EVENT:   continue; break;
@@ -146,7 +146,7 @@ static PetscErrorCode YAMLParserMoveToScalar(YAMLParser *parser, const char *fil
       case YAML_MAPPING_END_EVENT:    level--; break;
       default: break;
       }
-      if (level < 0) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "%s not found in %s", scalarname, filename);
+      if (level < 0) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "%s not found in %s", scalarname, filename);
     }
 
   }
@@ -188,7 +188,7 @@ PetscErrorCode YAMLLoadVarFromLoc(const char *filename, const char *varname, Pet
     loc++;
   }
   ierr = YAMLParserMoveToScalar(&parser, filename, varname, &event); CHKERRQ(ierr);
-  if (event.type != YAML_SCALAR_EVENT) SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read %s in %s", varname, filename);
+  if (event.type != YAML_SCALAR_EVENT) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read %s in %s", varname, filename);
   ierr = PetscStrallocpy((const char*) event.data.scalar.value, (char**) var); CHKERRQ(ierr);
   yaml_event_delete(&event);
 
@@ -263,12 +263,12 @@ PetscErrorCode YAMLLoadVarArrayFromLoc(const char *filename, const char *varname
         node = root->next;
         ierr = PetscFree(root); CHKERRQ(ierr);
       }
-      SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s", varname, filename);
+      SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s", varname, filename);
     }
   }
 
   if (*len > 0 && i < *len) {
-    SETERRQ4(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s: not enough values (expected %d, got %d)", varname, filename, *len, i);
+    SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_USER_INPUT, "Cannot read list %s in %s: not enough values (expected %d, got %d)", varname, filename, *len, i);
   } else if (*len == 0) {
     *len = i;
   }
