@@ -36,7 +36,7 @@ static PetscErrorCode PetscDraw_Mesh_Cells(PetscDraw draw, DM dm){
       ierr = PetscDrawLine(draw, PetscRealPart(coords[6]), PetscRealPart(coords[7]), PetscRealPart(coords[0]), PetscRealPart(coords[1]), PETSC_DRAW_BLACK); CHKERRQ(ierr);
       break;
     default:
-      SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot draw cells of type %s", DMPolytopeTypes[ct]);
+      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot draw cells of type %s", DMPolytopeTypes[ct]);
       break;
     }
     ierr = DMPlexVecRestoreClosure(dm, coordSection, coordinates, c, NULL, &coords); CHKERRQ(ierr);
@@ -96,7 +96,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
     PetscInt  dim;
     ierr = VecGetDM(v, &dm);             CHKERRQ(ierr);
     ierr = DMGetCoordinateDim(dm, &dim); CHKERRQ(ierr);
-    if (dim != 2) SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Cannot draw meshes of dimension %D.", dim);
+    if (dim != 2) SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Cannot draw meshes of dimension %D.", dim);
   }
 
   Vec             coordinates;
@@ -199,7 +199,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
         PetscInt   numVals, va;
 
         ierr = DMPlexVecGetClosure(dm, NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
-        if (numVals % Nc) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "The number of components %D does not divide the number of values in the closure %D", Nc, numVals);
+        if (numVals % Nc) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "The number of components %D does not divide the number of values in the closure %D", Nc, numVals);
         switch (numVals / Nc) {
         case 3: /* P1 Triangle */
         case 4: /* P1 Quadrangle */
@@ -209,7 +209,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
         case 8: /* P2 Quadrangle */
           for (va = 0; va < numVals / (2*Nc); ++va) color[va] = PetscDrawRealToColor(PetscRealPart(vals[va * Nc + comp[i] + numVals / (2 * Nc)]), vbound[0], vbound[1]);
           break;
-        default: SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Number of values for cell closure %D cannot be handled", numVals/Nc);
+        default: SETERRQ(PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Number of values for cell closure %D cannot be handled", numVals/Nc);
         }
         ierr = DMPlexVecRestoreClosure(dm, NULL, v, c, &numVals, &vals); CHKERRQ(ierr);
       }
@@ -225,7 +225,7 @@ static PetscErrorCode VecView_Mesh_Local_Draw(Vec v, PetscViewer viewer){
         ierr = PetscDrawTriangle(draw, PetscRealPart(coords[4]), PetscRealPart(coords[5]), PetscRealPart(coords[6]), PetscRealPart(coords[7]), PetscRealPart(coords[0]), PetscRealPart(coords[1]), color[2], color[3], color[0]); CHKERRQ(ierr);
         break;
       default:
-        SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot draw cells of type %s", DMPolytopeTypes[ct]);
+        SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot draw cells of type %s", DMPolytopeTypes[ct]);
         break;
       }
       ierr = DMPlexVecRestoreClosure(dm, coordSection, coordinates, c, NULL, &coords); CHKERRQ(ierr);
@@ -308,7 +308,7 @@ static PetscErrorCode MeshView_Draw(DM dm, PetscViewer viewer){
 
     PetscInt  dim;
     ierr = DMGetCoordinateDim(dm, &dim); CHKERRQ(ierr);
-    if (dim != 2) SETERRQ1(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Cannot draw meshes of dimension %D.", dim);
+    if (dim != 2) SETERRQ(PetscObjectComm((PetscObject) dm), PETSC_ERR_SUP, "Cannot draw meshes of dimension %D.", dim);
   }
 
   Vec          coordinates;
@@ -381,7 +381,7 @@ static PetscErrorCode MeshView_Draw(DM dm, PetscViewer viewer){
                                PETSC_DRAW_WHITE + rank % (PETSC_DRAW_BASIC_COLORS - 2) + 2); CHKERRQ(ierr);
       break;
     default:
-      SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot draw cells of type %s", DMPolytopeTypes[ct]);
+      SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP, "Cannot draw cells of type %s", DMPolytopeTypes[ct]);
       break;
     }
     ierr = DMPlexVecRestoreClosure(dm, coordSection, coordinates, c, NULL, &coords); CHKERRQ(ierr);

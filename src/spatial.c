@@ -138,7 +138,7 @@ static PetscErrorCode MeshSetUp_Periodicity_Local(DM dm, PetscInt bc_1, PetscInt
         break;
       }
     }
-    if (!found) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d with given displacement", bc_2, face1[i], bc_1);
+    if (!found) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d with given displacement", bc_2, face1[i], bc_1);
   }
   for (PetscInt j = 0; j < nface2_loc; j++) {
     PetscBool found = PETSC_FALSE;
@@ -153,7 +153,7 @@ static PetscErrorCode MeshSetUp_Periodicity_Local(DM dm, PetscInt bc_1, PetscInt
         break;
       }
     }
-    if (!found) SETERRQ3(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d with given displacement", bc_1, face2[j], bc_2);
+    if (!found) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Cannot find periodic face on boundary %d for face %d on boundary %d with given displacement", bc_1, face2[j], bc_2);
   }
 
   { // Create PetscSF
@@ -663,31 +663,15 @@ PetscErrorCode MeshDestroy(DM *dm){
 PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char *opt_filename, DM *dm){
   PetscErrorCode ierr;
   PetscInt       dim;
-  DM             foo_dm;
 
   PetscFunctionBeginUser;
-  ierr = DMPlexCreateFromFile(comm, filename, PETSC_TRUE, dm); CHKERRQ(ierr);
-  ierr = DMSetFromOptions(*dm);                                CHKERRQ(ierr);
-  ierr = DMGetDimension(*dm, &dim);                            CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*dm, NULL, "-mesh_view_orig");      CHKERRQ(ierr);
-  ierr = DMSetBasicAdjacency(*dm, PETSC_TRUE, PETSC_FALSE);    CHKERRQ(ierr);
-
-  { // Partitioning: -dm_distribute -dm_distribute_overlap 2
-    PetscPartitioner part;
-    ierr = DMPlexGetPartitioner(*dm, &part);        CHKERRQ(ierr);
-    ierr = PetscPartitionerSetFromOptions(part);    CHKERRQ(ierr);
-    ierr = DMPlexDistribute(*dm, 2, NULL, &foo_dm); CHKERRQ(ierr);
-    if (foo_dm) {
-      ierr = DMDestroy(dm);                         CHKERRQ(ierr);
-      *dm = foo_dm;
-    }
-  }
-
-  { // Boundaries: -dm_plex_create_fv_ghost_cells
-    ierr = DMPlexConstructGhostCells(*dm, NULL, NULL, &foo_dm); CHKERRQ(ierr);
-    ierr = DMDestroy(dm);                                       CHKERRQ(ierr);
-    *dm = foo_dm;
-  }
+  ierr = DMPlexCreateFromFile(comm, filename, "Mesh", PETSC_TRUE, dm);       CHKERRQ(ierr);
+  ierr = DMViewFromOptions(*dm, NULL, "-mesh_view_orig");                    CHKERRQ(ierr);
+  ierr = DMSetBasicAdjacency(*dm, PETSC_TRUE, PETSC_FALSE);                  CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-dm_distribute_overlap", "2");          CHKERRQ(ierr);
+  ierr = PetscOptionsSetValue(NULL, "-dm_plex_create_fv_ghost_cells", NULL); CHKERRQ(ierr);
+  ierr = DMSetFromOptions(*dm);                                              CHKERRQ(ierr);
+  ierr = DMGetDimension(*dm, &dim);                                          CHKERRQ(ierr);
 
   { // Setting PetscFV
     PetscFV      fvm;
@@ -702,10 +686,9 @@ PetscErrorCode MeshLoadFromFile(MPI_Comm comm, const char *filename, const char 
     ierr = DMAddField(*dm, NULL, (PetscObject) fvm);          CHKERRQ(ierr);
   }
 
-  ierr = MeshSetViewer(*dm);                            CHKERRQ(ierr);
-  ierr = MeshSetUp_Ctx(*dm);                            CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) *dm, "Mesh"); CHKERRQ(ierr);
-  ierr = DMViewFromOptions(*dm, NULL, "-mesh_view");    CHKERRQ(ierr);
+  ierr = MeshSetViewer(*dm);                         CHKERRQ(ierr);
+  ierr = MeshSetUp_Ctx(*dm);                         CHKERRQ(ierr);
+  ierr = DMViewFromOptions(*dm, NULL, "-mesh_view"); CHKERRQ(ierr);
 
   { // Setting gradient
     DM      dmGrad;
@@ -817,7 +800,7 @@ PetscErrorCode MeshSetUp(DM dm, Physics phys, const char *filename){
       ierr = YAMLLoadBC(filename, indices[i], phys->dim, phys->bc_ctx + i); CHKERRQ(ierr);
       ierr = PetscFunctionListFind(bcList, phys->bc_ctx[i].type, &bcFunc);  CHKERRQ(ierr);
 
-      if (!bcFunc) SETERRQ1(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", phys->bc_ctx[i].type);
+      if (!bcFunc) SETERRQ(PETSC_COMM_SELF, PETSC_ERR_USER_INPUT, "Unknown boundary condition (%s)", phys->bc_ctx[i].type);
       ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL_RIEMANN, phys->bc_ctx[i].name, label, 1, indices + i, 0, 0, NULL,
                                 bcFunc, NULL, phys->bc_ctx + i, NULL); CHKERRQ(ierr);
 
