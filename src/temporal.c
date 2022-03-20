@@ -13,6 +13,7 @@ struct MonitorFunctionList {
                    {"Draw",         MonitorDraw,         PETSCVIEWERDRAW},
                    {"Draw_NormU",   MonitorDrawNormU,    PETSCVIEWERDRAW},
                    {"Draw_Grad",    MonitorDrawGrad,     PETSCVIEWERDRAW},
+                   {"VTK",          MonitorVTK,          NULL},
                    {NULL,           NULL,                NULL}};
 
 /*
@@ -23,8 +24,9 @@ static PetscErrorCode MonitorCtxDestroy(void **ctx) {
   struct MonitorCtx *mctx = (struct MonitorCtx*) *ctx;
 
   PetscFunctionBeginUser;
-  ierr = PetscViewerDestroy(&mctx->viewer); CHKERRQ(ierr);
-  ierr = PetscFree(mctx);                   CHKERRQ(ierr);
+  ierr = PetscFree(mctx->output_filename_template); CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&mctx->viewer);         CHKERRQ(ierr);
+  ierr = PetscFree(mctx);                           CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -48,6 +50,10 @@ PetscErrorCode TSCreate_User(MPI_Comm comm, TS *ts, const char *filename, DM dm,
       if (MonitorList[i].type) {
         ierr = PetscViewerCreate(comm, &ctx->viewer);                          CHKERRQ(ierr);
         ierr = PetscViewerSetType(ctx->viewer, MonitorList[i].type);           CHKERRQ(ierr);
+      }
+      if (MonitorList[i].func == MonitorVTK) {
+        const char* loc[] = {"MonitorOptions", MonitorList[i].name};
+        ierr = YAMLLoadVarFromLoc(filename, "filename", 2, loc, &ctx->output_filename_template); CHKERRQ(ierr);
       }
       ierr = TSMonitorSet(*ts, MonitorList[i].func, ctx, MonitorCtxDestroy);   CHKERRQ(ierr);
     }

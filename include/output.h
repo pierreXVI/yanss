@@ -8,6 +8,8 @@ struct MonitorCtx {
   PetscInt    n_iter; // Monitor every `n_iter` iteration
   PetscViewer viewer; // PetscViewer used by the monitor
   Physics     phys;   // Physical model
+
+  const char  *output_filename_template; // Output filename template
 };
 
 
@@ -48,6 +50,11 @@ PetscErrorCode MonitorDrawNormU(TS, PetscInt, PetscReal, Vec, void*);
   Draw each field gradients in separate graphic windows
 */
 PetscErrorCode MonitorDrawGrad(TS, PetscInt, PetscReal, Vec, void*);
+
+/*
+  Writes solution in sol_%06i.vtu
+*/
+PetscErrorCode MonitorVTK(TS, PetscInt, PetscReal, Vec, void*);
 
 PetscErrorCode MonitorDEBUG(TS, PetscInt, PetscReal, Vec, void*);
 

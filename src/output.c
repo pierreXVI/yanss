@@ -186,3 +186,14 @@ PetscErrorCode MonitorDEBUG(TS ts, PetscInt steps, PetscReal time, Vec u, void *
 
   PetscFunctionReturn(0);
 }
+
+
+PetscErrorCode MonitorVTK(TS ts, PetscInt steps, PetscReal time, Vec u, void *ctx){
+  PetscErrorCode    ierr;
+  struct MonitorCtx *mctx = (struct MonitorCtx*) ctx;
+
+  PetscFunctionBeginUser;
+  if (steps % mctx->n_iter != 0) PetscFunctionReturn(0);
+  ierr = TSMonitorSolutionVTK(ts, steps, time, u, (void*) mctx->output_filename_template); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
