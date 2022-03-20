@@ -120,10 +120,13 @@ PetscErrorCode PhysicsCreate(Physics *phys, const char *filename, DM dm){
     const char *buffer, *loc = "Physics";
     ierr = YAMLLoadVarFromLoc(filename, "gamma", 1, &loc, &buffer); CHKERRQ(ierr);
     (*phys)->gamma = atof(buffer);
+    ierr = PetscFree(buffer); CHKERRQ(ierr);
     ierr = YAMLLoadVarFromLoc(filename, "r_gas", 1, &loc, &buffer); CHKERRQ(ierr);
     (*phys)->r_gas = atof(buffer);
+    ierr = PetscFree(buffer); CHKERRQ(ierr);
     ierr = YAMLLoadVarFromLoc(filename, "mu", 1, &loc, &buffer); CHKERRQ(ierr);
     (*phys)->mu = atof(buffer);
+    ierr = PetscFree(buffer); CHKERRQ(ierr);
     ierr = YAMLLoadVarFromLoc(filename, "lambda", 1, &loc, &buffer); CHKERRQ(ierr);
     (*phys)->lambda = atof(buffer);
     ierr = PetscFree(buffer); CHKERRQ(ierr);
